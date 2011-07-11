@@ -17,7 +17,7 @@ Tested-With: GHC
 Library
   hs-Source-Dirs: src
   ghc-options: -Wall
-  Build-Depends: base -any, bytestring -any, OpenCLRaw==1.0.*, mtl -any
+  Build-Depends: base -any, bytestring -any, mtl -any
   Exposed-Modules: 
     System.GPU.OpenCL
   Other-Modules: 
