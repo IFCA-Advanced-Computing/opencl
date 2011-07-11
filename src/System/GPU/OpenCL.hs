@@ -17,9 +17,13 @@
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
 module System.GPU.OpenCL( 
   -- * Types
-  CLPlatformInfo(..), CLDeviceType(..), CLPlatformID, CLDeviceID,
-  -- * Functions
-  clGetPlatformIDs, clGetPlatformInfo, clGetDeviceIDs, 
+  CLPlatformInfo(..), CLDeviceType(..), CLPlatformID, CLDeviceID, 
+  CLDeviceFPConfig(..), CLDeviceExecCapability(..), CLDeviceLocalMemType(..),
+  CLDeviceMemCacheType(..), CLCommandQueueProperty(..),
+  -- * Platform Query Functions
+  clGetPlatformIDs, clGetPlatformInfo, 
+  -- * Device Query Functions
+  clGetDeviceIDs, clGetDeviceExecutionCapabilities,
   clGetDeviceAddressBits, clGetDeviceAvailable, clGetDeviceCompilerAvailable, 
   clGetDeviceEndianLittle, clGetDeviceErrorCorrectionSupport, 
   clGetDeviceExtensions, clGetDeviceGlobalMemCacheSize, 
@@ -39,11 +43,14 @@ module System.GPU.OpenCL(
   clGetDevicePreferredVectorWidthInt, clGetDevicePreferredVectorWidthLong, 
   clGetDevicePreferredVectorWidthFloat, clGetDevicePreferredVectorWidthDouble, 
   clGetDeviceProfile, clGetDeviceProfilingTimerResolution, clGetDeviceVendor, 
-  clGetDeviceVendorID, clGetDeviceVersion, clGetDeviceDriverVersion ) 
+  clGetDeviceVendorID, clGetDeviceVersion, clGetDeviceDriverVersion, 
+  clGetDeviceSingleFPConfig, clGetDeviceDoubleFPConfig, 
+  clGetDeviceHalfFPConfig, clGetDeviceLocalMemType, 
+  clGetDeviceGlobalMemCacheType, clGetDeviceQueueProperties, clGetDeviceType )
        where
 
 -- -----------------------------------------------------------------------------
-import Data.Bits( shiftL, complement )
+import Data.Bits( shiftL, complement, (.&.) )
 import Data.Maybe( fromMaybe )
 import Foreign( Ptr, nullPtr, castPtr, alloca, allocaArray, peek, peekArray )
 import Foreign.C.Types( CSize, CULong, CUInt )
@@ -160,7 +167,7 @@ data CLDeviceType = CL_DEVICE_TYPE_CPU
                     -- ^ The default OpenCL device in the system.                    
                   | CL_DEVICE_TYPE_ALL	
                     -- ^ All OpenCL devices available in the system.
-                  deriving( Eq )
+                  deriving( Eq, Show )
 
 deviceTypeValues :: [(CLDeviceType,CULong)]
 deviceTypeValues = [ 
@@ -248,13 +255,61 @@ getDeviceInfoBool infoid device = alloca $ \(dat :: Ptr CUInt) -> do
     where 
       size = fromIntegral $ sizeOf (0::CUInt)
   
--- clDeviceType   0x1000 
--- clDeviceSingleFPConfig   0x101B
--- clDeviceGlobalMemCacheType   0x101C
--- clDeviceMLocalMemType   0x1022
--- clDeviceExecutionCapabilities   0x1029
--- clDeviceQueueProperties   0x102A
--- clDeviceName   0x102B
+data CLDeviceFPConfig = CL_FP_DENORM -- ^ denorms are supported.
+                      | CL_FP_INF_NAN -- ^ INF and NaNs are supported.
+                      | CL_FP_ROUND_TO_NEAREST 
+                        -- ^ round to nearest even rounding mode supported.
+                      | CL_FP_ROUND_TO_ZERO 
+                        -- ^ round to zero rounding mode supported.
+                      | CL_FP_ROUND_TO_INF 
+                        -- ^ round to +ve and -ve infinity rounding modes 
+                        -- supported.
+                      | CL_FP_FMA 
+                        -- ^ IEEE754-2008 fused multiply-add is supported.
+                        deriving( Show )
+                        
+deviceFPValues :: [(CLDeviceFPConfig,CULong)]
+deviceFPValues = [
+  (CL_FP_DENORM, 1 `shiftL` 0), (CL_FP_INF_NAN, 1 `shiftL` 1),
+  (CL_FP_ROUND_TO_NEAREST, 1 `shiftL` 2), (CL_FP_ROUND_TO_ZERO, 1 `shiftL` 3),
+  (CL_FP_ROUND_TO_INF, 1 `shiftL` 4), (CL_FP_FMA, 1 `shiftL` 5)]
+
+data CLDeviceExecCapability = CL_EXEC_KERNEL 
+                              -- ^ The OpenCL device can execute OpenCL kernels.
+                            | CL_EXEC_NATIVE_KERNEL
+                              -- ^ The OpenCL device can execute native kernels.
+                              deriving( Show )
+
+deviceExecValues :: [(CLDeviceExecCapability,CULong)]
+deviceExecValues = [
+  (CL_EXEC_KERNEL, 1 `shiftL` 0), (CL_EXEC_NATIVE_KERNEL, 1 `shiftL` 1)]
+                   
+data CLCommandQueueProperty = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
+                            | CL_QUEUE_PROFILING_ENABLE
+                              deriving( Show )
+                                      
+commandQueueProperties :: [(CLCommandQueueProperty,CULong)]                                      
+commandQueueProperties = [
+  (CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, 1 `shiftL` 0),
+  (CL_QUEUE_PROFILING_ENABLE, 1 `shiftL` 1)]
+
+testMask :: CULong -> (a, CULong) -> Bool
+testMask mask (_,v) = (v .&. mask) == v
+
+bitmaskToFPConfig :: CULong -> [CLDeviceFPConfig]
+bitmaskToFPConfig mask = map fst . filter (testMask mask) $ deviceFPValues
+
+bitmaskToExecCapability :: CULong -> [CLDeviceExecCapability]
+bitmaskToExecCapability mask = map fst . filter (testMask mask) $ deviceExecValues
+
+bitmaskToCommandQueueProperties :: CULong -> [CLCommandQueueProperty]
+bitmaskToCommandQueueProperties mask = map fst . filter (testMask mask) $ commandQueueProperties
+
+bitmaskToDeviceTypes :: CULong -> [CLDeviceType]
+bitmaskToDeviceTypes mask = map fst . filter (testMask mask) $ deviceTypeValues
+        
+getDeviceInfoFP :: CLuint -> CLDeviceID -> IO [CLDeviceFPConfig]
+getDeviceInfoFP infoid device = fmap (bitmaskToFPConfig . fromMaybe 0) $ getDeviceInfoUlong infoid device
 
 -- | The default compute device address space size specified as an unsigned 
 -- integer value in bits. Currently supported values are 32 or 64 bits.
@@ -272,19 +327,14 @@ clGetDeviceAvailable = getDeviceInfoBool 0x1027
 clGetDeviceCompilerAvailable :: CLDeviceID -> IO (Maybe Bool)
 clGetDeviceCompilerAvailable = getDeviceInfoBool 0x1028
 
-{-
-CL_DEVICE_DOUBLE_FP_CONFIG	
-Return type: cl_device_fp_config
-Describes the OPTIONAL double precision floating-point capability of the OpenCL device. This is a bit-field that describes one or more of the following values:
-
-CL_FP_DENORM - denorms are supported.
-CL_FP_INF_NAN - INF and NaNs are supported.
-CL_FP_ROUND_TO_NEAREST - round to nearest even rounding mode supported.
-CL_FP_ROUND_TO_ZERO - round to zero rounding mode supported.
-CL_FP_ROUND_TO_INF - round to +ve and -ve infinity rounding modes supported.
-CP_FP_FMA - IEEE754-2008 fused multiply-add is supported.
-The mandated minimum double precision floating-point capability is CL_FP_FMA | CL_FP_ROUND_TO_NEAREST | CL_FP_ROUND_TO_ZERO | CL_FP_ROUND_TO_INF | CL_FP_INF_NAN | CL_FP_DENORM.
--}
+-- | Describes the OPTIONAL double precision floating-point capability of the 
+-- OpenCL device. This is a bit-field that describes one or more of the 
+-- 'CLDeviceFPConfig' values.
+-- The mandated minimum double precision floating-point capability is 
+-- 'CL_FP_FMA' | 'CL_FP_ROUND_TO_NEAREST' | 'CL_FP_ROUND_TO_ZERO' | 
+-- 'CL_FP_ROUND_TO_INF' | 'CL_FP_INF_NAN' | 'CL_FP_DENORM'.
+clGetDeviceDoubleFPConfig :: CLDeviceID -> IO [CLDeviceFPConfig]
+clGetDeviceDoubleFPConfig = getDeviceInfoFP 0x1032
 
 -- | Is 'True' if the OpenCL device is a little endian device and 'False' 
 -- otherwise.
@@ -298,16 +348,11 @@ clGetDeviceEndianLittle = getDeviceInfoBool 0x1026
 clGetDeviceErrorCorrectionSupport :: CLDeviceID -> IO (Maybe Bool)
 clGetDeviceErrorCorrectionSupport = getDeviceInfoBool 0x1024
 
-{-
-CL_DEVICE_EXECUTION_CAPABILITIES	
-Return type: cl_device_exec_capabilities
-Describes the execution capabilities of the device. This is a bit-field that describes one or more of the following values:
-
-CL_EXEC_KERNEL - The OpenCL device can execute OpenCL kernels.
-CL_EXEC_NATIVE_KERNEL - The OpenCL device can execute native kernels.
-
-The mandated minimum capability is CL_EXEC_KERNEL.
--}
+-- | Describes the execution capabilities of the device. This is a list that 
+-- describes one or more of the 'CLDeviceExecCapability' values.
+-- The mandated minimum capability is 'CL_EXEC_KERNEL'.
+clGetDeviceExecutionCapabilities :: CLDeviceID -> IO [CLDeviceExecCapability]
+clGetDeviceExecutionCapabilities device = fmap (bitmaskToExecCapability . fromMaybe 0) $ getDeviceInfoUlong 0x1029 device
 
 -- | Returns a space separated list of extension names (the extension names 
 -- themselves do not contain any spaces). The list of extension names returned 
@@ -341,11 +386,18 @@ clGetDeviceExtensions = getDeviceInfoString 0x1030
 clGetDeviceGlobalMemCacheSize :: CLDeviceID -> IO (Maybe CULong)
 clGetDeviceGlobalMemCacheSize = getDeviceInfoUlong 0x101E
 
-{-
-CL_DEVICE_GLOBAL_MEM_CACHE_TYPE	
-Return type: cl_device_mem_cache_type
-Type of global memory cache supported. Valid values are: CL_NONE, CL_READ_ONLY_CACHE, and CL_READ_WRITE_CACHE.
--}
+data CLDeviceMemCacheType = CL_NONE | CL_READ_ONLY_CACHE | CL_READ_WRITE_CACHE
+                          deriving( Show )
+deviceMemCacheTypes :: [(CUInt,CLDeviceMemCacheType)]
+deviceMemCacheTypes = [
+  (0x0,CL_NONE), (0x1,CL_READ_ONLY_CACHE),(0x2,CL_READ_WRITE_CACHE)]
+getDeviceMemCacheType :: CUInt -> Maybe CLDeviceMemCacheType
+getDeviceMemCacheType val = lookup val deviceMemCacheTypes
+
+-- | Type of global memory cache supported. Valid values are: 'CL_NONE', 
+-- 'CL_READ_ONLY_CACHE', and 'CL_READ_WRITE_CACHE'.
+clGetDeviceGlobalMemCacheType :: CLDeviceID -> IO (Maybe CLDeviceMemCacheType)
+clGetDeviceGlobalMemCacheType device = getDeviceInfoUint 0x101C device >>= return . maybe Nothing getDeviceMemCacheType
 
 -- | Size of global memory cache line in bytes.
 clGetDeviceGlobalMemCachelineSize :: CLDeviceID -> IO (Maybe CUInt)
@@ -355,19 +407,14 @@ clGetDeviceGlobalMemCachelineSize = getDeviceInfoUint 0x101D
 clGetDeviceGlobalMemSize :: CLDeviceID -> IO (Maybe CULong)
 clGetDeviceGlobalMemSize = getDeviceInfoUlong 0x101F
 
-{-
-CL_DEVICE_HALF_FP_CONFIG	
-Return type: cl_device_fp_config
-Describes the OPTIONAL half precision floating-point capability of the OpenCL device. This is a bit-field that describes one or more of the following values:
-
-CL_FP_DENORM - denorms are supported.
-CL_FP_INF_NAN - INF and NaNs are supported.
-CL_FP_ROUND_TO_NEAREST - round to nearest even rounding mode supported.
-CL_FP_ROUND_TO_ZERO - round to zero rounding mode supported.
-CL_FP_ROUND_TO_INF - round to +ve and -ve infinity rounding modes supported.
-CP_FP_FMA - IEEE754-2008 fused multiply-add is supported.
-The required minimum half precision floating-point capability as implemented by this extension is CL_FP_ROUND_TO_ZERO | CL_FP_ROUND_TO_INF | CL_FP_INF_NAN.
--}
+-- | Describes the OPTIONAL half precision floating-point capability of the 
+-- OpenCL device. This is a bit-field that describes one or more of the 
+-- 'CLDeviceFPConfig' values.
+-- The required minimum half precision floating-point capability as implemented 
+-- by this extension is 'CL_FP_ROUND_TO_ZERO' | 'CL_FP_ROUND_TO_INF' | 
+-- 'CL_FP_INF_NAN'.
+clGetDeviceHalfFPConfig :: CLDeviceID -> IO [CLDeviceFPConfig]
+clGetDeviceHalfFPConfig = getDeviceInfoFP 0x1033
 
 -- | Is 'True' if images are supported by the OpenCL device and 'False' otherwise.
 clGetDeviceImageSupport :: CLDeviceID -> IO (Maybe Bool)
@@ -402,11 +449,17 @@ clGetDeviceImage3DMaxWidth = getDeviceInfoSizet 0x1013
 clGetDeviceLocalMemSize :: CLDeviceID -> IO (Maybe CULong)
 clGetDeviceLocalMemSize = getDeviceInfoUlong 0x1023
 
-{-
-CL_DEVICE_LOCAL_MEM_TYPE	
-Return type: cl_device_local_mem_type
-Type of local memory supported. This can be set to CL_LOCAL implying dedicated local memory storage such as SRAM, or CL_GLOBAL.
--}
+data CLDeviceLocalMemType = CL_LOCAL | CL_GLOBAL deriving( Show )
+
+deviceLocalMemTypes :: [(CUInt,CLDeviceLocalMemType)]
+deviceLocalMemTypes = [(0x1,CL_LOCAL), (0x2,CL_GLOBAL)]
+getDeviceLocalMemType :: CUInt -> Maybe CLDeviceLocalMemType
+getDeviceLocalMemType val = lookup val deviceLocalMemTypes
+
+-- | Type of local memory supported. This can be set to 'CL_LOCAL' implying 
+-- dedicated local memory storage such as SRAM, or 'CL_GLOBAL'.
+clGetDeviceLocalMemType :: CLDeviceID -> IO (Maybe CLDeviceLocalMemType)
+clGetDeviceLocalMemType device = getDeviceInfoUint 0x1022 device >>= return . maybe Nothing getDeviceLocalMemType
 
 -- | Maximum configured clock frequency of the device in MHz.
 clGetDeviceMaxClockFrequency :: CLDeviceID -> IO (Maybe CUInt)
@@ -559,33 +612,25 @@ clGetDeviceProfile = getDeviceInfoString 0x102E
 clGetDeviceProfilingTimerResolution :: CLDeviceID -> IO (Maybe CSize)
 clGetDeviceProfilingTimerResolution = getDeviceInfoSizet 0x1025
 
-{-
-CL_DEVICE_QUEUE_PROPERTIES	
-Return type: cl_command_queue_properties
-Describes the command-queue properties supported by the device. This is a bit-field that describes one or more of the following values:
+-- | Describes the command-queue properties supported by the device. This is a 
+-- list that describes one or more of the CLCommandQueueProperty values.
+-- These properties are described in the table for 'clCreateCommandQueue'. 
+-- The mandated minimum capability is 'CL_QUEUE_PROFILING_ENABLE'.
+clGetDeviceQueueProperties :: CLDeviceID -> IO [CLCommandQueueProperty]
+clGetDeviceQueueProperties device = fmap (bitmaskToCommandQueueProperties . fromMaybe 0) $ getDeviceInfoUlong 0x102A device
 
-CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
-CL_QUEUE_PROFILING_ENABLE
+-- | Describes single precision floating-point capability of the device. This is 
+-- a bit-field that describes one or more of the 'CLDeviceFPConfig' values.
+-- The mandated minimum floating-point capability is 'CL_FP_ROUND_TO_NEAREST' | 
+-- 'CL_FP_INF_NAN'.
+clGetDeviceSingleFPConfig :: CLDeviceID -> IO [CLDeviceFPConfig]
+clGetDeviceSingleFPConfig = getDeviceInfoFP 0x101B
 
-These properties are described in the table for clCreateCommandQueue. The mandated minimum capability is CL_QUEUE_PROFILING_ENABLE.
-
-CL_DEVICE_SINGLE_FP_CONFIG	
-Return type: cl_device_fp_config
-Describes single precision floating-point capability of the device. This is a bit-field that describes one or more of the following values:
-
-CL_FP_DENORM - denorms are supported
-CL_FP_INF_NAN - INF and quiet NaNs are supported
-CL_FP_ROUND_TO_NEAREST - round to nearest even rounding mode supported
-CL_FP_ROUND_TO_ZERO - round to zero rounding mode supported
-CL_FP_ROUND_TO_INF - round to +ve and -ve infinity rounding modes supported
-CL_FP_FMA - IEEE754-2008 fused multiply-add is supported
-
-The mandated minimum floating-point capability is CL_FP_ROUND_TO_NEAREST | CL_FP_INF_NAN.
-
-CL_DEVICE_TYPE	
-Return type: cl_device_type
-The OpenCL device type. Currently supported values are one of or a combination of: CL_DEVICE_TYPE_CPU, CL_DEVICE_TYPE_GPU, CL_DEVICE_TYPE_ACCELERATOR, or CL_DEVICE_TYPE_DEFAULT.
--}
+-- | The OpenCL device type. Currently supported values are one of or a 
+-- combination of: 'CL_DEVICE_TYPE_CPU', 'CL_DEVICE_TYPE_GPU', 
+-- 'CL_DEVICE_TYPE_ACCELERATOR', or 'CL_DEVICE_TYPE_DEFAULT'.
+clGetDeviceType :: CLDeviceID -> IO [CLDeviceType]
+clGetDeviceType device = fmap (bitmaskToDeviceTypes . fromMaybe 0) $ getDeviceInfoUlong 0x1000 device
 
 -- | Vendor name string.
 clGetDeviceVendor :: CLDeviceID -> IO (Maybe String)
