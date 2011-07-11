@@ -1,0 +1,3 @@
+OpenCL highlevel wrapper for Haskell.
+
+Based on Jeff Heard OpenCLRaw.

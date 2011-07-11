@@ -1,0 +1,25 @@
+Name: OpenCL
+Version: 1.0.0.1
+Cabal-Version: >=1.8
+License: GPL
+License-File: LICENSE
+Author: Luis Cabellos
+Copyright: (c) 2011 Luis Cabellos
+Category: GPU
+Build-Type: Simple
+Stability: Experimental
+Maintainer: Luis Cabellos
+Homepage: https://github.com/zhensydow/opencl
+Synopsis: Haskell high-level wrapper for OpenCL
+bug-reports: https://github.com/zhensydow/opencl/issues
+Tested-With: GHC
+
+Library
+  hs-Source-Dirs: src
+  ghc-options: -Wall
+  Build-Depends: base -any, bytestring -any, OpenCLRaw==1.0.*, mtl -any
+  Exposed-Modules: 
+    System.GPU.OpenCL
+  Other-Modules: 
+    System.GPU.OpenCL.Types
+    System.GPU.OpenCL.Errors
