@@ -20,6 +20,7 @@ Library
   Build-Depends: base -any, bytestring -any, mtl -any
   Exposed-Modules: 
     System.GPU.OpenCL
+    System.GPU.OpenCL.Query
   Other-Modules: 
     System.GPU.OpenCL.Types
     System.GPU.OpenCL.Errors
