@@ -1,5 +1,5 @@
 -- -----------------------------------------------------------------------------
--- This file is part of Skema.
+-- This file is part of Haskell-Opencl.
 
 -- Haskell-Opencl is free software: you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -14,14 +14,18 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
-module System.GPU.OpenCL.Types( ErrorCode(..), CLPlatformID, CLuint, CLint ) where
+module System.GPU.OpenCL.Types( 
+  ErrorCode(..), CLPlatformID, CLDeviceID, CLuint, CLint ) 
+       where
 
 import Foreign( Ptr )
 import Foreign.C.Types( CUInt, CInt )
 
 data PlatformIDc = PlatformIDc
+data DeviceIDc = DeviceIDc
 
 type CLPlatformID = Ptr PlatformIDc
+type CLDeviceID = Ptr DeviceIDc
 
 type CLint = CInt
 type CLuint = CUInt
