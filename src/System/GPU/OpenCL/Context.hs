@@ -14,13 +14,7 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
-module System.GPU.OpenCL( 
-  module System.GPU.OpenCL.Query,
-  module System.GPU.OpenCL.Context )
+module System.GPU.OpenCL.Context()
        where
-
--- -----------------------------------------------------------------------------
-import System.GPU.OpenCL.Query
-import System.GPU.OpenCL.Context
 
 -- -----------------------------------------------------------------------------
