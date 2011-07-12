@@ -16,14 +16,16 @@
 -- -----------------------------------------------------------------------------
 module System.GPU.OpenCL.Types( 
   ErrorCode(..), CLPlatformID, CLDeviceID, CLContext, 
-  CLDeviceType(..), getDeviceTypeValue, bitmaskToDeviceTypes ) 
+  CLDeviceType(..), getDeviceTypeValue, bitmaskToDeviceTypes, 
+  bitmaskFromDeviceTypes ) 
        where
 
 -- -----------------------------------------------------------------------------
 import Foreign( Ptr )
-import Foreign.C.Types( CUInt, CInt, CULong )
-import Data.Maybe( fromMaybe )
-import Data.Bits( shiftL, complement )
+import Foreign.C.Types( CInt, CULong )
+import Data.Maybe( fromMaybe, mapMaybe )
+import Data.List( foldl1' )
+import Data.Bits( shiftL, complement, (.|.) )
 import System.GPU.OpenCL.Util( testMask )
 
 -- -----------------------------------------------------------------------------
@@ -67,5 +69,8 @@ getDeviceTypeValue info = fromMaybe 0 (lookup info deviceTypeValues)
 
 bitmaskToDeviceTypes :: CULong -> [CLDeviceType]
 bitmaskToDeviceTypes mask = map fst . filter (testMask mask) $ deviceTypeValues
+
+bitmaskFromDeviceTypes :: [CLDeviceType] -> CULong
+bitmaskFromDeviceTypes = foldl1' (.|.) . mapMaybe (`lookup` deviceTypeValues)
         
 -- -----------------------------------------------------------------------------

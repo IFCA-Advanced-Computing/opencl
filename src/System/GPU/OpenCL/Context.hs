@@ -19,24 +19,28 @@ module System.GPU.OpenCL.Context(
   -- * Types
   CLContext,
   -- * Context Functions
-  clCreateContext )
-       where
+  clCreateContext, clCreateContextFromType )
+    where
 
 -- -----------------------------------------------------------------------------
 import Foreign( 
   Ptr, FunPtr, nullPtr, alloca, allocaArray, peek, pokeArray )
-import Foreign.C.Types( CSize, CInt, CUInt )
+import Foreign.C.Types( CSize, CInt, CUInt, CULong )
 import Foreign.C.String( CString, peekCString )
-import System.GPU.OpenCL.Types( CLDeviceID, CLContext )
+import System.GPU.OpenCL.Types( 
+  CLDeviceID, CLContext, CLDeviceType, bitmaskFromDeviceTypes )
 import System.GPU.OpenCL.Errors( ErrorCode(..), clSuccess )
 
 -- -----------------------------------------------------------------------------
 type ContextCallback = CString -> Ptr () -> CSize -> Ptr () -> IO ()
-foreign import ccall "clCreateContext" raw_clCreateContext ::
-    Ptr (Ptr CInt) -> CUInt -> Ptr CLDeviceID -> FunPtr ContextCallback -> 
-    Ptr () -> Ptr CInt -> IO CLContext
 foreign import ccall "wrapper" wrapContextCallback :: 
-    ContextCallback -> IO (FunPtr ContextCallback)
+  ContextCallback -> IO (FunPtr ContextCallback)
+foreign import ccall "clCreateContext" raw_clCreateContext ::
+  Ptr (Ptr CInt) -> CUInt -> Ptr CLDeviceID -> FunPtr ContextCallback -> 
+  Ptr () -> Ptr CInt -> IO CLContext
+foreign import ccall "clCreateContextFromType" raw_clCreateContextFromType :: 
+  Ptr (Ptr CInt) -> CULong -> FunPtr ContextCallback -> 
+  Ptr () -> Ptr CInt -> IO CLContext
 
 -- -----------------------------------------------------------------------------
 mkContextCallback :: (String -> IO ()) -> ContextCallback
@@ -60,5 +64,18 @@ clCreateContext devs f = allocaArray ndevs $ \pdevs -> do
     where
       ndevs = length devs
       cndevs = fromIntegral ndevs
+
+-- | Create an OpenCL context from a device type that identifies the specific 
+-- device(s) to use.
+clCreateContextFromType :: [CLDeviceType] -> (String -> IO ()) -> IO (Maybe CLContext)
+clCreateContextFromType xs f = alloca $ \perr -> do
+  fptr <- wrapContextCallback $ mkContextCallback f
+  context <- raw_clCreateContextFromType nullPtr types fptr nullPtr perr
+  errcode <- peek perr >>= return . ErrorCode
+  if errcode == clSuccess
+    then return . Just $ context
+    else return Nothing
+    where
+      types = bitmaskFromDeviceTypes xs
 
 -- -----------------------------------------------------------------------------
