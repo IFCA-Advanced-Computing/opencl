@@ -15,7 +15,7 @@
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
 module System.GPU.OpenCL.Types( 
-  ErrorCode(..), CLPlatformID, CLDeviceID, CLuint, CLint ) 
+  ErrorCode(..), CLPlatformID, CLDeviceID, CLContext, CLuint, CLint ) 
        where
 
 import Foreign( Ptr )
@@ -23,9 +23,11 @@ import Foreign.C.Types( CUInt, CInt )
 
 data PlatformIDc = PlatformIDc
 data DeviceIDc = DeviceIDc
+data Contextc = Contextc
 
 type CLPlatformID = Ptr PlatformIDc
 type CLDeviceID = Ptr DeviceIDc
+type CLContext = Ptr Contextc
 
 type CLint = CInt
 type CLuint = CUInt
