@@ -19,7 +19,7 @@ module System.GPU.OpenCL.Context(
   -- * Types
   CLContext,
   -- * Context Functions
-  clCreateContext, clCreateContextFromType )
+  clCreateContext, clCreateContextFromType, clRetainContext, clReleaseContext )
     where
 
 -- -----------------------------------------------------------------------------
@@ -41,6 +41,10 @@ foreign import ccall "clCreateContext" raw_clCreateContext ::
 foreign import ccall "clCreateContextFromType" raw_clCreateContextFromType :: 
   Ptr (Ptr CInt) -> CULong -> FunPtr ContextCallback -> 
   Ptr () -> Ptr CInt -> IO CLContext
+foreign import ccall "clRetainContext" raw_clRetainContext :: 
+  CLContext -> IO CInt
+foreign import ccall "clReleaseContext" raw_clReleaseContext :: 
+  CLContext -> IO CInt
 
 -- -----------------------------------------------------------------------------
 mkContextCallback :: (String -> IO ()) -> ContextCallback
@@ -77,5 +81,28 @@ clCreateContextFromType xs f = alloca $ \perr -> do
     else return Nothing
     where
       types = bitmaskFromDeviceTypes xs
+
+-- | Increment the context reference count.
+-- 'clCreateContext' and 'clCreateContextFromType' perform an implicit retain. 
+-- This is very helpful for 3rd party libraries, which typically get a context 
+-- passed to them by the application. However, it is possible that the 
+-- application may delete the context without informing the library. Allowing 
+-- functions to attach to (i.e. retain) and release a context solves the 
+-- problem of a context being used by a library no longer being valid.
+-- Returns 'True' if the function is executed successfully, or 'False' if 
+-- context is not a valid OpenCL context.
+clRetainContext :: CLContext -> IO Bool
+clRetainContext ctx = raw_clRetainContext ctx 
+                      >>= return . (==clSuccess) . ErrorCode
+
+-- | Decrement the context reference count.
+-- After the context reference count becomes zero and all the objects attached 
+-- to context (such as memory objects, command-queues) are released, the 
+-- context is deleted.
+-- Returns 'True' if the function is executed successfully, or 'False' if 
+-- context is not a valid OpenCL context.
+clReleaseContext :: CLContext -> IO Bool
+clReleaseContext ctx = raw_clReleaseContext ctx 
+                       >>= return . (==clSuccess) . ErrorCode
 
 -- -----------------------------------------------------------------------------
