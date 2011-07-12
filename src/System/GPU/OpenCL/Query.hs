@@ -17,9 +17,9 @@
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
 module System.GPU.OpenCL.Query( 
   -- * Types
-  CLPlatformInfo(..), CLPlatformID, CLDeviceID, 
+  CLPlatformInfo(..), CLPlatformID, CLDeviceID, CLDeviceType(..),
   CLDeviceFPConfig(..), CLDeviceExecCapability(..), CLDeviceLocalMemType(..),
-  CLDeviceMemCacheType(..), CLCommandQueueProperty(..),
+  CLDeviceMemCacheType(..),
   -- * Platform Query Functions
   clGetPlatformIDs, clGetPlatformInfo, 
   -- * Device Query Functions
@@ -57,8 +57,8 @@ import Foreign.C.Types( CSize, CULong, CUInt, CInt )
 import Foreign.C.String( CString, peekCString )
 import Foreign.Storable( sizeOf )
 import System.GPU.OpenCL.Types( 
-  CLPlatformID, CLDeviceID, CLDeviceType(..), getDeviceTypeValue, 
-  bitmaskToDeviceTypes )
+  CLPlatformID, CLDeviceID, CLDeviceType(..), CLCommandQueueProperty, 
+  getDeviceTypeValue, bitmaskToDeviceTypes, bitmaskToCommandQueueProperties )
 import System.GPU.OpenCL.Errors( ErrorCode(..), clSuccess )
 import System.GPU.OpenCL.Util( testMask )
 
@@ -261,23 +261,11 @@ deviceExecValues :: [(CLDeviceExecCapability,CULong)]
 deviceExecValues = [
   (CL_EXEC_KERNEL, 1 `shiftL` 0), (CL_EXEC_NATIVE_KERNEL, 1 `shiftL` 1)]
                    
-data CLCommandQueueProperty = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
-                            | CL_QUEUE_PROFILING_ENABLE
-                              deriving( Show )
-                                      
-commandQueueProperties :: [(CLCommandQueueProperty,CULong)]                                      
-commandQueueProperties = [
-  (CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, 1 `shiftL` 0),
-  (CL_QUEUE_PROFILING_ENABLE, 1 `shiftL` 1)]
-
 bitmaskToFPConfig :: CULong -> [CLDeviceFPConfig]
 bitmaskToFPConfig mask = map fst . filter (testMask mask) $ deviceFPValues
 
 bitmaskToExecCapability :: CULong -> [CLDeviceExecCapability]
 bitmaskToExecCapability mask = map fst . filter (testMask mask) $ deviceExecValues
-
-bitmaskToCommandQueueProperties :: CULong -> [CLCommandQueueProperty]
-bitmaskToCommandQueueProperties mask = map fst . filter (testMask mask) $ commandQueueProperties
 
 getDeviceInfoFP :: CUInt -> CLDeviceID -> IO [CLDeviceFPConfig]
 getDeviceInfoFP infoid device = fmap (bitmaskToFPConfig . fromMaybe 0) $ getDeviceInfoUlong infoid device
