@@ -25,7 +25,7 @@ module System.GPU.OpenCL.Types(
 import Foreign( Ptr )
 import Foreign.C.Types( CInt, CULong )
 import Data.Maybe( fromMaybe, mapMaybe )
-import Data.List( foldl1' )
+import Data.List( foldl' )
 import Data.Bits( shiftL, complement, (.|.) )
 import System.GPU.OpenCL.Util( testMask )
 
@@ -88,12 +88,12 @@ bitmaskToDeviceTypes :: CULong -> [CLDeviceType]
 bitmaskToDeviceTypes mask = map fst . filter (testMask mask) $ deviceTypeValues
 
 bitmaskFromDeviceTypes :: [CLDeviceType] -> CULong
-bitmaskFromDeviceTypes = foldl1' (.|.) . mapMaybe (`lookup` deviceTypeValues)
+bitmaskFromDeviceTypes = foldl' (.|.) 0 . mapMaybe (`lookup` deviceTypeValues)
   
 bitmaskToCommandQueueProperties :: CULong -> [CLCommandQueueProperty]
 bitmaskToCommandQueueProperties mask = map fst . filter (testMask mask) $ commandQueueProperties
       
 bitmaskFromCommandQueueProperties :: [CLCommandQueueProperty] -> CULong
-bitmaskFromCommandQueueProperties = foldl1' (.|.) . mapMaybe (`lookup` commandQueueProperties)
+bitmaskFromCommandQueueProperties = foldl' (.|.) 0 . mapMaybe (`lookup` commandQueueProperties)
 
 -- -----------------------------------------------------------------------------
