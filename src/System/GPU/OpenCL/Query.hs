@@ -17,7 +17,7 @@
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
 module System.GPU.OpenCL.Query( 
   -- * Types
-  CLPlatformInfo(..), CLDeviceType(..), CLPlatformID, CLDeviceID, 
+  CLPlatformInfo(..), CLPlatformID, CLDeviceID, 
   CLDeviceFPConfig(..), CLDeviceExecCapability(..), CLDeviceLocalMemType(..),
   CLDeviceMemCacheType(..), CLCommandQueueProperty(..),
   -- * Platform Query Functions
@@ -50,14 +50,15 @@ module System.GPU.OpenCL.Query(
        where
 
 -- -----------------------------------------------------------------------------
-import Data.Bits( shiftL, complement, (.&.) )
+import Data.Bits( shiftL )
 import Data.Maybe( fromMaybe )
 import Foreign( Ptr, nullPtr, castPtr, alloca, allocaArray, peek, peekArray )
 import Foreign.C.Types( CSize, CULong, CUInt )
 import Foreign.C.String( CString, peekCString )
 import Foreign.Storable( sizeOf )
-import System.GPU.OpenCL.Types( CLPlatformID, CLDeviceID, CLuint, CLint )
+import System.GPU.OpenCL.Types( CLPlatformID, CLDeviceID, CLuint, CLint, CLDeviceType(..), getDeviceTypeValue, bitmaskToDeviceTypes )
 import System.GPU.OpenCL.Errors( ErrorCode(..), clSuccess )
+import System.GPU.OpenCL.Util( testMask )
 
 -- -----------------------------------------------------------------------------
 foreign import ccall "clGetPlatformIDs" raw_clGetPlatformIDs :: 
@@ -151,32 +152,6 @@ clGetPlatformInfo platform infoid = do
       infoval = getPlatformInfoValue infoid
 
 -- -----------------------------------------------------------------------------
-data CLDeviceType = CL_DEVICE_TYPE_CPU 
-                    -- ^ An OpenCL device that is the host processor. The host 
-                    -- processor runs the OpenCL implementations and is a single 
-                    -- or multi-core CPU.
-                  | CL_DEVICE_TYPE_GPU	
-                    -- ^ An OpenCL device that is a GPU. By this we mean that 
-                    -- the device can also be used to accelerate a 3D API such 
-                    -- as OpenGL or DirectX.
-                  | CL_DEVICE_TYPE_ACCELERATOR	
-                    -- ^ Dedicated OpenCL accelerators (for example the IBM CELL 
-                    -- Blade). These devices communicate with the host processor 
-                    -- using a peripheral interconnect such as PCIe.
-                  | CL_DEVICE_TYPE_DEFAULT 
-                    -- ^ The default OpenCL device in the system.                    
-                  | CL_DEVICE_TYPE_ALL	
-                    -- ^ All OpenCL devices available in the system.
-                  deriving( Eq, Show )
-
-deviceTypeValues :: [(CLDeviceType,CULong)]
-deviceTypeValues = [ 
-  (CL_DEVICE_TYPE_CPU, 1 `shiftL` 1), (CL_DEVICE_TYPE_GPU, 1 `shiftL` 2), 
-  (CL_DEVICE_TYPE_ACCELERATOR, 1 `shiftL` 3), (CL_DEVICE_TYPE_DEFAULT, 1 `shiftL` 0),
-  (CL_DEVICE_TYPE_ALL, complement 0) ]
-getDeviceTypeValue :: CLDeviceType -> CULong
-getDeviceTypeValue info = fromMaybe 0 (lookup info deviceTypeValues)
-
 getNumDevices :: CLPlatformID -> CULong -> IO (Maybe CLuint)
 getNumDevices platform dtype = alloca $ \(num_devices :: Ptr CLuint) -> do
   errcode <- fmap ErrorCode $ raw_clGetDeviceIDs platform dtype 0 nullPtr num_devices
@@ -293,9 +268,6 @@ commandQueueProperties = [
   (CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, 1 `shiftL` 0),
   (CL_QUEUE_PROFILING_ENABLE, 1 `shiftL` 1)]
 
-testMask :: CULong -> (a, CULong) -> Bool
-testMask mask (_,v) = (v .&. mask) == v
-
 bitmaskToFPConfig :: CULong -> [CLDeviceFPConfig]
 bitmaskToFPConfig mask = map fst . filter (testMask mask) $ deviceFPValues
 
@@ -305,9 +277,6 @@ bitmaskToExecCapability mask = map fst . filter (testMask mask) $ deviceExecValu
 bitmaskToCommandQueueProperties :: CULong -> [CLCommandQueueProperty]
 bitmaskToCommandQueueProperties mask = map fst . filter (testMask mask) $ commandQueueProperties
 
-bitmaskToDeviceTypes :: CULong -> [CLDeviceType]
-bitmaskToDeviceTypes mask = map fst . filter (testMask mask) $ deviceTypeValues
-        
 getDeviceInfoFP :: CLuint -> CLDeviceID -> IO [CLDeviceFPConfig]
 getDeviceInfoFP infoid device = fmap (bitmaskToFPConfig . fromMaybe 0) $ getDeviceInfoUlong infoid device
 

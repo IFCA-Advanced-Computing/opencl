@@ -14,15 +14,13 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
-module System.GPU.OpenCL( 
-  module System.GPU.OpenCL.Types,
-  module System.GPU.OpenCL.Query,
-  module System.GPU.OpenCL.Context )
-       where
+module System.GPU.OpenCL.Util( testMask ) where
 
 -- -----------------------------------------------------------------------------
-import System.GPU.OpenCL.Types( CLDeviceType(..) )
-import System.GPU.OpenCL.Query
-import System.GPU.OpenCL.Context
+import Data.Bits( Bits, (.&.) )
+
+-- -----------------------------------------------------------------------------
+testMask :: Bits b => b -> (a, b) -> Bool
+testMask mask (_,v) = (v .&. mask) == v
 
 -- -----------------------------------------------------------------------------

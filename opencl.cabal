@@ -22,6 +22,7 @@ Library
     System.GPU.OpenCL
     System.GPU.OpenCL.Query
     System.GPU.OpenCL.Context
-  Other-Modules: 
     System.GPU.OpenCL.Types
+  Other-Modules: 
+    System.GPU.OpenCL.Util
     System.GPU.OpenCL.Errors
