@@ -15,7 +15,7 @@
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
 module System.GPU.OpenCL.Types( 
-  ErrorCode(..), CLPlatformID, CLDeviceID, CLContext, CLuint, CLint, 
+  ErrorCode(..), CLPlatformID, CLDeviceID, CLContext, 
   CLDeviceType(..), getDeviceTypeValue, bitmaskToDeviceTypes ) 
        where
 
@@ -36,10 +36,7 @@ type CLPlatformID = Ptr PlatformIDc
 type CLDeviceID = Ptr DeviceIDc
 type CLContext = Ptr Contextc
 
-type CLint = CInt
-type CLuint = CUInt
-
-newtype ErrorCode = ErrorCode CLint deriving( Eq )
+newtype ErrorCode = ErrorCode CInt deriving( Eq )
 
 -- -----------------------------------------------------------------------------
 data CLDeviceType = CL_DEVICE_TYPE_CPU 

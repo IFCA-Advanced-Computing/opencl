@@ -53,26 +53,28 @@ module System.GPU.OpenCL.Query(
 import Data.Bits( shiftL )
 import Data.Maybe( fromMaybe )
 import Foreign( Ptr, nullPtr, castPtr, alloca, allocaArray, peek, peekArray )
-import Foreign.C.Types( CSize, CULong, CUInt )
+import Foreign.C.Types( CSize, CULong, CUInt, CInt )
 import Foreign.C.String( CString, peekCString )
 import Foreign.Storable( sizeOf )
-import System.GPU.OpenCL.Types( CLPlatformID, CLDeviceID, CLuint, CLint, CLDeviceType(..), getDeviceTypeValue, bitmaskToDeviceTypes )
+import System.GPU.OpenCL.Types( 
+  CLPlatformID, CLDeviceID, CLDeviceType(..), getDeviceTypeValue, 
+  bitmaskToDeviceTypes )
 import System.GPU.OpenCL.Errors( ErrorCode(..), clSuccess )
 import System.GPU.OpenCL.Util( testMask )
 
 -- -----------------------------------------------------------------------------
 foreign import ccall "clGetPlatformIDs" raw_clGetPlatformIDs :: 
-  CLuint -> Ptr CLPlatformID -> Ptr CLuint -> IO CLint
+  CUInt -> Ptr CLPlatformID -> Ptr CUInt -> IO CInt
 foreign import ccall "clGetPlatformInfo" raw_clGetPlatformInfo :: 
-  CLPlatformID -> CLuint -> CSize -> Ptr () -> Ptr CSize -> IO CLint 
+  CLPlatformID -> CUInt -> CSize -> Ptr () -> Ptr CSize -> IO CInt 
 foreign import ccall "clGetDeviceIDs" raw_clGetDeviceIDs :: 
-  CLPlatformID -> CULong -> CLuint -> Ptr CLDeviceID -> Ptr CLuint -> IO CLint
+  CLPlatformID -> CULong -> CUInt -> Ptr CLDeviceID -> Ptr CUInt -> IO CInt
 foreign import ccall "clGetDeviceInfo" raw_clGetDeviceInfo :: 
-  CLDeviceID -> CLuint -> CSize -> Ptr () -> Ptr CSize -> IO CLint
+  CLDeviceID -> CUInt -> CSize -> Ptr () -> Ptr CSize -> IO CInt
 
 -- -----------------------------------------------------------------------------
-getNumPlatforms :: IO (Maybe CLuint)
-getNumPlatforms = alloca $ \(num_platforms :: Ptr CLuint) -> do
+getNumPlatforms :: IO (Maybe CUInt)
+getNumPlatforms = alloca $ \(num_platforms :: Ptr CUInt) -> do
   errcode <- fmap ErrorCode $ raw_clGetPlatformIDs 0 nullPtr num_platforms
   if errcode == clSuccess
     then fmap Just $ peek num_platforms
@@ -91,7 +93,7 @@ clGetPlatformIDs = do
         then peekArray (fromIntegral n) plats
         else return []
 
-getPlatformInfoSize :: CLPlatformID -> CLuint -> IO (Maybe CSize)
+getPlatformInfoSize :: CLPlatformID -> CUInt -> IO (Maybe CSize)
 getPlatformInfoSize platform infoid = alloca $ \(value_size :: Ptr CSize) -> do
   errcode <- fmap ErrorCode $ raw_clGetPlatformInfo platform infoid 0 nullPtr value_size
   if errcode == clSuccess
@@ -128,12 +130,12 @@ data CLPlatformInfo = CL_PLATFORM_PROFILE
                       -- associated with this platform.
                     deriving( Eq )
 
-platformInfoValues :: [(CLPlatformInfo,CLuint)]
+platformInfoValues :: [(CLPlatformInfo,CUInt)]
 platformInfoValues = [ 
   (CL_PLATFORM_PROFILE,0x0900), (CL_PLATFORM_VERSION,0x0901), 
   (CL_PLATFORM_NAME,0x0902), (CL_PLATFORM_VENDOR,0x0903), 
   (CL_PLATFORM_EXTENSIONS,0x0904) ]
-getPlatformInfoValue :: CLPlatformInfo -> CLuint
+getPlatformInfoValue :: CLPlatformInfo -> CUInt
 getPlatformInfoValue info = fromMaybe 0 (lookup info platformInfoValues)
 
 -- | Get specific information about the OpenCL platform. It returns Nothing if
@@ -152,8 +154,8 @@ clGetPlatformInfo platform infoid = do
       infoval = getPlatformInfoValue infoid
 
 -- -----------------------------------------------------------------------------
-getNumDevices :: CLPlatformID -> CULong -> IO (Maybe CLuint)
-getNumDevices platform dtype = alloca $ \(num_devices :: Ptr CLuint) -> do
+getNumDevices :: CLPlatformID -> CULong -> IO (Maybe CUInt)
+getNumDevices platform dtype = alloca $ \(num_devices :: Ptr CUInt) -> do
   errcode <- fmap ErrorCode $ raw_clGetDeviceIDs platform dtype 0 nullPtr num_devices
   if errcode == clSuccess
     then fmap Just $ peek num_devices
@@ -176,14 +178,14 @@ clGetDeviceIDs platform dtype = do
     where
       dval = getDeviceTypeValue dtype
 
-getDeviceInfoSize :: CLDeviceID -> CLuint -> IO (Maybe CSize)
+getDeviceInfoSize :: CLDeviceID -> CUInt -> IO (Maybe CSize)
 getDeviceInfoSize device infoid = alloca $ \(value_size :: Ptr CSize) -> do
   errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid 0 nullPtr value_size
   if errcode == clSuccess
     then fmap Just $ peek value_size
     else return Nothing
   
-getDeviceInfoString :: CLuint -> CLDeviceID -> IO (Maybe String)
+getDeviceInfoString :: CUInt -> CLDeviceID -> IO (Maybe String)
 getDeviceInfoString infoid device = do
   sval <- getDeviceInfoSize device infoid
   case sval of
@@ -194,7 +196,7 @@ getDeviceInfoString infoid device = do
         then fmap Just $ peekCString buff
         else return Nothing
   
-getDeviceInfoUint :: CLuint -> CLDeviceID -> IO (Maybe CUInt)
+getDeviceInfoUint :: CUInt -> CLDeviceID -> IO (Maybe CUInt)
 getDeviceInfoUint infoid device = alloca $ \(dat :: Ptr CUInt) -> do
   errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
   if errcode == clSuccess
@@ -203,7 +205,7 @@ getDeviceInfoUint infoid device = alloca $ \(dat :: Ptr CUInt) -> do
     where 
       size = fromIntegral $ sizeOf (0::CUInt)
 
-getDeviceInfoUlong :: CLuint -> CLDeviceID -> IO (Maybe CULong)
+getDeviceInfoUlong :: CUInt -> CLDeviceID -> IO (Maybe CULong)
 getDeviceInfoUlong infoid device = alloca $ \(dat :: Ptr CULong) -> do
   errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
   if errcode == clSuccess
@@ -212,7 +214,7 @@ getDeviceInfoUlong infoid device = alloca $ \(dat :: Ptr CULong) -> do
     where 
       size = fromIntegral $ sizeOf (0::CULong)
 
-getDeviceInfoSizet :: CLuint -> CLDeviceID -> IO (Maybe CSize)
+getDeviceInfoSizet :: CUInt -> CLDeviceID -> IO (Maybe CSize)
 getDeviceInfoSizet infoid device = alloca $ \(dat :: Ptr CSize) -> do
   errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
   if errcode == clSuccess
@@ -221,7 +223,7 @@ getDeviceInfoSizet infoid device = alloca $ \(dat :: Ptr CSize) -> do
     where 
       size = fromIntegral $ sizeOf (0::CSize)
   
-getDeviceInfoBool :: CLuint -> CLDeviceID -> IO (Maybe Bool)
+getDeviceInfoBool :: CUInt -> CLDeviceID -> IO (Maybe Bool)
 getDeviceInfoBool infoid device = alloca $ \(dat :: Ptr CUInt) -> do
   errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
   if errcode == clSuccess
@@ -277,7 +279,7 @@ bitmaskToExecCapability mask = map fst . filter (testMask mask) $ deviceExecValu
 bitmaskToCommandQueueProperties :: CULong -> [CLCommandQueueProperty]
 bitmaskToCommandQueueProperties mask = map fst . filter (testMask mask) $ commandQueueProperties
 
-getDeviceInfoFP :: CLuint -> CLDeviceID -> IO [CLDeviceFPConfig]
+getDeviceInfoFP :: CUInt -> CLDeviceID -> IO [CLDeviceFPConfig]
 getDeviceInfoFP infoid device = fmap (bitmaskToFPConfig . fromMaybe 0) $ getDeviceInfoUlong infoid device
 
 -- | The default compute device address space size specified as an unsigned 
