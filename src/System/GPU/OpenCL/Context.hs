@@ -14,19 +14,22 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
-{-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
 module System.GPU.OpenCL.Context(
   -- * Types
   CLContext,
   -- * Context Functions
-  clCreateContext, clCreateContextFromType, clRetainContext, clReleaseContext )
+  clCreateContext, clCreateContextFromType, clRetainContext, clReleaseContext,
+  clGetContextReferenceCount, clGetContextDevices )
     where
 
 -- -----------------------------------------------------------------------------
 import Foreign( 
-  Ptr, FunPtr, nullPtr, alloca, allocaArray, peek, pokeArray )
+  Ptr, FunPtr, nullPtr, castPtr, alloca, allocaArray, peek, peekArray, 
+  pokeArray )
 import Foreign.C.Types( CSize, CInt, CUInt, CULong )
 import Foreign.C.String( CString, peekCString )
+import Foreign.Storable( sizeOf )
 import System.GPU.OpenCL.Types( 
   CLDeviceID, CLContext, CLDeviceType, bitmaskFromDeviceTypes )
 import System.GPU.OpenCL.Errors( ErrorCode(..), clSuccess )
@@ -45,6 +48,8 @@ foreign import ccall "clRetainContext" raw_clRetainContext ::
   CLContext -> IO CInt
 foreign import ccall "clReleaseContext" raw_clReleaseContext :: 
   CLContext -> IO CInt
+foreign import ccall "clGetContextInfo" raw_clGetContextInfo :: 
+  CLContext -> CUInt -> CSize -> Ptr () -> Ptr CSize -> IO CInt
 
 -- -----------------------------------------------------------------------------
 mkContextCallback :: (String -> IO ()) -> ContextCallback
@@ -104,5 +109,63 @@ clRetainContext ctx = raw_clRetainContext ctx
 clReleaseContext :: CLContext -> IO Bool
 clReleaseContext ctx = raw_clReleaseContext ctx 
                        >>= return . (==clSuccess) . ErrorCode
+
+getContextInfoSize :: CLContext -> CUInt -> IO (Maybe CSize)
+getContextInfoSize ctx infoid = alloca $ \(value_size :: Ptr CSize) -> do
+  errcode <- fmap ErrorCode $ raw_clGetContextInfo ctx infoid 0 nullPtr value_size
+  if errcode == clSuccess
+    then fmap Just $ peek value_size
+    else return Nothing
+
+-- | Return the context reference count. The reference count returned should be 
+-- considered immediately stale. It is unsuitable for general use in 
+-- applications. This feature is provided for identifying memory leaks.
+clGetContextReferenceCount :: CLContext -> IO (Maybe CUInt)
+clGetContextReferenceCount ctx = alloca $ \(dat :: Ptr CUInt) -> do
+  errcode <- fmap ErrorCode $ raw_clGetContextInfo ctx 0x1080 size (castPtr dat) nullPtr
+  if errcode == clSuccess
+    then fmap Just $ peek dat
+    else return Nothing
+    where 
+      size = fromIntegral $ sizeOf (0::CUInt)
+
+-- | Return the list of devices in context.
+clGetContextDevices :: CLContext -> IO [CLDeviceID]
+clGetContextDevices ctx = do
+  val <- getContextInfoSize ctx infoid
+  case val of
+    Nothing -> return []
+    Just size -> let n = (fromIntegral size) `div` (sizeOf (nullPtr :: CLDeviceID))
+                 in allocaArray n $ \(buff :: Ptr CLDeviceID) -> do
+      errcode <- fmap ErrorCode $ raw_clGetContextInfo ctx infoid size (castPtr buff) nullPtr
+      if errcode == clSuccess
+        then peekArray n buff
+        else return []
+    where
+      infoid = 0x1081
+
+--data ContextProperty = CL_CONTEXT_PLATFORM CLPlatformID deriving( Show )
+
+--contextPropertyToVal :: ContextProperty -> Ptr CInt
+
+-- | Return the properties argument specified in 'clCreateContext'.
+--clGetContextProperties :: CLContext -> IO []
+--clGetContextProperties ctx = do
+--  val <- getContextInfoSize ctx infoid
+--  case val of
+--    Nothing -> return []
+--    Just size
+--        | size == 0 -> return []
+--        | otherwise -> let n = (fromIntegral size) `div` (sizeOf (nullPtr :: Ptr (Ptr CInt)))
+--                       in allocaArray n $ \(buff :: Ptr (Ptr CInt)) -> do
+--      errcode <- fmap ErrorCode $ raw_clGetContextInfo ctx infoid size (castPtr buff) nullPtr
+--      if errcode == clSuccess
+--        then do
+--          props <- peekArray n buff
+--          print props
+--          return []
+--        else return []
+--    where
+--      infoid = 0x1082
 
 -- -----------------------------------------------------------------------------
