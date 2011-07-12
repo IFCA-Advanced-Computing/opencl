@@ -15,14 +15,12 @@
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
 module System.GPU.OpenCL( 
-  module System.GPU.OpenCL.Types,
   module System.GPU.OpenCL.Query,
   module System.GPU.OpenCL.Context,
   module System.GPU.OpenCL.CommandQueue )
        where
 
 -- -----------------------------------------------------------------------------
-import System.GPU.OpenCL.Types( CLDeviceType(..) )
 import System.GPU.OpenCL.Query
 import System.GPU.OpenCL.Context
 import System.GPU.OpenCL.CommandQueue
