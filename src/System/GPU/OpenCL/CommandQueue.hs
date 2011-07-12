@@ -19,18 +19,23 @@ module System.GPU.OpenCL.CommandQueue(
   -- * Types
   CLCommandQueue, CLCommandQueueProperty(..), 
   -- * Command Queue Functions
-  clCreateCommandQueue, clRetainCommandQueue, clReleaseCommandQueue
+  clCreateCommandQueue, clRetainCommandQueue, clReleaseCommandQueue,
+  clGetCommandQueueContext, clGetCommandQueueDevice, 
+  clGetCommandQueueReferenceCount, clGetCommandQueueProperties,
+  clSetCommandQueueProperty
   -- * Memory Commands
   -- * Executing Kernels
   -- * Flush and Finish
                                      ) where
 
 -- -----------------------------------------------------------------------------
-import Foreign( Ptr, alloca, peek )
+import Foreign( Ptr, castPtr, nullPtr, alloca, peek )
 import Foreign.C.Types( CSize, CInt, CUInt, CULong )
+import Foreign.Storable( sizeOf )
+import Foreign.Marshal.Utils( fromBool )
 import System.GPU.OpenCL.Types( 
   CLCommandQueue, CLDeviceID, CLContext, CLCommandQueueProperty(..),
-  bitmaskFromCommandQueueProperties )
+  bitmaskToCommandQueueProperties, bitmaskFromCommandQueueProperties )
 import System.GPU.OpenCL.Errors( ErrorCode(..), clSuccess )
 
 -- -----------------------------------------------------------------------------
@@ -127,5 +132,80 @@ clRetainCommandQueue cq = raw_clRetainCommandQueue cq
 clReleaseCommandQueue :: CLCommandQueue -> IO Bool
 clReleaseCommandQueue cq = raw_clReleaseCommandQueue cq
                        >>= return . (==clSuccess) . ErrorCode
+
+-- | Return the context specified when the command-queue is created.
+clGetCommandQueueContext :: CLCommandQueue -> IO (Maybe CLContext)
+clGetCommandQueueContext cq = alloca $ \(dat :: Ptr CLContext) -> do
+  errcode <- fmap ErrorCode $ raw_clGetCommandQueueInfo cq 0x1090 size (castPtr dat) nullPtr
+  if errcode == clSuccess
+    then fmap Just $ peek dat
+    else return Nothing
+    where 
+      size = fromIntegral $ sizeOf (nullPtr::CLContext)
+
+-- | Return the device specified when the command-queue is created.
+clGetCommandQueueDevice :: CLCommandQueue -> IO (Maybe CLDeviceID)
+clGetCommandQueueDevice cq = alloca $ \(dat :: Ptr CLDeviceID) -> do
+  errcode <- fmap ErrorCode $ raw_clGetCommandQueueInfo cq 0x1091 size (castPtr dat) nullPtr
+  if errcode == clSuccess
+    then fmap Just $ peek dat
+    else return Nothing
+    where 
+      size = fromIntegral $ sizeOf (nullPtr::CLDeviceID)
+
+-- | Return the command-queue reference count.
+-- The reference count returned should be considered immediately stale. It is 
+-- unsuitable for general use in applications. This feature is provided for 
+-- identifying memory leaks.
+clGetCommandQueueReferenceCount :: CLCommandQueue -> IO (Maybe CUInt)
+clGetCommandQueueReferenceCount cq = alloca $ \(dat :: Ptr CUInt) -> do
+  errcode <- fmap ErrorCode $ raw_clGetCommandQueueInfo cq 0x1092 size (castPtr dat) nullPtr
+  if errcode == clSuccess
+    then fmap Just $ peek dat
+    else return Nothing
+    where 
+      size = fromIntegral $ sizeOf (0::CUInt)
+
+
+-- | Return the currently specified properties for the command-queue. These 
+-- properties are specified by the properties argument in 'clCreateCommandQueue'
+-- , and can be changed by 'clSetCommandQueueProperty'.
+clGetCommandQueueProperties :: CLCommandQueue -> IO [CLCommandQueueProperty]
+clGetCommandQueueProperties cq = alloca $ \(dat :: Ptr CULong) -> do
+  errcode <- fmap ErrorCode $ raw_clGetCommandQueueInfo cq 0x1093 size (castPtr dat) nullPtr
+  if errcode == clSuccess
+    then fmap bitmaskToCommandQueueProperties $ peek dat
+    else return []
+    where 
+      size = fromIntegral $ sizeOf (0::CULong)
+
+-- | Enable or disable the properties of a command-queue.
+-- Returns the command-queue properties before they were changed by 
+-- 'clSetCommandQueueProperty'.
+-- As specified for 'clCreateCommandQueue', the 
+-- 'CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE' command-queue property determines 
+-- whether the commands in a command-queue are executed in-order or 
+-- out-of-order. Changing this command-queue property will cause the OpenCL 
+-- implementation to block until all previously queued commands in command_queue 
+-- have completed. This can be an expensive operation and therefore changes to 
+-- the 'CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE' property should be only done 
+-- when absolutely necessary.
+-- 
+-- It is possible that a device(s) becomes unavailable after a context and 
+-- command-queues that use this device(s) have been created and commands have 
+-- been queued to command-queues. In this case the behavior of OpenCL API calls 
+-- that use this context (and command-queues) are considered to be 
+-- implementation-defined. The user callback function, if specified when the 
+-- context is created, can be used to record appropriate information 
+-- when the device becomes unavailable.
+clSetCommandQueueProperty :: CLCommandQueue -> [CLCommandQueueProperty] -> Bool 
+                          -> IO [CLCommandQueueProperty]
+clSetCommandQueueProperty cq xs val = alloca $ \(dat :: Ptr CULong) -> do
+  errcode <- fmap ErrorCode $ raw_clSetCommandQueueProperty cq props (fromBool val) dat
+  if errcode == clSuccess
+    then fmap bitmaskToCommandQueueProperties $ peek dat
+    else return []
+    where
+      props = bitmaskFromCommandQueueProperties xs
 
 -- -----------------------------------------------------------------------------
