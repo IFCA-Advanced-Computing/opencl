@@ -30,13 +30,9 @@ import System.GPU.OpenCL.Util( testMask )
 
 -- -----------------------------------------------------------------------------
 
-data PlatformIDc = PlatformIDc
-data DeviceIDc = DeviceIDc
-data Contextc = Contextc
-
-type CLPlatformID = Ptr PlatformIDc
-type CLDeviceID = Ptr DeviceIDc
-type CLContext = Ptr Contextc
+type CLPlatformID = Ptr ()
+type CLDeviceID = Ptr ()
+type CLContext = Ptr ()
 
 newtype ErrorCode = ErrorCode CInt deriving( Eq )
 
