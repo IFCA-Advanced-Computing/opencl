@@ -18,7 +18,7 @@ module System.GPU.OpenCL.Types(
   ErrorCode(..), CLPlatformID, CLDeviceID, CLContext, CLCommandQueue,
   CLDeviceType(..), CLCommandQueueProperty(..), getDeviceTypeValue, 
   bitmaskToDeviceTypes, bitmaskFromDeviceTypes,
-  bitmaskToCommandQueueProperties ) 
+  bitmaskToCommandQueueProperties, bitmaskFromCommandQueueProperties ) 
        where
 
 -- -----------------------------------------------------------------------------
@@ -77,7 +77,7 @@ data CLCommandQueueProperty = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
                               -- commands is enabled. Otherwise profiling of 
                               -- commands is disabled. See 
                               -- 'clGetEventProfilingInfo' for more information.
-                              deriving( Show )
+                              deriving( Eq, Show )
 
 commandQueueProperties :: [(CLCommandQueueProperty,CULong)]         
 commandQueueProperties = [
@@ -93,4 +93,7 @@ bitmaskFromDeviceTypes = foldl1' (.|.) . mapMaybe (`lookup` deviceTypeValues)
 bitmaskToCommandQueueProperties :: CULong -> [CLCommandQueueProperty]
 bitmaskToCommandQueueProperties mask = map fst . filter (testMask mask) $ commandQueueProperties
       
+bitmaskFromCommandQueueProperties :: [CLCommandQueueProperty] -> CULong
+bitmaskFromCommandQueueProperties = foldl1' (.|.) . mapMaybe (`lookup` commandQueueProperties)
+
 -- -----------------------------------------------------------------------------
