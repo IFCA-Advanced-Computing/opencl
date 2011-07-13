@@ -22,11 +22,12 @@ module System.GPU.OpenCL.CommandQueue(
   clCreateCommandQueue, clRetainCommandQueue, clReleaseCommandQueue,
   clGetCommandQueueContext, clGetCommandQueueDevice, 
   clGetCommandQueueReferenceCount, clGetCommandQueueProperties,
-  clSetCommandQueueProperty
+  clSetCommandQueueProperty,
   -- * Memory Commands
   -- * Executing Kernels
   -- * Flush and Finish
-                                     ) where
+  clFlush, clFinish
+  ) where
 
 -- -----------------------------------------------------------------------------
 import Foreign( Ptr, castPtr, nullPtr, alloca, peek )
@@ -50,6 +51,10 @@ foreign import ccall "clGetCommandQueueInfo" raw_clGetCommandQueueInfo ::
   CLCommandQueue -> CLCommandQueueInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 foreign import ccall "clSetCommandQueueProperty" raw_clSetCommandQueueProperty :: 
   CLCommandQueue -> CLCommandQueueProperty_ -> CLbool -> Ptr CLCommandQueueProperty_ -> IO CLint
+foreign import ccall "clFlush" raw_clFlush ::
+  CLCommandQueue -> IO CLint
+foreign import ccall "clFinish" raw_clFinish ::
+  CLCommandQueue -> IO CLint
 
 -- -----------------------------------------------------------------------------
 {-| Create a command-queue on a specific device.
@@ -209,4 +214,44 @@ clSetCommandQueueProperty cq xs val = alloca $ \(dat :: Ptr CLCommandQueueProper
     where
       props = bitmaskFromCommandQueueProperties xs
 
+-- -----------------------------------------------------------------------------
+-- | Issues all previously queued OpenCL commands in a command-queue to the 
+-- device associated with the command-queue.
+-- 'clFlush' only guarantees that all queued commands to command_queue get 
+-- issued to the appropriate device. There is no guarantee that they will be 
+-- complete after 'clFlush' returns.
+-- 
+-- 'clFlush' returns 'True' if the function call was executed successfully. It 
+-- returns 'False' if command_queue is not a valid command-queue or if there is 
+-- a failure to allocate resources required by the OpenCL implementation on the 
+-- host.
+--
+-- Any blocking commands queued in a command-queue such as 'clEnqueueReadImage' 
+-- or 'clEnqueueReadBuffer' with blocking_read set to 'True', 
+-- 'clEnqueueWriteImage' or 'clEnqueueWriteBuffer' with blocking_write set to 
+-- 'True', 'clEnqueueMapImage' or 'clEnqueueMapBuffer' with blocking_map set to 
+-- 'True' or 'clWaitForEvents' perform an implicit flush of the command-queue.
+--
+-- To use event objects that refer to commands enqueued in a command-queue as 
+-- event objects to wait on by commands enqueued in a different command-queue, 
+-- the application must call a 'clFlush' or any blocking commands that perform 
+-- an implicit flush of the command-queue where the commands that refer to these 
+-- event objects are enqueued.
+clFlush :: CLCommandQueue -> IO Bool
+clFlush cq = raw_clFlush cq
+             >>= return . (==clSuccess) . ErrorCode
+             
+-- | Blocks until all previously queued OpenCL commands in a command-queue are 
+-- issued to the associated device and have completed.
+-- 'clFinish' does not return until all queued commands in command_queue have 
+-- been processed and completed. 'clFinish' is also a synchronization point.
+--
+-- 'clFinish' returns 'True' if the function call was executed successfully. It 
+-- returns 'False' if command_queue is not a valid command-queue or if there is 
+-- a failure to allocate resources required by the OpenCL implementation on the 
+-- host.
+clFinish :: CLCommandQueue -> IO Bool
+clFinish cq = raw_clFinish cq
+             >>= return . (==clSuccess) . ErrorCode
+             
 -- -----------------------------------------------------------------------------
