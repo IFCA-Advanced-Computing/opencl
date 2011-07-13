@@ -53,10 +53,13 @@ module System.GPU.OpenCL.Query(
 import Data.Bits( shiftL )
 import Data.Maybe( fromMaybe )
 import Foreign( Ptr, nullPtr, castPtr, alloca, allocaArray, peek, peekArray )
-import Foreign.C.Types( CSize, CULong, CUInt, CInt )
 import Foreign.C.String( CString, peekCString )
+import Foreign.C.Types( CSize )
 import Foreign.Storable( sizeOf )
 import System.GPU.OpenCL.Types( 
+  CLbool, CLint, CLuint, CLulong, CLPlatformInfo_, CLDeviceType_, 
+  CLDeviceInfo_, CLDeviceFPConfig_, CLDeviceMemCacheType_, 
+  CLDeviceLocalMemType_, CLDeviceExecCapability_,
   CLPlatformID, CLDeviceID, CLDeviceType(..), CLCommandQueueProperty, 
   getDeviceTypeValue, bitmaskToDeviceTypes, bitmaskToCommandQueueProperties )
 import System.GPU.OpenCL.Errors( ErrorCode(..), clSuccess )
@@ -64,17 +67,17 @@ import System.GPU.OpenCL.Util( testMask )
 
 -- -----------------------------------------------------------------------------
 foreign import ccall "clGetPlatformIDs" raw_clGetPlatformIDs :: 
-  CUInt -> Ptr CLPlatformID -> Ptr CUInt -> IO CInt
+  CLuint -> Ptr CLPlatformID -> Ptr CLuint -> IO CLint
 foreign import ccall "clGetPlatformInfo" raw_clGetPlatformInfo :: 
-  CLPlatformID -> CUInt -> CSize -> Ptr () -> Ptr CSize -> IO CInt 
+  CLPlatformID -> CLPlatformInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint 
 foreign import ccall "clGetDeviceIDs" raw_clGetDeviceIDs :: 
-  CLPlatformID -> CULong -> CUInt -> Ptr CLDeviceID -> Ptr CUInt -> IO CInt
+  CLPlatformID -> CLDeviceType_ -> CLuint -> Ptr CLDeviceID -> Ptr CLuint -> IO CLint
 foreign import ccall "clGetDeviceInfo" raw_clGetDeviceInfo :: 
-  CLDeviceID -> CUInt -> CSize -> Ptr () -> Ptr CSize -> IO CInt
+  CLDeviceID -> CLDeviceInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 
 -- -----------------------------------------------------------------------------
-getNumPlatforms :: IO (Maybe CUInt)
-getNumPlatforms = alloca $ \(num_platforms :: Ptr CUInt) -> do
+getNumPlatforms :: IO (Maybe CLuint)
+getNumPlatforms = alloca $ \(num_platforms :: Ptr CLuint) -> do
   errcode <- fmap ErrorCode $ raw_clGetPlatformIDs 0 nullPtr num_platforms
   if errcode == clSuccess
     then fmap Just $ peek num_platforms
@@ -93,7 +96,7 @@ clGetPlatformIDs = do
         then peekArray (fromIntegral n) plats
         else return []
 
-getPlatformInfoSize :: CLPlatformID -> CUInt -> IO (Maybe CSize)
+getPlatformInfoSize :: CLPlatformID -> CLuint -> IO (Maybe CSize)
 getPlatformInfoSize platform infoid = alloca $ \(value_size :: Ptr CSize) -> do
   errcode <- fmap ErrorCode $ raw_clGetPlatformInfo platform infoid 0 nullPtr value_size
   if errcode == clSuccess
@@ -130,12 +133,12 @@ data CLPlatformInfo = CL_PLATFORM_PROFILE
                       -- associated with this platform.
                     deriving( Eq )
 
-platformInfoValues :: [(CLPlatformInfo,CUInt)]
+platformInfoValues :: [(CLPlatformInfo,CLPlatformInfo_)]
 platformInfoValues = [ 
   (CL_PLATFORM_PROFILE,0x0900), (CL_PLATFORM_VERSION,0x0901), 
   (CL_PLATFORM_NAME,0x0902), (CL_PLATFORM_VENDOR,0x0903), 
   (CL_PLATFORM_EXTENSIONS,0x0904) ]
-getPlatformInfoValue :: CLPlatformInfo -> CUInt
+getPlatformInfoValue :: CLPlatformInfo -> CLPlatformInfo_
 getPlatformInfoValue info = fromMaybe 0 (lookup info platformInfoValues)
 
 -- | Get specific information about the OpenCL platform. It returns Nothing if
@@ -154,8 +157,8 @@ clGetPlatformInfo platform infoid = do
       infoval = getPlatformInfoValue infoid
 
 -- -----------------------------------------------------------------------------
-getNumDevices :: CLPlatformID -> CULong -> IO (Maybe CUInt)
-getNumDevices platform dtype = alloca $ \(num_devices :: Ptr CUInt) -> do
+getNumDevices :: CLPlatformID -> CLDeviceType_ -> IO (Maybe CLuint)
+getNumDevices platform dtype = alloca $ \(num_devices :: Ptr CLuint) -> do
   errcode <- fmap ErrorCode $ raw_clGetDeviceIDs platform dtype 0 nullPtr num_devices
   if errcode == clSuccess
     then fmap Just $ peek num_devices
@@ -178,14 +181,14 @@ clGetDeviceIDs platform dtype = do
     where
       dval = getDeviceTypeValue dtype
 
-getDeviceInfoSize :: CLDeviceID -> CUInt -> IO (Maybe CSize)
+getDeviceInfoSize :: CLDeviceID -> CLDeviceInfo_ -> IO (Maybe CSize)
 getDeviceInfoSize device infoid = alloca $ \(value_size :: Ptr CSize) -> do
   errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid 0 nullPtr value_size
   if errcode == clSuccess
     then fmap Just $ peek value_size
     else return Nothing
   
-getDeviceInfoString :: CUInt -> CLDeviceID -> IO (Maybe String)
+getDeviceInfoString :: CLDeviceInfo_ -> CLDeviceID -> IO (Maybe String)
 getDeviceInfoString infoid device = do
   sval <- getDeviceInfoSize device infoid
   case sval of
@@ -196,25 +199,25 @@ getDeviceInfoString infoid device = do
         then fmap Just $ peekCString buff
         else return Nothing
   
-getDeviceInfoUint :: CUInt -> CLDeviceID -> IO (Maybe CUInt)
-getDeviceInfoUint infoid device = alloca $ \(dat :: Ptr CUInt) -> do
+getDeviceInfoUint :: CLDeviceInfo_ -> CLDeviceID -> IO (Maybe CLuint)
+getDeviceInfoUint infoid device = alloca $ \(dat :: Ptr CLuint) -> do
   errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
   if errcode == clSuccess
     then fmap Just $ peek dat
     else return Nothing
     where 
-      size = fromIntegral $ sizeOf (0::CUInt)
+      size = fromIntegral $ sizeOf (0::CLuint)
 
-getDeviceInfoUlong :: CUInt -> CLDeviceID -> IO (Maybe CULong)
-getDeviceInfoUlong infoid device = alloca $ \(dat :: Ptr CULong) -> do
+getDeviceInfoUlong :: CLDeviceInfo_ -> CLDeviceID -> IO (Maybe CLulong)
+getDeviceInfoUlong infoid device = alloca $ \(dat :: Ptr CLulong) -> do
   errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
   if errcode == clSuccess
     then fmap Just $ peek dat
     else return Nothing
     where 
-      size = fromIntegral $ sizeOf (0::CULong)
+      size = fromIntegral $ sizeOf (0::CLulong)
 
-getDeviceInfoSizet :: CUInt -> CLDeviceID -> IO (Maybe CSize)
+getDeviceInfoSizet :: CLDeviceInfo_ -> CLDeviceID -> IO (Maybe CSize)
 getDeviceInfoSizet infoid device = alloca $ \(dat :: Ptr CSize) -> do
   errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
   if errcode == clSuccess
@@ -223,14 +226,14 @@ getDeviceInfoSizet infoid device = alloca $ \(dat :: Ptr CSize) -> do
     where 
       size = fromIntegral $ sizeOf (0::CSize)
   
-getDeviceInfoBool :: CUInt -> CLDeviceID -> IO (Maybe Bool)
-getDeviceInfoBool infoid device = alloca $ \(dat :: Ptr CUInt) -> do
+getDeviceInfoBool :: CLDeviceInfo_ -> CLDeviceID -> IO (Maybe Bool)
+getDeviceInfoBool infoid device = alloca $ \(dat :: Ptr CLbool) -> do
   errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
   if errcode == clSuccess
     then fmap (Just . (/=0)) $ peek dat
     else return Nothing
     where 
-      size = fromIntegral $ sizeOf (0::CUInt)
+      size = fromIntegral $ sizeOf (0::CLbool)
   
 data CLDeviceFPConfig = CL_FP_DENORM -- ^ denorms are supported.
                       | CL_FP_INF_NAN -- ^ INF and NaNs are supported.
@@ -245,7 +248,7 @@ data CLDeviceFPConfig = CL_FP_DENORM -- ^ denorms are supported.
                         -- ^ IEEE754-2008 fused multiply-add is supported.
                         deriving( Show )
                         
-deviceFPValues :: [(CLDeviceFPConfig,CULong)]
+deviceFPValues :: [(CLDeviceFPConfig,CLDeviceFPConfig_)]
 deviceFPValues = [
   (CL_FP_DENORM, 1 `shiftL` 0), (CL_FP_INF_NAN, 1 `shiftL` 1),
   (CL_FP_ROUND_TO_NEAREST, 1 `shiftL` 2), (CL_FP_ROUND_TO_ZERO, 1 `shiftL` 3),
@@ -257,22 +260,22 @@ data CLDeviceExecCapability = CL_EXEC_KERNEL
                               -- ^ The OpenCL device can execute native kernels.
                               deriving( Show )
 
-deviceExecValues :: [(CLDeviceExecCapability,CULong)]
+deviceExecValues :: [(CLDeviceExecCapability,CLDeviceExecCapability_)]
 deviceExecValues = [
   (CL_EXEC_KERNEL, 1 `shiftL` 0), (CL_EXEC_NATIVE_KERNEL, 1 `shiftL` 1)]
                    
-bitmaskToFPConfig :: CULong -> [CLDeviceFPConfig]
+bitmaskToFPConfig :: CLDeviceFPConfig_ -> [CLDeviceFPConfig]
 bitmaskToFPConfig mask = map fst . filter (testMask mask) $ deviceFPValues
 
-bitmaskToExecCapability :: CULong -> [CLDeviceExecCapability]
+bitmaskToExecCapability :: CLDeviceExecCapability_ -> [CLDeviceExecCapability]
 bitmaskToExecCapability mask = map fst . filter (testMask mask) $ deviceExecValues
 
-getDeviceInfoFP :: CUInt -> CLDeviceID -> IO [CLDeviceFPConfig]
+getDeviceInfoFP :: CLDeviceInfo_ -> CLDeviceID -> IO [CLDeviceFPConfig]
 getDeviceInfoFP infoid device = fmap (bitmaskToFPConfig . fromMaybe 0) $ getDeviceInfoUlong infoid device
 
 -- | The default compute device address space size specified as an unsigned 
 -- integer value in bits. Currently supported values are 32 or 64 bits.
-clGetDeviceAddressBits :: CLDeviceID -> IO (Maybe CUInt)
+clGetDeviceAddressBits :: CLDeviceID -> IO (Maybe CLuint)
 clGetDeviceAddressBits = getDeviceInfoUint 0x100D
 
 -- | Is 'True' if the device is available and 'False' if the device is not 
@@ -342,15 +345,15 @@ clGetDeviceExtensions :: CLDeviceID -> IO (Maybe String)
 clGetDeviceExtensions = getDeviceInfoString 0x1030
 
 -- | Size of global memory cache in bytes.
-clGetDeviceGlobalMemCacheSize :: CLDeviceID -> IO (Maybe CULong)
+clGetDeviceGlobalMemCacheSize :: CLDeviceID -> IO (Maybe CLulong)
 clGetDeviceGlobalMemCacheSize = getDeviceInfoUlong 0x101E
 
 data CLDeviceMemCacheType = CL_NONE | CL_READ_ONLY_CACHE | CL_READ_WRITE_CACHE
                           deriving( Show )
-deviceMemCacheTypes :: [(CUInt,CLDeviceMemCacheType)]
+deviceMemCacheTypes :: [(CLDeviceMemCacheType_,CLDeviceMemCacheType)]
 deviceMemCacheTypes = [
   (0x0,CL_NONE), (0x1,CL_READ_ONLY_CACHE),(0x2,CL_READ_WRITE_CACHE)]
-getDeviceMemCacheType :: CUInt -> Maybe CLDeviceMemCacheType
+getDeviceMemCacheType :: CLDeviceMemCacheType_ -> Maybe CLDeviceMemCacheType
 getDeviceMemCacheType val = lookup val deviceMemCacheTypes
 
 -- | Type of global memory cache supported. Valid values are: 'CL_NONE', 
@@ -359,11 +362,11 @@ clGetDeviceGlobalMemCacheType :: CLDeviceID -> IO (Maybe CLDeviceMemCacheType)
 clGetDeviceGlobalMemCacheType device = getDeviceInfoUint 0x101C device >>= return . maybe Nothing getDeviceMemCacheType
 
 -- | Size of global memory cache line in bytes.
-clGetDeviceGlobalMemCachelineSize :: CLDeviceID -> IO (Maybe CUInt)
+clGetDeviceGlobalMemCachelineSize :: CLDeviceID -> IO (Maybe CLuint)
 clGetDeviceGlobalMemCachelineSize = getDeviceInfoUint 0x101D
 
 -- | Size of global device memory in bytes.
-clGetDeviceGlobalMemSize :: CLDeviceID -> IO (Maybe CULong)
+clGetDeviceGlobalMemSize :: CLDeviceID -> IO (Maybe CLulong)
 clGetDeviceGlobalMemSize = getDeviceInfoUlong 0x101F
 
 -- | Describes the OPTIONAL half precision floating-point capability of the 
@@ -405,14 +408,14 @@ clGetDeviceImage3DMaxWidth :: CLDeviceID -> IO (Maybe CSize)
 clGetDeviceImage3DMaxWidth = getDeviceInfoSizet 0x1013
 
 -- | Size of local memory arena in bytes. The minimum value is 16 KB.
-clGetDeviceLocalMemSize :: CLDeviceID -> IO (Maybe CULong)
+clGetDeviceLocalMemSize :: CLDeviceID -> IO (Maybe CLulong)
 clGetDeviceLocalMemSize = getDeviceInfoUlong 0x1023
 
 data CLDeviceLocalMemType = CL_LOCAL | CL_GLOBAL deriving( Show )
 
-deviceLocalMemTypes :: [(CUInt,CLDeviceLocalMemType)]
+deviceLocalMemTypes :: [(CLDeviceLocalMemType_,CLDeviceLocalMemType)]
 deviceLocalMemTypes = [(0x1,CL_LOCAL), (0x2,CL_GLOBAL)]
-getDeviceLocalMemType :: CUInt -> Maybe CLDeviceLocalMemType
+getDeviceLocalMemType :: CLDeviceLocalMemType_ -> Maybe CLDeviceLocalMemType
 getDeviceLocalMemType val = lookup val deviceLocalMemTypes
 
 -- | Type of local memory supported. This can be set to 'CL_LOCAL' implying 
@@ -421,27 +424,27 @@ clGetDeviceLocalMemType :: CLDeviceID -> IO (Maybe CLDeviceLocalMemType)
 clGetDeviceLocalMemType device = getDeviceInfoUint 0x1022 device >>= return . maybe Nothing getDeviceLocalMemType
 
 -- | Maximum configured clock frequency of the device in MHz.
-clGetDeviceMaxClockFrequency :: CLDeviceID -> IO (Maybe CUInt)
+clGetDeviceMaxClockFrequency :: CLDeviceID -> IO (Maybe CLuint)
 clGetDeviceMaxClockFrequency = getDeviceInfoUint 0x100C
 
 -- | The number of parallel compute cores on the OpenCL device. The minimum 
 -- value is 1.
-clGetDeviceMaxComputeUnits :: CLDeviceID -> IO (Maybe CUInt)
+clGetDeviceMaxComputeUnits :: CLDeviceID -> IO (Maybe CLuint)
 clGetDeviceMaxComputeUnits = getDeviceInfoUint 0x1002
 
 -- | Max number of arguments declared with the __constant qualifier in a kernel. 
 -- The minimum value is 8.
-clGetDeviceMaxConstantArgs :: CLDeviceID -> IO (Maybe CUInt)
+clGetDeviceMaxConstantArgs :: CLDeviceID -> IO (Maybe CLuint)
 clGetDeviceMaxConstantArgs = getDeviceInfoUint 0x1021
 
 -- | Max size in bytes of a constant buffer allocation. The minimum value is 
 -- 64 KB.
-clGetDeviceMaxConstantBufferSize :: CLDeviceID -> IO (Maybe CULong)
+clGetDeviceMaxConstantBufferSize :: CLDeviceID -> IO (Maybe CLulong)
 clGetDeviceMaxConstantBufferSize = getDeviceInfoUlong 0x1020
 
 -- | Max size of memory object allocation in bytes. The minimum value is max 
 -- (1/4th of 'clGetDeviceGlobalMemSize', 128*1024*1024)
-clGetDeviceMaxMemAllocSize :: CLDeviceID -> IO (Maybe CULong)
+clGetDeviceMaxMemAllocSize :: CLDeviceID -> IO (Maybe CLulong)
 clGetDeviceMaxMemAllocSize = getDeviceInfoUlong 0x1010
 
 -- | Max size in bytes of the arguments that can be passed to a kernel. The 
@@ -451,12 +454,12 @@ clGetDeviceMaxParameterSize = getDeviceInfoSizet 0x1017
 
 -- | Max number of simultaneous image objects that can be read by a kernel. The 
 -- minimum value is 128 if 'clGetDeviceImageSupport' is 'True'.
-clGetDeviceMaxReadImageArgs :: CLDeviceID -> IO (Maybe CUInt)
+clGetDeviceMaxReadImageArgs :: CLDeviceID -> IO (Maybe CLuint)
 clGetDeviceMaxReadImageArgs = getDeviceInfoUint 0x100E
 
 -- | Maximum number of samplers that can be used in a kernel. The minimum value 
 -- is 16 if 'clGetDeviceImageSupport' is 'True'. (Also see sampler type.)
-clGetDeviceMaxSamplers :: CLDeviceID -> IO (Maybe CUInt)
+clGetDeviceMaxSamplers :: CLDeviceID -> IO (Maybe CLuint)
 clGetDeviceMaxSamplers = getDeviceInfoUint 0x1018
 
 -- | Maximum number of work-items in a work-group executing a kernel using the 
@@ -468,7 +471,7 @@ clGetDeviceMaxWorkGroupSize = getDeviceInfoSizet 0x1004
 -- | Maximum dimensions that specify the global and local work-item IDs used by 
 -- the data parallel execution model. (Refer to 'clEnqueueNDRangeKernel'). 
 -- The minimum value is 3.
-clGetDeviceMaxWorkItemDimensions :: CLDeviceID -> IO (Maybe CUInt)
+clGetDeviceMaxWorkItemDimensions :: CLDeviceID -> IO (Maybe CLuint)
 clGetDeviceMaxWorkItemDimensions = getDeviceInfoUint 0x1003
 
 -- | Maximum number of work-items that can be specified in each dimension of the 
@@ -491,16 +494,16 @@ clGetDeviceMaxWorkItemSizes device = do
 
 -- | Max number of simultaneous image objects that can be written to by a 
 -- kernel. The minimum value is 8 if 'clGetDeviceImageSupport' is 'True'.
-clGetDeviceMaxWriteImageArgs :: CLDeviceID -> IO (Maybe CUInt)
+clGetDeviceMaxWriteImageArgs :: CLDeviceID -> IO (Maybe CLuint)
 clGetDeviceMaxWriteImageArgs = getDeviceInfoUint 0x100F
 
 -- | Describes the alignment in bits of the base address of any allocated 
 -- memory object.
-clGetDeviceMemBaseAddrAlign :: CLDeviceID -> IO (Maybe CUInt)
+clGetDeviceMemBaseAddrAlign :: CLDeviceID -> IO (Maybe CLuint)
 clGetDeviceMemBaseAddrAlign = getDeviceInfoUint 0x1019
 
 -- | The smallest alignment in bytes which can be used for any data type.
-clGetDeviceMinDataTypeAlignSize :: CLDeviceID -> IO (Maybe CUInt)
+clGetDeviceMinDataTypeAlignSize :: CLDeviceID -> IO (Maybe CLuint)
 clGetDeviceMinDataTypeAlignSize = getDeviceInfoUint 0x101A
 
 -- | Device name string.
@@ -521,31 +524,31 @@ clGetDevicePlatform device = alloca $ \(dat :: Ptr CLPlatformID) -> do
 -- | Preferred native vector width size for built-in char types that can be put 
 -- into vectors. The vector width is defined as the number of scalar elements 
 -- that can be stored in the vector.
-clGetDevicePreferredVectorWidthChar :: CLDeviceID -> IO (Maybe CUInt)
+clGetDevicePreferredVectorWidthChar :: CLDeviceID -> IO (Maybe CLuint)
 clGetDevicePreferredVectorWidthChar = getDeviceInfoUint 0x1006
 
 -- | Preferred native vector width size for built-in short types that can be put 
 -- into vectors. The vector width is defined as the number of scalar elements 
 -- that can be stored in the vector.
-clGetDevicePreferredVectorWidthShort :: CLDeviceID -> IO (Maybe CUInt)
+clGetDevicePreferredVectorWidthShort :: CLDeviceID -> IO (Maybe CLuint)
 clGetDevicePreferredVectorWidthShort = getDeviceInfoUint 0x1007
 
 -- | Preferred native vector width size for built-in int types that can be put 
 -- into vectors. The vector width is defined as the number of scalar elements 
 -- that can be stored in the vector.
-clGetDevicePreferredVectorWidthInt :: CLDeviceID -> IO (Maybe CUInt)
+clGetDevicePreferredVectorWidthInt :: CLDeviceID -> IO (Maybe CLuint)
 clGetDevicePreferredVectorWidthInt = getDeviceInfoUint 0x1008
 
 -- | Preferred native vector width size for built-in long types that can be put 
 -- into vectors. The vector width is defined as the number of scalar elements 
 -- that can be stored in the vector.
-clGetDevicePreferredVectorWidthLong :: CLDeviceID -> IO (Maybe CUInt)
+clGetDevicePreferredVectorWidthLong :: CLDeviceID -> IO (Maybe CLuint)
 clGetDevicePreferredVectorWidthLong = getDeviceInfoUint 0x1009
 
 -- | Preferred native vector width size for built-in float types that can be put 
 -- into vectors. The vector width is defined as the number of scalar elements 
 -- that can be stored in the vector.
-clGetDevicePreferredVectorWidthFloat :: CLDeviceID -> IO (Maybe CUInt)
+clGetDevicePreferredVectorWidthFloat :: CLDeviceID -> IO (Maybe CLuint)
 clGetDevicePreferredVectorWidthFloat = getDeviceInfoUint 0x100A
 
 -- | Preferred native vector width size for built-in double types that can be put 
@@ -553,7 +556,7 @@ clGetDevicePreferredVectorWidthFloat = getDeviceInfoUint 0x100A
 -- that can be stored in the vector.
 -- | If the cl_khr_fp64 extension is not supported, 
 -- 'clGetDevicePreferredVectorWidthDouble' must return 0.
-clGetDevicePreferredVectorWidthDouble :: CLDeviceID -> IO (Maybe CUInt)
+clGetDevicePreferredVectorWidthDouble :: CLDeviceID -> IO (Maybe CLuint)
 clGetDevicePreferredVectorWidthDouble = getDeviceInfoUint 0x100B
 
 -- | OpenCL profile string. Returns the profile name supported by the device 
@@ -597,7 +600,7 @@ clGetDeviceVendor = getDeviceInfoString 0x102C
 
 -- | A unique device vendor identifier. An example of a unique device identifier 
 -- could be the PCIe ID.
-clGetDeviceVendorID :: CLDeviceID -> IO (Maybe CUInt)
+clGetDeviceVendorID :: CLDeviceID -> IO (Maybe CLuint)
 clGetDeviceVendorID = getDeviceInfoUint 0x1001
 
 -- | OpenCL version string. Returns the OpenCL version supported by the device. 
