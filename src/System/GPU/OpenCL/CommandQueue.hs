@@ -30,25 +30,26 @@ module System.GPU.OpenCL.CommandQueue(
 
 -- -----------------------------------------------------------------------------
 import Foreign( Ptr, castPtr, nullPtr, alloca, peek )
-import Foreign.C.Types( CSize, CInt, CUInt, CULong )
+import Foreign.C.Types( CSize )
 import Foreign.Storable( sizeOf )
 import Foreign.Marshal.Utils( fromBool )
 import System.GPU.OpenCL.Types( 
+  CLint, CLbool, CLuint, CLCommandQueueProperty_, CLCommandQueueInfo_,
   CLCommandQueue, CLDeviceID, CLContext, CLCommandQueueProperty(..),
   bitmaskToCommandQueueProperties, bitmaskFromCommandQueueProperties )
 import System.GPU.OpenCL.Errors( ErrorCode(..), clSuccess )
 
 -- -----------------------------------------------------------------------------
 foreign import ccall "clCreateCommandQueue" raw_clCreateCommandQueue :: 
-  CLContext -> CLDeviceID -> CULong -> Ptr CInt -> IO CLCommandQueue
+  CLContext -> CLDeviceID -> CLCommandQueueProperty_ -> Ptr CLint -> IO CLCommandQueue
 foreign import ccall "clRetainCommandQueue" raw_clRetainCommandQueue :: 
-  CLCommandQueue -> IO CInt
+  CLCommandQueue -> IO CLint
 foreign import ccall "clReleaseCommandQueue" raw_clReleaseCommandQueue :: 
-  CLCommandQueue -> IO CInt
+  CLCommandQueue -> IO CLint
 foreign import ccall "clGetCommandQueueInfo" raw_clGetCommandQueueInfo :: 
-  CLCommandQueue -> CUInt -> CSize -> Ptr () -> Ptr CSize -> IO CInt
+  CLCommandQueue -> CLCommandQueueInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 foreign import ccall "clSetCommandQueueProperty" raw_clSetCommandQueueProperty :: 
-  CLCommandQueue -> CULong -> CUInt -> Ptr CULong -> IO CInt
+  CLCommandQueue -> CLCommandQueueProperty_ -> CLbool -> Ptr CLCommandQueueProperty_ -> IO CLint
 
 -- -----------------------------------------------------------------------------
 {-| Create a command-queue on a specific device.
@@ -157,27 +158,27 @@ clGetCommandQueueDevice cq = alloca $ \(dat :: Ptr CLDeviceID) -> do
 -- The reference count returned should be considered immediately stale. It is 
 -- unsuitable for general use in applications. This feature is provided for 
 -- identifying memory leaks.
-clGetCommandQueueReferenceCount :: CLCommandQueue -> IO (Maybe CUInt)
-clGetCommandQueueReferenceCount cq = alloca $ \(dat :: Ptr CUInt) -> do
+clGetCommandQueueReferenceCount :: CLCommandQueue -> IO (Maybe CLuint)
+clGetCommandQueueReferenceCount cq = alloca $ \(dat :: Ptr CLuint) -> do
   errcode <- fmap ErrorCode $ raw_clGetCommandQueueInfo cq 0x1092 size (castPtr dat) nullPtr
   if errcode == clSuccess
     then fmap Just $ peek dat
     else return Nothing
     where 
-      size = fromIntegral $ sizeOf (0::CUInt)
+      size = fromIntegral $ sizeOf (0::CLuint)
 
 
 -- | Return the currently specified properties for the command-queue. These 
 -- properties are specified by the properties argument in 'clCreateCommandQueue'
 -- , and can be changed by 'clSetCommandQueueProperty'.
 clGetCommandQueueProperties :: CLCommandQueue -> IO [CLCommandQueueProperty]
-clGetCommandQueueProperties cq = alloca $ \(dat :: Ptr CULong) -> do
+clGetCommandQueueProperties cq = alloca $ \(dat :: Ptr CLCommandQueueProperty_) -> do
   errcode <- fmap ErrorCode $ raw_clGetCommandQueueInfo cq 0x1093 size (castPtr dat) nullPtr
   if errcode == clSuccess
     then fmap bitmaskToCommandQueueProperties $ peek dat
     else return []
     where 
-      size = fromIntegral $ sizeOf (0::CULong)
+      size = fromIntegral $ sizeOf (0::CLCommandQueueProperty_)
 
 -- | Enable or disable the properties of a command-queue.
 -- Returns the command-queue properties before they were changed by 
@@ -200,7 +201,7 @@ clGetCommandQueueProperties cq = alloca $ \(dat :: Ptr CULong) -> do
 -- when the device becomes unavailable.
 clSetCommandQueueProperty :: CLCommandQueue -> [CLCommandQueueProperty] -> Bool 
                           -> IO [CLCommandQueueProperty]
-clSetCommandQueueProperty cq xs val = alloca $ \(dat :: Ptr CULong) -> do
+clSetCommandQueueProperty cq xs val = alloca $ \(dat :: Ptr CLCommandQueueProperty_) -> do
   errcode <- fmap ErrorCode $ raw_clSetCommandQueueProperty cq props (fromBool val) dat
   if errcode == clSuccess
     then fmap bitmaskToCommandQueueProperties $ peek dat

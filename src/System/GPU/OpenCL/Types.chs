@@ -19,10 +19,11 @@ module System.GPU.OpenCL.Types(
   CLDeviceType_, CLDeviceInfo_, CLContextInfo_, CLDeviceFPConfig(..), 
   CLDeviceMemCacheType(..), CLDeviceExecCapability(..), CLDeviceLocalMemType(..),
   CLPlatformID, CLDeviceID, CLContext, CLCommandQueue, CLContextProperty_,
-  CLDeviceType(..), CLCommandQueueProperty(..), getDeviceTypeValue, 
-  getDeviceLocalMemType, getDeviceMemCacheType, bitmaskToDeviceTypes, 
-  bitmaskFromDeviceTypes, bitmaskToCommandQueueProperties, 
-  bitmaskFromCommandQueueProperties, bitmaskToFPConfig, bitmaskToExecCapability ) 
+  CLDeviceType(..), CLCommandQueueProperty(..), CLCommandQueueInfo_, 
+  CLCommandQueueProperty_, getDeviceTypeValue, getDeviceLocalMemType, 
+  getDeviceMemCacheType, bitmaskToDeviceTypes, bitmaskFromDeviceTypes, 
+  bitmaskToCommandQueueProperties, bitmaskFromCommandQueueProperties, 
+  bitmaskToFPConfig, bitmaskToExecCapability ) 
        where
 
 -- -----------------------------------------------------------------------------
@@ -56,6 +57,8 @@ type CLDeviceLocalMemType_ = {#type cl_device_local_mem_type#}
 type CLDeviceExecCapability_ = {#type cl_device_exec_capabilities#}
 type CLContextInfo_ = {#type cl_context_info#}
 type CLContextProperty_ = {#type cl_context_properties#}
+type CLCommandQueueInfo_ = {#type cl_command_queue_info#}
+type CLCommandQueueProperty_ ={#type cl_command_queue_properties#}
 
 newtype ErrorCode = ErrorCode CInt deriving( Eq )
 
