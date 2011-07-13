@@ -15,8 +15,12 @@
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
-module System.GPU.OpenCL.Memory(  ) where
+module System.GPU.OpenCL.Memory(
+  -- * Types
+  CLMem
+  ) where
 
 -- -----------------------------------------------------------------------------
+import System.GPU.OpenCL.Types( CLMem )
 
 -- -----------------------------------------------------------------------------

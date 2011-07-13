@@ -15,7 +15,8 @@
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
 module System.GPU.OpenCL.Types( 
-  ErrorCode(..), CLbool, CLint, CLuint, CLulong, CLPlatformInfo_, 
+  ErrorCode(..), CLbool, CLint, CLuint, CLulong, CLPlatformInfo_, CLMem, 
+  CLProgram, CLEvent,
   CLDeviceType_, CLDeviceInfo_, CLContextInfo_, CLDeviceFPConfig(..), 
   CLDeviceMemCacheType(..), CLDeviceExecCapability(..), CLDeviceLocalMemType(..),
   CLPlatformID, CLDeviceID, CLContext, CLCommandQueue, CLContextProperty_,
@@ -42,6 +43,9 @@ type CLPlatformID = {#type cl_platform_id#}
 type CLDeviceID = {#type cl_device_id#}
 type CLContext = {#type cl_context#}
 type CLCommandQueue = {#type cl_command_queue#}
+type CLMem = {#type cl_mem#}
+type CLEvent = {#type cl_event#}
+type CLProgram = {#type cl_program#}
 
 type CLint = {#type cl_int#}
 type CLuint = {#type cl_uint#}
