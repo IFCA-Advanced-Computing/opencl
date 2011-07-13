@@ -17,6 +17,7 @@
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
 module System.GPU.OpenCL.Query( 
   -- * Types
+  CLuint, CLulong, 
   CLPlatformInfo(..), CLPlatformID, CLDeviceID, CLDeviceType(..),
   CLDeviceFPConfig(..), CLDeviceExecCapability(..), CLDeviceLocalMemType(..),
   CLDeviceMemCacheType(..),
@@ -50,7 +51,6 @@ module System.GPU.OpenCL.Query(
        where
 
 -- -----------------------------------------------------------------------------
-import Data.Bits( shiftL )
 import Data.Maybe( fromMaybe )
 import Foreign( Ptr, nullPtr, castPtr, alloca, allocaArray, peek, peekArray )
 import Foreign.C.String( CString, peekCString )
@@ -58,12 +58,13 @@ import Foreign.C.Types( CSize )
 import Foreign.Storable( sizeOf )
 import System.GPU.OpenCL.Types( 
   CLbool, CLint, CLuint, CLulong, CLPlatformInfo_, CLDeviceType_, 
-  CLDeviceInfo_, CLDeviceFPConfig_, CLDeviceMemCacheType_, 
-  CLDeviceLocalMemType_, CLDeviceExecCapability_,
+  CLDeviceInfo_, CLDeviceFPConfig(..), CLDeviceExecCapability(..), 
+  CLDeviceLocalMemType(..), CLDeviceMemCacheType(..),
   CLPlatformID, CLDeviceID, CLDeviceType(..), CLCommandQueueProperty, 
-  getDeviceTypeValue, bitmaskToDeviceTypes, bitmaskToCommandQueueProperties )
+  getDeviceMemCacheType, getDeviceLocalMemType, getDeviceTypeValue, 
+  bitmaskToDeviceTypes, bitmaskToCommandQueueProperties, bitmaskToFPConfig, 
+  bitmaskToExecCapability )
 import System.GPU.OpenCL.Errors( ErrorCode(..), clSuccess )
-import System.GPU.OpenCL.Util( testMask )
 
 -- -----------------------------------------------------------------------------
 foreign import ccall "clGetPlatformIDs" raw_clGetPlatformIDs :: 
@@ -235,41 +236,6 @@ getDeviceInfoBool infoid device = alloca $ \(dat :: Ptr CLbool) -> do
     where 
       size = fromIntegral $ sizeOf (0::CLbool)
   
-data CLDeviceFPConfig = CL_FP_DENORM -- ^ denorms are supported.
-                      | CL_FP_INF_NAN -- ^ INF and NaNs are supported.
-                      | CL_FP_ROUND_TO_NEAREST 
-                        -- ^ round to nearest even rounding mode supported.
-                      | CL_FP_ROUND_TO_ZERO 
-                        -- ^ round to zero rounding mode supported.
-                      | CL_FP_ROUND_TO_INF 
-                        -- ^ round to +ve and -ve infinity rounding modes 
-                        -- supported.
-                      | CL_FP_FMA 
-                        -- ^ IEEE754-2008 fused multiply-add is supported.
-                        deriving( Show )
-                        
-deviceFPValues :: [(CLDeviceFPConfig,CLDeviceFPConfig_)]
-deviceFPValues = [
-  (CL_FP_DENORM, 1 `shiftL` 0), (CL_FP_INF_NAN, 1 `shiftL` 1),
-  (CL_FP_ROUND_TO_NEAREST, 1 `shiftL` 2), (CL_FP_ROUND_TO_ZERO, 1 `shiftL` 3),
-  (CL_FP_ROUND_TO_INF, 1 `shiftL` 4), (CL_FP_FMA, 1 `shiftL` 5)]
-
-data CLDeviceExecCapability = CL_EXEC_KERNEL 
-                              -- ^ The OpenCL device can execute OpenCL kernels.
-                            | CL_EXEC_NATIVE_KERNEL
-                              -- ^ The OpenCL device can execute native kernels.
-                              deriving( Show )
-
-deviceExecValues :: [(CLDeviceExecCapability,CLDeviceExecCapability_)]
-deviceExecValues = [
-  (CL_EXEC_KERNEL, 1 `shiftL` 0), (CL_EXEC_NATIVE_KERNEL, 1 `shiftL` 1)]
-                   
-bitmaskToFPConfig :: CLDeviceFPConfig_ -> [CLDeviceFPConfig]
-bitmaskToFPConfig mask = map fst . filter (testMask mask) $ deviceFPValues
-
-bitmaskToExecCapability :: CLDeviceExecCapability_ -> [CLDeviceExecCapability]
-bitmaskToExecCapability mask = map fst . filter (testMask mask) $ deviceExecValues
-
 getDeviceInfoFP :: CLDeviceInfo_ -> CLDeviceID -> IO [CLDeviceFPConfig]
 getDeviceInfoFP infoid device = fmap (bitmaskToFPConfig . fromMaybe 0) $ getDeviceInfoUlong infoid device
 
@@ -348,14 +314,6 @@ clGetDeviceExtensions = getDeviceInfoString 0x1030
 clGetDeviceGlobalMemCacheSize :: CLDeviceID -> IO (Maybe CLulong)
 clGetDeviceGlobalMemCacheSize = getDeviceInfoUlong 0x101E
 
-data CLDeviceMemCacheType = CL_NONE | CL_READ_ONLY_CACHE | CL_READ_WRITE_CACHE
-                          deriving( Show )
-deviceMemCacheTypes :: [(CLDeviceMemCacheType_,CLDeviceMemCacheType)]
-deviceMemCacheTypes = [
-  (0x0,CL_NONE), (0x1,CL_READ_ONLY_CACHE),(0x2,CL_READ_WRITE_CACHE)]
-getDeviceMemCacheType :: CLDeviceMemCacheType_ -> Maybe CLDeviceMemCacheType
-getDeviceMemCacheType val = lookup val deviceMemCacheTypes
-
 -- | Type of global memory cache supported. Valid values are: 'CL_NONE', 
 -- 'CL_READ_ONLY_CACHE', and 'CL_READ_WRITE_CACHE'.
 clGetDeviceGlobalMemCacheType :: CLDeviceID -> IO (Maybe CLDeviceMemCacheType)
@@ -410,13 +368,6 @@ clGetDeviceImage3DMaxWidth = getDeviceInfoSizet 0x1013
 -- | Size of local memory arena in bytes. The minimum value is 16 KB.
 clGetDeviceLocalMemSize :: CLDeviceID -> IO (Maybe CLulong)
 clGetDeviceLocalMemSize = getDeviceInfoUlong 0x1023
-
-data CLDeviceLocalMemType = CL_LOCAL | CL_GLOBAL deriving( Show )
-
-deviceLocalMemTypes :: [(CLDeviceLocalMemType_,CLDeviceLocalMemType)]
-deviceLocalMemTypes = [(0x1,CL_LOCAL), (0x2,CL_GLOBAL)]
-getDeviceLocalMemType :: CLDeviceLocalMemType_ -> Maybe CLDeviceLocalMemType
-getDeviceLocalMemType val = lookup val deviceLocalMemTypes
 
 -- | Type of local memory supported. This can be set to 'CL_LOCAL' implying 
 -- dedicated local memory storage such as SRAM, or 'CL_GLOBAL'.

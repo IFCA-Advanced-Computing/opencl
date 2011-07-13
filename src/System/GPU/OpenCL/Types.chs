@@ -16,12 +16,13 @@
 -- -----------------------------------------------------------------------------
 module System.GPU.OpenCL.Types( 
   ErrorCode(..), CLbool, CLint, CLuint, CLulong, CLPlatformInfo_, 
-  CLDeviceType_, CLDeviceInfo_, CLDeviceFPConfig_, CLDeviceMemCacheType_, 
-  CLDeviceLocalMemType_, CLDeviceExecCapability_,
+  CLDeviceType_, CLDeviceInfo_, CLDeviceFPConfig(..), CLDeviceMemCacheType(..), 
+  CLDeviceExecCapability(..), CLDeviceLocalMemType(..),
   CLPlatformID, CLDeviceID, CLContext, CLCommandQueue,
   CLDeviceType(..), CLCommandQueueProperty(..), getDeviceTypeValue, 
-  bitmaskToDeviceTypes, bitmaskFromDeviceTypes,
-  bitmaskToCommandQueueProperties, bitmaskFromCommandQueueProperties ) 
+  getDeviceLocalMemType, getDeviceMemCacheType, bitmaskToDeviceTypes, bitmaskFromDeviceTypes,
+  bitmaskToCommandQueueProperties, bitmaskFromCommandQueueProperties, 
+  bitmaskToFPConfig, bitmaskToExecCapability ) 
        where
 
 -- -----------------------------------------------------------------------------
@@ -102,6 +103,51 @@ commandQueueProperties = [
   (CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, 1 `shiftL` 0),
   (CL_QUEUE_PROFILING_ENABLE, 1 `shiftL` 1)]
 
+data CLDeviceFPConfig = CL_FP_DENORM -- ^ denorms are supported.
+                      | CL_FP_INF_NAN -- ^ INF and NaNs are supported.
+                      | CL_FP_ROUND_TO_NEAREST 
+                        -- ^ round to nearest even rounding mode supported.
+                      | CL_FP_ROUND_TO_ZERO 
+                        -- ^ round to zero rounding mode supported.
+                      | CL_FP_ROUND_TO_INF 
+                        -- ^ round to +ve and -ve infinity rounding modes 
+                        -- supported.
+                      | CL_FP_FMA 
+                        -- ^ IEEE754-2008 fused multiply-add is supported.
+                        deriving( Show )
+                        
+deviceFPValues :: [(CLDeviceFPConfig,CLDeviceFPConfig_)]
+deviceFPValues = [
+  (CL_FP_DENORM, 1 `shiftL` 0), (CL_FP_INF_NAN, 1 `shiftL` 1),
+  (CL_FP_ROUND_TO_NEAREST, 1 `shiftL` 2), (CL_FP_ROUND_TO_ZERO, 1 `shiftL` 3),
+  (CL_FP_ROUND_TO_INF, 1 `shiftL` 4), (CL_FP_FMA, 1 `shiftL` 5)]
+
+data CLDeviceExecCapability = CL_EXEC_KERNEL 
+                              -- ^ The OpenCL device can execute OpenCL kernels.
+                            | CL_EXEC_NATIVE_KERNEL
+                              -- ^ The OpenCL device can execute native kernels.
+                              deriving( Show )
+
+deviceExecValues :: [(CLDeviceExecCapability,CLDeviceExecCapability_)]
+deviceExecValues = [
+  (CL_EXEC_KERNEL, 1 `shiftL` 0), (CL_EXEC_NATIVE_KERNEL, 1 `shiftL` 1)]
+                   
+data CLDeviceMemCacheType = CL_NONE | CL_READ_ONLY_CACHE | CL_READ_WRITE_CACHE
+                          deriving( Show )
+deviceMemCacheTypes :: [(CLDeviceMemCacheType_,CLDeviceMemCacheType)]
+deviceMemCacheTypes = [
+  (0x0,CL_NONE), (0x1,CL_READ_ONLY_CACHE),(0x2,CL_READ_WRITE_CACHE)]
+getDeviceMemCacheType :: CLDeviceMemCacheType_ -> Maybe CLDeviceMemCacheType
+getDeviceMemCacheType val = lookup val deviceMemCacheTypes
+
+data CLDeviceLocalMemType = CL_LOCAL | CL_GLOBAL deriving( Show )
+
+deviceLocalMemTypes :: [(CLDeviceLocalMemType_,CLDeviceLocalMemType)]
+deviceLocalMemTypes = [(0x1,CL_LOCAL), (0x2,CL_GLOBAL)]
+getDeviceLocalMemType :: CLDeviceLocalMemType_ -> Maybe CLDeviceLocalMemType
+getDeviceLocalMemType val = lookup val deviceLocalMemTypes
+
+-- -----------------------------------------------------------------------------
 bitmaskToDeviceTypes :: CULong -> [CLDeviceType]
 bitmaskToDeviceTypes mask = map fst . filter (testMask mask) $ deviceTypeValues
 
@@ -113,5 +159,11 @@ bitmaskToCommandQueueProperties mask = map fst . filter (testMask mask) $ comman
       
 bitmaskFromCommandQueueProperties :: [CLCommandQueueProperty] -> CULong
 bitmaskFromCommandQueueProperties = foldl' (.|.) 0 . mapMaybe (`lookup` commandQueueProperties)
+
+bitmaskToFPConfig :: CLDeviceFPConfig_ -> [CLDeviceFPConfig]
+bitmaskToFPConfig mask = map fst . filter (testMask mask) $ deviceFPValues
+
+bitmaskToExecCapability :: CLDeviceExecCapability_ -> [CLDeviceExecCapability]
+bitmaskToExecCapability mask = map fst . filter (testMask mask) $ deviceExecValues
 
 -- -----------------------------------------------------------------------------
