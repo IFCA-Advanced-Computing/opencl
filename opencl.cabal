@@ -24,6 +24,9 @@ Library
     System.GPU.OpenCL.Query
     System.GPU.OpenCL.Context
     System.GPU.OpenCL.CommandQueue
+    System.GPU.OpenCL.Memory
+    System.GPU.OpenCL.Event
+    System.GPU.OpenCL.Program
   Other-Modules: 
     System.GPU.OpenCL.Types
     System.GPU.OpenCL.Util

@@ -14,21 +14,9 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
-module System.GPU.OpenCL( 
-  module System.GPU.OpenCL.Query,
-  module System.GPU.OpenCL.Context,
-  module System.GPU.OpenCL.CommandQueue, 
-  module System.GPU.OpenCL.Memory,
-  module System.GPU.OpenCL.Event,
-  module System.GPU.OpenCL.Program )
-       where
+{-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
+module System.GPU.OpenCL.Event(  ) where
 
 -- -----------------------------------------------------------------------------
-import System.GPU.OpenCL.Query
-import System.GPU.OpenCL.Context
-import System.GPU.OpenCL.CommandQueue
-import System.GPU.OpenCL.Memory
-import System.GPU.OpenCL.Event
-import System.GPU.OpenCL.Program
 
 -- -----------------------------------------------------------------------------
