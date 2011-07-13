@@ -27,10 +27,11 @@ module System.GPU.OpenCL.Context(
 import Foreign( 
   Ptr, FunPtr, nullPtr, castPtr, alloca, allocaArray, peek, peekArray, 
   pokeArray )
-import Foreign.C.Types( CSize, CInt, CUInt, CULong )
+import Foreign.C.Types( CSize )
 import Foreign.C.String( CString, peekCString )
 import Foreign.Storable( sizeOf )
 import System.GPU.OpenCL.Types( 
+  CLuint, CLint, CLDeviceType_, CLContextInfo_, CLContextProperty_,
   CLDeviceID, CLContext, CLDeviceType, bitmaskFromDeviceTypes )
 import System.GPU.OpenCL.Errors( ErrorCode(..), clSuccess )
 
@@ -39,17 +40,17 @@ type ContextCallback = CString -> Ptr () -> CSize -> Ptr () -> IO ()
 foreign import ccall "wrapper" wrapContextCallback :: 
   ContextCallback -> IO (FunPtr ContextCallback)
 foreign import ccall "clCreateContext" raw_clCreateContext ::
-  Ptr (Ptr CInt) -> CUInt -> Ptr CLDeviceID -> FunPtr ContextCallback -> 
-  Ptr () -> Ptr CInt -> IO CLContext
+  Ptr CLContextProperty_ -> CLuint -> Ptr CLDeviceID -> FunPtr ContextCallback -> 
+  Ptr () -> Ptr CLint -> IO CLContext
 foreign import ccall "clCreateContextFromType" raw_clCreateContextFromType :: 
-  Ptr (Ptr CInt) -> CULong -> FunPtr ContextCallback -> 
-  Ptr () -> Ptr CInt -> IO CLContext
+  Ptr CLContextProperty_ -> CLDeviceType_ -> FunPtr ContextCallback -> 
+  Ptr () -> Ptr CLint -> IO CLContext
 foreign import ccall "clRetainContext" raw_clRetainContext :: 
-  CLContext -> IO CInt
+  CLContext -> IO CLint
 foreign import ccall "clReleaseContext" raw_clReleaseContext :: 
-  CLContext -> IO CInt
+  CLContext -> IO CLint
 foreign import ccall "clGetContextInfo" raw_clGetContextInfo :: 
-  CLContext -> CUInt -> CSize -> Ptr () -> Ptr CSize -> IO CInt
+  CLContext -> CLContextInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 
 -- -----------------------------------------------------------------------------
 mkContextCallback :: (String -> IO ()) -> ContextCallback
@@ -110,7 +111,7 @@ clReleaseContext :: CLContext -> IO Bool
 clReleaseContext ctx = raw_clReleaseContext ctx 
                        >>= return . (==clSuccess) . ErrorCode
 
-getContextInfoSize :: CLContext -> CUInt -> IO (Maybe CSize)
+getContextInfoSize :: CLContext -> CLContextInfo_ -> IO (Maybe CSize)
 getContextInfoSize ctx infoid = alloca $ \(value_size :: Ptr CSize) -> do
   errcode <- fmap ErrorCode $ raw_clGetContextInfo ctx infoid 0 nullPtr value_size
   if errcode == clSuccess
@@ -120,14 +121,14 @@ getContextInfoSize ctx infoid = alloca $ \(value_size :: Ptr CSize) -> do
 -- | Return the context reference count. The reference count returned should be 
 -- considered immediately stale. It is unsuitable for general use in 
 -- applications. This feature is provided for identifying memory leaks.
-clGetContextReferenceCount :: CLContext -> IO (Maybe CUInt)
-clGetContextReferenceCount ctx = alloca $ \(dat :: Ptr CUInt) -> do
+clGetContextReferenceCount :: CLContext -> IO (Maybe CLuint)
+clGetContextReferenceCount ctx = alloca $ \(dat :: Ptr CLuint) -> do
   errcode <- fmap ErrorCode $ raw_clGetContextInfo ctx 0x1080 size (castPtr dat) nullPtr
   if errcode == clSuccess
     then fmap Just $ peek dat
     else return Nothing
     where 
-      size = fromIntegral $ sizeOf (0::CUInt)
+      size = fromIntegral $ sizeOf (0::CLuint)
 
 -- | Return the list of devices in context.
 clGetContextDevices :: CLContext -> IO [CLDeviceID]
@@ -146,7 +147,7 @@ clGetContextDevices ctx = do
 
 --data ContextProperty = CL_CONTEXT_PLATFORM CLPlatformID deriving( Show )
 
---contextPropertyToVal :: ContextProperty -> Ptr CInt
+--contextPropertyToVal :: ContextProperty -> [CLContextProperty_]
 
 -- | Return the properties argument specified in 'clCreateContext'.
 --clGetContextProperties :: CLContext -> IO []

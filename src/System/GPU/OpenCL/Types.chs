@@ -16,18 +16,18 @@
 -- -----------------------------------------------------------------------------
 module System.GPU.OpenCL.Types( 
   ErrorCode(..), CLbool, CLint, CLuint, CLulong, CLPlatformInfo_, 
-  CLDeviceType_, CLDeviceInfo_, CLDeviceFPConfig(..), CLDeviceMemCacheType(..), 
-  CLDeviceExecCapability(..), CLDeviceLocalMemType(..),
-  CLPlatformID, CLDeviceID, CLContext, CLCommandQueue,
+  CLDeviceType_, CLDeviceInfo_, CLContextInfo_, CLDeviceFPConfig(..), 
+  CLDeviceMemCacheType(..), CLDeviceExecCapability(..), CLDeviceLocalMemType(..),
+  CLPlatformID, CLDeviceID, CLContext, CLCommandQueue, CLContextProperty_,
   CLDeviceType(..), CLCommandQueueProperty(..), getDeviceTypeValue, 
-  getDeviceLocalMemType, getDeviceMemCacheType, bitmaskToDeviceTypes, bitmaskFromDeviceTypes,
-  bitmaskToCommandQueueProperties, bitmaskFromCommandQueueProperties, 
-  bitmaskToFPConfig, bitmaskToExecCapability ) 
+  getDeviceLocalMemType, getDeviceMemCacheType, bitmaskToDeviceTypes, 
+  bitmaskFromDeviceTypes, bitmaskToCommandQueueProperties, 
+  bitmaskFromCommandQueueProperties, bitmaskToFPConfig, bitmaskToExecCapability ) 
        where
 
 -- -----------------------------------------------------------------------------
 import Foreign( Ptr )
-import Foreign.C.Types( CUInt, CInt, CULong )
+import Foreign.C.Types( CUInt, CInt, CULong, CLong )
 import Data.Maybe( fromMaybe, mapMaybe )
 import Data.List( foldl' )
 import Data.Bits( shiftL, complement, (.|.) )
@@ -54,6 +54,8 @@ type CLDeviceFPConfig_ = {#type cl_device_fp_config#}
 type CLDeviceMemCacheType_ = {#type cl_device_mem_cache_type#}
 type CLDeviceLocalMemType_ = {#type cl_device_local_mem_type#}
 type CLDeviceExecCapability_ = {#type cl_device_exec_capabilities#}
+type CLContextInfo_ = {#type cl_context_info#}
+type CLContextProperty_ = {#type cl_context_properties#}
 
 newtype ErrorCode = ErrorCode CInt deriving( Eq )
 
