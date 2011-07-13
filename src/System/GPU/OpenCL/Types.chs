@@ -29,7 +29,7 @@ module System.GPU.OpenCL.Types(
 
 -- -----------------------------------------------------------------------------
 import Foreign( Ptr )
-import Foreign.C.Types( CUInt, CInt, CULong, CLong )
+import Foreign.C.Types
 import Data.Maybe( fromMaybe, mapMaybe )
 import Data.List( foldl' )
 import Data.Bits( shiftL, complement, (.|.) )
@@ -85,12 +85,12 @@ data CLDeviceType = CL_DEVICE_TYPE_CPU
                     -- ^ All OpenCL devices available in the system.
                   deriving( Eq, Show )
 
-deviceTypeValues :: [(CLDeviceType,CULong)]
+deviceTypeValues :: [(CLDeviceType,CLDeviceType_)]
 deviceTypeValues = [ 
   (CL_DEVICE_TYPE_CPU, 1 `shiftL` 1), (CL_DEVICE_TYPE_GPU, 1 `shiftL` 2), 
   (CL_DEVICE_TYPE_ACCELERATOR, 1 `shiftL` 3), (CL_DEVICE_TYPE_DEFAULT, 1 `shiftL` 0),
   (CL_DEVICE_TYPE_ALL, complement 0) ]
-getDeviceTypeValue :: CLDeviceType -> CULong
+getDeviceTypeValue :: CLDeviceType -> CLDeviceType_
 getDeviceTypeValue info = fromMaybe 0 (lookup info deviceTypeValues)
 
 data CLCommandQueueProperty = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE	
@@ -107,7 +107,7 @@ data CLCommandQueueProperty = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
                               -- 'clGetEventProfilingInfo' for more information.
                               deriving( Eq, Show )
 
-commandQueueProperties :: [(CLCommandQueueProperty,CULong)]         
+commandQueueProperties :: [(CLCommandQueueProperty,CLCommandQueueProperty_)]
 commandQueueProperties = [
   (CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, 1 `shiftL` 0),
   (CL_QUEUE_PROFILING_ENABLE, 1 `shiftL` 1)]
@@ -157,16 +157,16 @@ getDeviceLocalMemType :: CLDeviceLocalMemType_ -> Maybe CLDeviceLocalMemType
 getDeviceLocalMemType val = lookup val deviceLocalMemTypes
 
 -- -----------------------------------------------------------------------------
-bitmaskToDeviceTypes :: CULong -> [CLDeviceType]
+bitmaskToDeviceTypes :: CLDeviceType_ -> [CLDeviceType]
 bitmaskToDeviceTypes mask = map fst . filter (testMask mask) $ deviceTypeValues
 
-bitmaskFromDeviceTypes :: [CLDeviceType] -> CULong
+bitmaskFromDeviceTypes :: [CLDeviceType] -> CLDeviceType_
 bitmaskFromDeviceTypes = foldl' (.|.) 0 . mapMaybe (`lookup` deviceTypeValues)
   
-bitmaskToCommandQueueProperties :: CULong -> [CLCommandQueueProperty]
+bitmaskToCommandQueueProperties :: CLCommandQueueProperty_ -> [CLCommandQueueProperty]
 bitmaskToCommandQueueProperties mask = map fst . filter (testMask mask) $ commandQueueProperties
       
-bitmaskFromCommandQueueProperties :: [CLCommandQueueProperty] -> CULong
+bitmaskFromCommandQueueProperties :: [CLCommandQueueProperty] -> CLCommandQueueProperty_
 bitmaskFromCommandQueueProperties = foldl' (.|.) 0 . mapMaybe (`lookup` commandQueueProperties)
 
 bitmaskToFPConfig :: CLDeviceFPConfig_ -> [CLDeviceFPConfig]
