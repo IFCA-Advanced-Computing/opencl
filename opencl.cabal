@@ -15,6 +15,7 @@ bug-reports: https://github.com/zhensydow/opencl/issues
 Tested-With: GHC
 
 Library
+  Build-tools: c2hs
   hs-Source-Dirs: src
   ghc-options: -Wall
   Build-Depends: base -any, bytestring -any, mtl -any

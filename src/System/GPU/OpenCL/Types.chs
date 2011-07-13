@@ -15,7 +15,10 @@
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
 module System.GPU.OpenCL.Types( 
-  ErrorCode(..), CLPlatformID, CLDeviceID, CLContext, CLCommandQueue,
+  ErrorCode(..), CLbool, CLint, CLuint, CLulong, CLPlatformInfo_, 
+  CLDeviceType_, CLDeviceInfo_, CLDeviceFPConfig_, CLDeviceMemCacheType_, 
+  CLDeviceLocalMemType_, CLDeviceExecCapability_,
+  CLPlatformID, CLDeviceID, CLContext, CLCommandQueue,
   CLDeviceType(..), CLCommandQueueProperty(..), getDeviceTypeValue, 
   bitmaskToDeviceTypes, bitmaskFromDeviceTypes,
   bitmaskToCommandQueueProperties, bitmaskFromCommandQueueProperties ) 
@@ -23,18 +26,33 @@ module System.GPU.OpenCL.Types(
 
 -- -----------------------------------------------------------------------------
 import Foreign( Ptr )
-import Foreign.C.Types( CInt, CULong )
+import Foreign.C.Types( CUInt, CInt, CULong )
 import Data.Maybe( fromMaybe, mapMaybe )
 import Data.List( foldl' )
 import Data.Bits( shiftL, complement, (.|.) )
 import System.GPU.OpenCL.Util( testMask )
 
+#include <CL/cl.h>
+
 -- -----------------------------------------------------------------------------
 
-type CLPlatformID = Ptr ()
-type CLDeviceID = Ptr ()
-type CLContext = Ptr ()
-type CLCommandQueue = Ptr ()
+type CLPlatformID = {#type cl_platform_id#}
+type CLDeviceID = {#type cl_device_id#}
+type CLContext = {#type cl_context#}
+type CLCommandQueue = {#type cl_command_queue#}
+
+type CLint = {#type cl_int#}
+type CLuint = {#type cl_uint#}
+type CLulong = {#type cl_ulong#}
+type CLbool = {#type cl_bool#}
+
+type CLPlatformInfo_ = {#type cl_platform_info#}
+type CLDeviceType_ = {#type cl_device_type#}
+type CLDeviceInfo_ = {#type cl_device_info#}
+type CLDeviceFPConfig_ = {#type cl_device_fp_config#}
+type CLDeviceMemCacheType_ = {#type cl_device_mem_cache_type#}
+type CLDeviceLocalMemType_ = {#type cl_device_local_mem_type#}
+type CLDeviceExecCapability_ = {#type cl_device_exec_capabilities#}
 
 newtype ErrorCode = ErrorCode CInt deriving( Eq )
 
