@@ -23,7 +23,8 @@ module System.GPU.OpenCL.Types(
   CLDeviceType(..), CLCommandQueueProperty(..), CLCommandQueueInfo_, 
   CLEventInfo_, CLProfilingInfo_, CLCommandType(..), CLCommandType_, 
   CLCommandExecutionStatus(..), CLProfilingInfo(..), getProfilingInfoValue,
-  CLCommandQueueProperty_, getDeviceTypeValue, getDeviceLocalMemType, 
+  CLCommandQueueProperty_, CLMemFlags_, CLImageFormat_p, CLMemObjectType_, 
+  CLMemInfo_, CLImageInfo_, getDeviceTypeValue, getDeviceLocalMemType, 
   getDeviceMemCacheType, getCommandType, getCommandExecutionStatus, 
   bitmaskToDeviceTypes, bitmaskFromDeviceTypes, bitmaskToCommandQueueProperties, 
   bitmaskFromCommandQueueProperties, bitmaskToFPConfig, bitmaskToExecCapability )
@@ -66,6 +67,14 @@ type CLCommandQueueProperty_ = {#type cl_command_queue_properties#}
 type CLEventInfo_ = {#type cl_event_info#}
 type CLProfilingInfo_ = {#type cl_profiling_info#}
 type CLCommandType_ = {#type cl_command_type#}
+type CLMemFlags_ = {#type cl_mem_flags#}
+type CLMemObjectType_ = {#type cl_mem_object_type#}
+type CLMemInfo_ = {#type cl_mem_info#}
+type CLImageInfo_ = {#type cl_image_info#}
+{#pointer *cl_image_format as CLImageFormat_p#}
+
+type CLImageChannelOrder_ = {#type cl_channel_order#}
+type CLImageChannelDataType_ = {#type cl_channel_type#}
 
 newtype ErrorCode = ErrorCode CInt deriving( Eq )
 
