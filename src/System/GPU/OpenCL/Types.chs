@@ -21,7 +21,7 @@ module System.GPU.OpenCL.Types(
   CLDeviceMemCacheType(..), CLDeviceExecCapability(..), CLDeviceLocalMemType(..),
   CLPlatformID, CLDeviceID, CLContext, CLCommandQueue, CLContextProperty_,
   CLDeviceType(..), CLCommandQueueProperty(..), CLCommandQueueInfo_, 
-  CLEventInfo_, CLProfilingInfo_, CLCommandType, CLCommandType_, 
+  CLEventInfo_, CLProfilingInfo_, CLCommandType(..), CLCommandType_, 
   CLCommandExecutionStatus(..), CLProfilingInfo(..), getProfilingInfoValue,
   CLCommandQueueProperty_, getDeviceTypeValue, getDeviceLocalMemType, 
   getDeviceMemCacheType, getCommandType, getCommandExecutionStatus, 
@@ -32,10 +32,8 @@ module System.GPU.OpenCL.Types(
 -- -----------------------------------------------------------------------------
 import Foreign( Ptr )
 import Foreign.C.Types
-import Data.Maybe( fromMaybe, mapMaybe )
 import Data.List( foldl' )
-import Data.Bits( shiftL, complement, (.|.) )
-import System.GPU.OpenCL.Util( testMask )
+import Data.Bits( Bits, shiftL, (.|.), (.&.) )
 
 #include <CL/cl.h>
 
@@ -72,145 +70,172 @@ type CLCommandType_ = {#type cl_command_type#}
 newtype ErrorCode = ErrorCode CInt deriving( Eq )
 
 -- -----------------------------------------------------------------------------
-data CLDeviceType = CL_DEVICE_TYPE_CPU 
-                    -- ^ An OpenCL device that is the host processor. The host 
-                    -- processor runs the OpenCL implementations and is a single 
-                    -- or multi-core CPU.
-                  | CL_DEVICE_TYPE_GPU	
-                    -- ^ An OpenCL device that is a GPU. By this we mean that 
-                    -- the device can also be used to accelerate a 3D API such 
-                    -- as OpenGL or DirectX.
-                  | CL_DEVICE_TYPE_ACCELERATOR	
-                    -- ^ Dedicated OpenCL accelerators (for example the IBM CELL 
-                    -- Blade). These devices communicate with the host processor 
-                    -- using a peripheral interconnect such as PCIe.
-                  | CL_DEVICE_TYPE_DEFAULT 
-                    -- ^ The default OpenCL device in the system.                    
-                  | CL_DEVICE_TYPE_ALL	
-                    -- ^ All OpenCL devices available in the system.
-                  deriving( Eq, Show )
+#c
+enum CLDeviceType {
+CLDEVICE_TYPE_CPU=CL_DEVICE_TYPE_CPU,
+CLDEVICE_TYPE_GPU=CL_DEVICE_TYPE_GPU,
+CLDEVICE_TYPE_ACCELERATOR=CL_DEVICE_TYPE_ACCELERATOR,
+CLDEVICE_TYPE_DEFAULT=CL_DEVICE_TYPE_DEFAULT,
+CLDEVICE_TYPE_ALL=CL_DEVICE_TYPE_ALL
+  };
+#endc
 
-deviceTypeValues :: [(CLDeviceType,CLDeviceType_)]
-deviceTypeValues = [ 
-  (CL_DEVICE_TYPE_CPU, 1 `shiftL` 1), (CL_DEVICE_TYPE_GPU, 1 `shiftL` 2), 
-  (CL_DEVICE_TYPE_ACCELERATOR, 1 `shiftL` 3), (CL_DEVICE_TYPE_DEFAULT, 1 `shiftL` 0),
-  (CL_DEVICE_TYPE_ALL, complement 0) ]
+{-|
+ * 'CLDEVICE_TYPE_CPU', An OpenCL device that is the host processor. The host processor runs the OpenCL implementations and is a single or multi-core CPU.
+                  
+ * 'CLDEVICE_TYPE_GPU', An OpenCL device that is a GPU. By this we mean that the device can also be used to accelerate a 3D API such as OpenGL or DirectX.
+                  
+ * 'CLDEVICE_TYPE_ACCELERATOR', Dedicated OpenCL accelerators (for example the IBM CELL Blade). These devices communicate with the host processor using a peripheral interconnect such as PCIe.
+                
+ * 'CLDEVICE_TYPE_DEFAULT', The default OpenCL device in the system.
+           
+ * 'CLDEVICE_TYPE_ALL', All OpenCL devices available in the system.
+-}
+{#enum CLDeviceType {} deriving( Show ) #}
+
 getDeviceTypeValue :: CLDeviceType -> CLDeviceType_
-getDeviceTypeValue info = fromMaybe 0 (lookup info deviceTypeValues)
+getDeviceTypeValue = fromIntegral . fromEnum
 
-data CLCommandQueueProperty = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE	
-                              -- ^ Determines whether the commands queued in the 
-                              -- command-queue are executed in-order or 
-                              -- out-of-order. If set, the commands in the 
-                              -- command-queue are executed out-of-order. 
-                              -- Otherwise, commands are executed in-order.
-                            | CL_QUEUE_PROFILING_ENABLE	
-                              -- ^ Enable or disable profiling of commands in
-                              -- the command-queue. If set, the profiling of 
-                              -- commands is enabled. Otherwise profiling of 
-                              -- commands is disabled. See 
-                              -- 'clGetEventProfilingInfo' for more information.
-                              deriving( Eq, Show )
+#c
+enum CLCommandQueueProperty { 
+  CLQUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE=CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE,
+  CLQUEUE_PROFILING_ENABLE=CL_QUEUE_PROFILING_ENABLE
+  };
+#endc
 
-commandQueueProperties :: [(CLCommandQueueProperty,CLCommandQueueProperty_)]
-commandQueueProperties = [
-  (CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, 1 `shiftL` 0),
-  (CL_QUEUE_PROFILING_ENABLE, 1 `shiftL` 1)]
+{-|
+ * 'CLQUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE', Determines whether the commands 
+queued in the command-queue are executed in-order or out-of-order. If set, the 
+commands in the command-queue are executed out-of-order. Otherwise, commands are 
+executed in-order.
+                            
+ * 'CLQUEUE_PROFILING_ENABLE', Enable or disable profiling of commands in the 
+command-queue. If set, the profiling of commands is enabled. Otherwise profiling 
+of commands is disabled. See 'clGetEventProfilingInfo' for more information.
+-}
+{#enum CLCommandQueueProperty {} deriving( Show, Bounded, Eq, Ord ) #}
 
-data CLDeviceFPConfig = CL_FP_DENORM -- ^ denorms are supported.
-                      | CL_FP_INF_NAN -- ^ INF and NaNs are supported.
-                      | CL_FP_ROUND_TO_NEAREST 
-                        -- ^ round to nearest even rounding mode supported.
-                      | CL_FP_ROUND_TO_ZERO 
-                        -- ^ round to zero rounding mode supported.
-                      | CL_FP_ROUND_TO_INF 
-                        -- ^ round to +ve and -ve infinity rounding modes 
-                        -- supported.
-                      | CL_FP_FMA 
-                        -- ^ IEEE754-2008 fused multiply-add is supported.
-                        deriving( Show )
-                        
-deviceFPValues :: [(CLDeviceFPConfig,CLDeviceFPConfig_)]
-deviceFPValues = [
-  (CL_FP_DENORM, 1 `shiftL` 0), (CL_FP_INF_NAN, 1 `shiftL` 1),
-  (CL_FP_ROUND_TO_NEAREST, 1 `shiftL` 2), (CL_FP_ROUND_TO_ZERO, 1 `shiftL` 3),
-  (CL_FP_ROUND_TO_INF, 1 `shiftL` 4), (CL_FP_FMA, 1 `shiftL` 5)]
+#c
+enum CLDeviceFPConfig {
+  CLFP_DENORM=CL_FP_DENORM, CLFP_INF_NAN=CL_FP_INF_NAN,
+  CLFP_ROUND_TO_NEAREST=CL_FP_ROUND_TO_NEAREST,
+  CLFP_ROUND_TO_ZERO=CL_FP_ROUND_TO_ZERO,
+  CLFP_ROUND_TO_INF=CL_FP_ROUND_TO_INF, CLFP_FMA=CL_FP_FMA,
+  };
+#endc
 
-data CLDeviceExecCapability = CL_EXEC_KERNEL 
-                              -- ^ The OpenCL device can execute OpenCL kernels.
-                            | CL_EXEC_NATIVE_KERNEL
-                              -- ^ The OpenCL device can execute native kernels.
-                              deriving( Show )
+{-|
+ * 'CLFP_DENORM', denorms are supported.
+                      
+ * 'CLFP_INF_NAN', INF and NaNs are supported.
+                      
+ * 'CLFP_ROUND_TO_NEAREST', round to nearest even rounding mode supported.
+                      
+ * 'CLFP_ROUND_TO_ZERO', round to zero rounding mode supported.
+                      
+ * 'CLFP_ROUND_TO_INF', round to +ve and -ve infinity rounding modes supported.
+                      
+ * 'CLFP_FMA', IEEE754-2008 fused multiply-add is supported.
+-}
+{#enum CLDeviceFPConfig {} deriving( Show, Bounded, Eq, Ord ) #}
 
-deviceExecValues :: [(CLDeviceExecCapability,CLDeviceExecCapability_)]
-deviceExecValues = [
-  (CL_EXEC_KERNEL, 1 `shiftL` 0), (CL_EXEC_NATIVE_KERNEL, 1 `shiftL` 1)]
-                   
-data CLDeviceMemCacheType = CL_NONE | CL_READ_ONLY_CACHE | CL_READ_WRITE_CACHE
-                          deriving( Show )
-deviceMemCacheTypes :: [(CLDeviceMemCacheType_,CLDeviceMemCacheType)]
-deviceMemCacheTypes = [
-  (0x0,CL_NONE), (0x1,CL_READ_ONLY_CACHE),(0x2,CL_READ_WRITE_CACHE)]
+#c
+enum CLDeviceExecCapability {
+  CLEXEC_KERNEL=CL_EXEC_KERNEL,
+  CLEXEC_NATIVE_KERNEL=CL_EXEC_NATIVE_KERNEL
+  };
+#endc
+
+{-|
+ * 'CLEXEC_KERNEL', The OpenCL device can execute OpenCL kernels.
+                            
+ * 'CLEXEC_NATIVE_KERNEL', The OpenCL device can execute native kernels.
+-}
+{#enum CLDeviceExecCapability {} deriving( Show, Bounded, Eq, Ord ) #}
+
+#c
+enum CLDeviceMemCacheType {
+  CLNONE=CL_NONE,CLREAD_ONLY_CACHE=CL_READ_ONLY_CACHE,
+  CLREAD_WRITE_CACHE=CL_READ_WRITE_CACHE
+  };
+#endc
+
+{#enum CLDeviceMemCacheType {} deriving( Show ) #}
+
 getDeviceMemCacheType :: CLDeviceMemCacheType_ -> Maybe CLDeviceMemCacheType
-getDeviceMemCacheType val = lookup val deviceMemCacheTypes
+getDeviceMemCacheType = Just . toEnum . fromIntegral
 
-data CLDeviceLocalMemType = CL_LOCAL | CL_GLOBAL deriving( Show )
+#c
+enum CLDeviceLocalMemType {
+  CLLOCAL=CL_LOCAL, CLGLOBAL=CL_GLOBAL
+  };
+#endc
 
-deviceLocalMemTypes :: [(CLDeviceLocalMemType_,CLDeviceLocalMemType)]
-deviceLocalMemTypes = [(0x1,CL_LOCAL), (0x2,CL_GLOBAL)]
+{#enum CLDeviceLocalMemType {} deriving( Show ) #}
+
 getDeviceLocalMemType :: CLDeviceLocalMemType_ -> Maybe CLDeviceLocalMemType
-getDeviceLocalMemType val = lookup val deviceLocalMemTypes
+getDeviceLocalMemType = Just . toEnum . fromIntegral
 
-data CLCommandType = CL_COMMAND_NDRANGE_KERNEL | CL_COMMAND_TASK 
-                   | CL_COMMAND_NATIVE_KERNEL | CL_COMMAND_READ_BUFFER
-                   | CL_COMMAND_WRITE_BUFFER | CL_COMMAND_COPY_BUFFER
-                   | CL_COMMAND_READ_IMAGE | CL_COMMAND_WRITE_IMAGE
-                   | CL_COMMAND_COPY_IMAGE | CL_COMMAND_COPY_BUFFER_TO_IMAGE
-                   | CL_COMMAND_COPY_IMAGE_TO_BUFFER | CL_COMMAND_MAP_BUFFER
-                   | CL_COMMAND_MAP_IMAGE | CL_COMMAND_UNMAP_MEM_OBJECT
-                   | CL_COMMAND_MARKER | CL_COMMAND_ACQUIRE_GL_OBJECTS
-                   | CL_COMMAND_RELEASE_GL_OBJECTS
-                   deriving( Show )
+#c
+enum CLCommandType {
+  CLCOMMAND_NDRANGE_KERNEL=CL_COMMAND_NDRANGE_KERNEL,
+  CLCOMMAND_TASK=CL_COMMAND_TASK ,
+  CLCOMMAND_NATIVE_KERNEL=CL_COMMAND_NATIVE_KERNEL,
+  CLCOMMAND_READ_BUFFER=CL_COMMAND_READ_BUFFER,
+  CLCOMMAND_WRITE_BUFFER=CL_COMMAND_WRITE_BUFFER,
+  CLCOMMAND_COPY_BUFFER=CL_COMMAND_COPY_BUFFER,
+  CLCOMMAND_READ_IMAGE=CL_COMMAND_READ_IMAGE,
+  CLCOMMAND_WRITE_IMAGE=CL_COMMAND_WRITE_IMAGE,
+  CLCOMMAND_COPY_IMAGE=CL_COMMAND_COPY_IMAGE,
+  CLCOMMAND_COPY_BUFFER_TO_IMAGE=CL_COMMAND_COPY_BUFFER_TO_IMAGE,
+  CLCOMMAND_COPY_IMAGE_TO_BUFFER=CL_COMMAND_COPY_IMAGE_TO_BUFFER,
+  CLCOMMAND_MAP_BUFFER=CL_COMMAND_MAP_BUFFER,
+  CLCOMMAND_MAP_IMAGE=CL_COMMAND_MAP_IMAGE,
+  CLCOMMAND_UNMAP_MEM_OBJECT=CL_COMMAND_UNMAP_MEM_OBJECT,
+  CLCOMMAND_MARKER=CL_COMMAND_MARKER,
+  CLCOMMAND_ACQUIRE_GL_OBJECTS=CL_COMMAND_ACQUIRE_GL_OBJECTS,
+  CLCOMMAND_RELEASE_GL_OBJECTS=CL_COMMAND_RELEASE_GL_OBJECTS
+  };
+#endc
 
-commandTypes :: [(CLCommandType_, CLCommandType)]
-commandTypes = [(0x11F0,CL_COMMAND_NDRANGE_KERNEL),(0x11F1,CL_COMMAND_TASK),
-                (0x11F2,CL_COMMAND_NATIVE_KERNEL),(0x11F3,CL_COMMAND_READ_BUFFER),
-                (0x11F4,CL_COMMAND_WRITE_BUFFER),(0x11F5,CL_COMMAND_COPY_BUFFER),
-                (0x11F6,CL_COMMAND_READ_IMAGE),(0x11F7,CL_COMMAND_WRITE_IMAGE),
-                (0x11F8,CL_COMMAND_COPY_IMAGE),(0x11F9,CL_COMMAND_COPY_IMAGE_TO_BUFFER),
-                (0x11FA,CL_COMMAND_COPY_BUFFER_TO_IMAGE),(0x11FB,CL_COMMAND_MAP_BUFFER),
-                (0x11FC,CL_COMMAND_MAP_IMAGE),(0x11FD,CL_COMMAND_UNMAP_MEM_OBJECT),
-                (0x11FE,CL_COMMAND_MARKER),(0x11FF,CL_COMMAND_ACQUIRE_GL_OBJECTS),
-                (0x1200,CL_COMMAND_RELEASE_GL_OBJECTS)]
+-- | Command associated with an event.
+{#enum CLCommandType {} deriving( Show ) #}
+
 getCommandType :: CLCommandType_ -> Maybe CLCommandType
-getCommandType = (`lookup` commandTypes)
+getCommandType = Just . toEnum . fromIntegral
 
-data CLCommandExecutionStatus = CL_QUEUED 
-                                -- ^ command has been enqueued in the command-queue
-                              | CL_SUBMITTED 
-                                -- ^ enqueued command has been submitted by the 
-                                -- host to the device associated with the 
-                                -- command-queue
-                              | CL_RUNNING 
-                                -- ^ device is currently executing this command
-                              | CL_COMPLETE -- ^ the command has completed
-                              | CL_EXEC_ERROR 
-                                -- ^ command was abnormally terminated
-                                
-commandExecutionStatus :: [(CLint, CLCommandExecutionStatus)]
-commandExecutionStatus = [(0x0,CL_COMPLETE),(0x1,CL_RUNNING),
-                          (0x2,CL_SUBMITTED),(0x3,CL_QUEUED)]
+#c
+enum CLCommandExecutionStatus {
+  CLQUEUED=CL_QUEUED, CLSUBMITTED=CL_SUBMITTED, CLRUNNING=CL_RUNNING,
+  CLCOMPLETE=CL_COMPLETE, CLEXEC_ERROR= -1
+  };
+#endc
+
+{-|
+ * 'CLQUEUED', command has been enqueued in the command-queue.
+
+ * 'CLSUBMITTED', enqueued command has been submitted by the host to the 
+device associated with the command-queue.
+
+ * 'CLRUNNING', device is currently executing this command.
+                            
+ * 'CLCOMPLETE', the command has completed.
+                              
+ * 'CLEXEC_ERROR', command was abnormally terminated.
+-}
+{#enum CLCommandExecutionStatus {} deriving( Show ) #}
+
 getCommandExecutionStatus :: CLint -> Maybe CLCommandExecutionStatus                                
 getCommandExecutionStatus n 
-  | n < 0 = Just CL_EXEC_ERROR
-  | otherwise = lookup n commandExecutionStatus
+  | n < 0 = Just CLEXEC_ERROR
+  | otherwise = Just . toEnum . fromIntegral $ n
                 
 #c
 enum CLProfilingInfo {
-  CLPROFILING_COMMAND_QUEUED = CL_PROFILING_COMMAND_QUEUED,
-  CLPROFILING_COMMAND_SUBMIT = CL_PROFILING_COMMAND_SUBMIT,
-  CLPROFILING_COMMAND_START = CL_PROFILING_COMMAND_START,
-  CLPROFILING_COMMAND_END = CL_PROFILING_COMMAND_END
+  CLPROFILING_COMMAND_QUEUED=CL_PROFILING_COMMAND_QUEUED,
+  CLPROFILING_COMMAND_SUBMIT=CL_PROFILING_COMMAND_SUBMIT,
+  CLPROFILING_COMMAND_START=CL_PROFILING_COMMAND_START,
+  CLPROFILING_COMMAND_END=CL_PROFILING_COMMAND_END
   };
 #endc
 
@@ -233,28 +258,34 @@ execution on the device.
 time counter in nanoseconds when the command identified by event has finished 
 execution on the device.
 -}
-{#enum CLProfilingInfo {}#}
+{#enum CLProfilingInfo {} deriving( Show ) #}
 
 getProfilingInfoValue :: CLProfilingInfo -> CLProfilingInfo_
 getProfilingInfoValue = fromIntegral . fromEnum
 
 -- -----------------------------------------------------------------------------
+binaryFlags :: (Ord b, Enum b, Bounded b) => b -> [b]
+binaryFlags m = map toEnum . takeWhile (<= (fromEnum m)) $ [1 `shiftL` n | n <- [0..]]
+  
+testMask :: Bits b => b -> b -> Bool
+testMask mask v = (v .&. mask) == v
+
 bitmaskToDeviceTypes :: CLDeviceType_ -> [CLDeviceType]
-bitmaskToDeviceTypes mask = map fst . filter (testMask mask) $ deviceTypeValues
+bitmaskToDeviceTypes mask = filter (testMask mask . fromIntegral . fromEnum) $ [CLDEVICE_TYPE_CPU,CLDEVICE_TYPE_GPU,CLDEVICE_TYPE_ACCELERATOR,CLDEVICE_TYPE_DEFAULT,CLDEVICE_TYPE_ALL]
 
 bitmaskFromDeviceTypes :: [CLDeviceType] -> CLDeviceType_
-bitmaskFromDeviceTypes = foldl' (.|.) 0 . mapMaybe (`lookup` deviceTypeValues)
+bitmaskFromDeviceTypes = foldl' (.|.) 0 . map (fromIntegral . fromEnum)
   
 bitmaskToCommandQueueProperties :: CLCommandQueueProperty_ -> [CLCommandQueueProperty]
-bitmaskToCommandQueueProperties mask = map fst . filter (testMask mask) $ commandQueueProperties
+bitmaskToCommandQueueProperties mask = filter (testMask mask . fromIntegral . fromEnum) $ binaryFlags maxBound
       
 bitmaskFromCommandQueueProperties :: [CLCommandQueueProperty] -> CLCommandQueueProperty_
-bitmaskFromCommandQueueProperties = foldl' (.|.) 0 . mapMaybe (`lookup` commandQueueProperties)
+bitmaskFromCommandQueueProperties = foldl' (.|.) 0 . map (fromIntegral.fromEnum)
 
 bitmaskToFPConfig :: CLDeviceFPConfig_ -> [CLDeviceFPConfig]
-bitmaskToFPConfig mask = map fst . filter (testMask mask) $ deviceFPValues
+bitmaskToFPConfig mask = filter (testMask mask . fromIntegral . fromEnum) $ binaryFlags maxBound
 
 bitmaskToExecCapability :: CLDeviceExecCapability_ -> [CLDeviceExecCapability]
-bitmaskToExecCapability mask = map fst . filter (testMask mask) $ deviceExecValues
+bitmaskToExecCapability mask = filter (testMask mask . fromIntegral . fromEnum) $ binaryFlags maxBound
 
 -- -----------------------------------------------------------------------------
