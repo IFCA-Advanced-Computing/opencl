@@ -24,17 +24,17 @@ module System.GPU.OpenCL.Types(
   CLEventInfo_, CLProfilingInfo_, CLCommandType(..), CLCommandType_, 
   CLCommandExecutionStatus(..), CLProfilingInfo(..), getProfilingInfoValue,
   CLCommandQueueProperty_, CLMemFlags_, CLImageFormat_p, CLMemObjectType_, 
-  CLMemInfo_, CLImageInfo_, getDeviceTypeValue, getDeviceLocalMemType, 
-  getDeviceMemCacheType, getCommandType, getCommandExecutionStatus, 
-  bitmaskToDeviceTypes, bitmaskFromDeviceTypes, bitmaskToCommandQueueProperties, 
-  bitmaskFromCommandQueueProperties, bitmaskToFPConfig, bitmaskToExecCapability )
+  CLMemInfo_, CLImageInfo_, CLImageFormat(..), getImageFormat, getDeviceTypeValue, 
+  getDeviceLocalMemType, getDeviceMemCacheType, getCommandType, 
+  getCommandExecutionStatus, bitmaskToDeviceTypes, bitmaskFromDeviceTypes, 
+  bitmaskToCommandQueueProperties, bitmaskFromCommandQueueProperties, 
+  bitmaskToFPConfig, bitmaskToExecCapability )
        where
 
 -- -----------------------------------------------------------------------------
-import Foreign( Ptr )
+import Foreign
 import Foreign.C.Types
 import Data.List( foldl' )
-import Data.Bits( Bits, shiftL, (.|.), (.&.) )
 
 #include <CL/cl.h>
 
@@ -272,6 +272,24 @@ execution on the device.
 getProfilingInfoValue :: CLProfilingInfo -> CLProfilingInfo_
 getProfilingInfoValue = fromIntegral . fromEnum
 
+-- -----------------------------------------------------------------------------
+getImageChannelOrder :: CLImageFormat_p -> IO CLImageChannelOrder_
+getImageChannelOrder = {#get cl_image_format->image_channel_order#}
+
+getImageChannelDataType :: CLImageFormat_p -> IO CLImageChannelDataType_
+getImageChannelDataType = {#get cl_image_format->image_channel_data_type#}
+
+data CLImageFormat = CLImageFormat { 
+  image_channel_order :: CLImageChannelOrder_,
+  image_channel_data_type :: CLImageChannelDataType_
+  } deriving( Show )
+
+getImageFormat :: CLImageFormat_p -> IO CLImageFormat
+getImageFormat p = do
+  order <- getImageChannelOrder p
+  datatype <- getImageChannelDataType p
+  return $ CLImageFormat order datatype
+  
 -- -----------------------------------------------------------------------------
 binaryFlags :: (Ord b, Enum b, Bounded b) => b -> [b]
 binaryFlags m = map toEnum . takeWhile (<= (fromEnum m)) $ [1 `shiftL` n | n <- [0..]]
