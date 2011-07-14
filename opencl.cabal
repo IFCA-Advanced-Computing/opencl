@@ -29,5 +29,4 @@ Library
     System.GPU.OpenCL.Program
   Other-Modules: 
     System.GPU.OpenCL.Types
-    System.GPU.OpenCL.Util
     System.GPU.OpenCL.Errors
