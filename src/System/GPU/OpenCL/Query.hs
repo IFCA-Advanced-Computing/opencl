@@ -59,11 +59,11 @@ import Foreign.Storable( sizeOf )
 import System.GPU.OpenCL.Types( 
   CLbool, CLint, CLuint, CLulong, CLPlatformInfo_, CLDeviceType_, 
   CLDeviceInfo_, CLDeviceFPConfig(..), CLDeviceExecCapability(..), 
-  CLDeviceLocalMemType(..), CLDeviceMemCacheType(..),
+  CLDeviceLocalMemType(..), CLDeviceMemCacheType(..), CLPlatformInfo(..),
   CLPlatformID, CLDeviceID, CLDeviceType(..), CLCommandQueueProperty, 
   getDeviceMemCacheType, getDeviceLocalMemType, getDeviceTypeValue, 
-  bitmaskToDeviceTypes, bitmaskToCommandQueueProperties, bitmaskToFPConfig, 
-  bitmaskToExecCapability )
+  getPlatformInfoValue, bitmaskToDeviceTypes, bitmaskToCommandQueueProperties, 
+  bitmaskToFPConfig, bitmaskToExecCapability )
 import System.GPU.OpenCL.Errors( ErrorCode(..), clSuccess )
 
 -- -----------------------------------------------------------------------------
@@ -104,44 +104,6 @@ getPlatformInfoSize platform infoid = alloca $ \(value_size :: Ptr CSize) -> do
     then fmap Just $ peek value_size
     else return Nothing
   
-data CLPlatformInfo = CL_PLATFORM_PROFILE 
-                      -- ^ OpenCL profile string. Returns the profile name 
-                      -- supported by the implementation. The profile name 
-                      -- returned can be one of the following strings:
-                      --
-                      --  * @FULL_PROFILE@ - if the implementation supports the 
-                      -- OpenCL specification (functionality defined as part of 
-                      -- the core specification and does not require any 
-                      -- extensions to be supported).
-                      --
-                      --  * @EMBEDDED_PROFILE@ - if the implementation supports the 
-                      -- OpenCL embedded profile. The embedded profile is 
-                      -- defined to be a subset for each version of OpenCL.
-                    | CL_PLATFORM_VERSION 
-                      -- ^ OpenCL version string. Returns the OpenCL version 
-                      -- supported by the implementation. This version string 
-                      -- has the following format:
-                      -- /OpenCL major_version.minor_version platform-specific information/
-                      -- The /major_version.minor_version/ value returned will 
-                      -- be 1.0.
-                    | CL_PLATFORM_NAME -- ^ Platform name string.
-                    | CL_PLATFORM_VENDOR -- ^ Platform vendor string.
-                    | CL_PLATFORM_EXTENSIONS 
-                      -- ^ Returns a space-separated list of extension names 
-                      -- (the extension names themselves do not contain any 
-                      -- spaces) supported by the platform. Extensions 
-                      -- defined here must be supported by all devices 
-                      -- associated with this platform.
-                    deriving( Eq )
-
-platformInfoValues :: [(CLPlatformInfo,CLPlatformInfo_)]
-platformInfoValues = [ 
-  (CL_PLATFORM_PROFILE,0x0900), (CL_PLATFORM_VERSION,0x0901), 
-  (CL_PLATFORM_NAME,0x0902), (CL_PLATFORM_VENDOR,0x0903), 
-  (CL_PLATFORM_EXTENSIONS,0x0904) ]
-getPlatformInfoValue :: CLPlatformInfo -> CLPlatformInfo_
-getPlatformInfoValue info = fromMaybe 0 (lookup info platformInfoValues)
-
 -- | Get specific information about the OpenCL platform. It returns Nothing if
 -- platform is not a valid platform.
 clGetPlatformInfo :: CLPlatformID -> CLPlatformInfo -> IO (Maybe String)

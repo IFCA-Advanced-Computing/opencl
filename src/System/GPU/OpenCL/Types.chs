@@ -24,11 +24,12 @@ module System.GPU.OpenCL.Types(
   CLEventInfo_, CLProfilingInfo_, CLCommandType(..), CLCommandType_, 
   CLCommandExecutionStatus(..), CLProfilingInfo(..), getProfilingInfoValue,
   CLCommandQueueProperty_, CLMemFlags_, CLImageFormat_p, CLMemObjectType_, 
-  CLMemInfo_, CLImageInfo_, CLImageFormat(..), getImageFormat, getDeviceTypeValue, 
-  getDeviceLocalMemType, getDeviceMemCacheType, getCommandType, 
-  getCommandExecutionStatus, bitmaskToDeviceTypes, bitmaskFromDeviceTypes, 
-  bitmaskToCommandQueueProperties, bitmaskFromCommandQueueProperties, 
-  bitmaskToFPConfig, bitmaskToExecCapability )
+  CLMemInfo_, CLImageInfo_, CLImageFormat(..), CLPlatformInfo(..), 
+  getImageFormat, getDeviceTypeValue, getDeviceLocalMemType, 
+  getDeviceMemCacheType, getCommandType, getCommandExecutionStatus, 
+  bitmaskToDeviceTypes, bitmaskFromDeviceTypes, bitmaskToCommandQueueProperties, 
+  bitmaskFromCommandQueueProperties, bitmaskToFPConfig, bitmaskToExecCapability, 
+  getPlatformInfoValue )
        where
 
 -- -----------------------------------------------------------------------------
@@ -78,6 +79,50 @@ type CLImageChannelDataType_ = {#type cl_channel_type#}
 
 newtype ErrorCode = ErrorCode CInt deriving( Eq )
 
+
+-- -----------------------------------------------------------------------------
+#c
+enum CLPlatformInfo {
+CLPLATFORM_PROFILE=CL_PLATFORM_PROFILE,
+CLPLATFORM_VERSION=CL_PLATFORM_VERSION,
+CLPLATFORM_NAME=CL_PLATFORM_NAME,
+CLPLATFORM_VENDOR=CL_PLATFORM_VENDOR,
+CLPLATFORM_EXTENSIONS=CL_PLATFORM_EXTENSIONS
+  };
+#endc
+
+{-|
+ * 'CLPLATFORM_PROFILE', OpenCL profile string. Returns the profile name 
+supported by the implementation. The profile name returned can be one of the 
+following strings:
+ 
+ [@FULL_PROFILE@] If the implementation supports the OpenCL specification 
+(functionality defined as part of the core specification and does not require 
+any extensions to be supported).
+ 
+ [@EMBEDDED_PROFILE@] If the implementation supports the OpenCL embedded 
+profile. The embedded profile is  defined to be a subset for each version of 
+OpenCL.
+                    
+ * 'CLPLATFORM_VERSION', OpenCL version string. Returns the OpenCL version 
+supported by the implementation. This version string has the following format: 
+/OpenCL major_version.minor_version platform-specific information/ The 
+/major_version.minor_version/ value returned will be 1.0.
+                    
+ * 'CLPLATFORM_NAME', Platform name string.
+ 
+ * 'CLPLATFORM_VENDOR', Platform vendor string.
+                   
+ * 'CLPLATFORM_EXTENSIONS', Returns a space-separated list of extension names 
+(the extension names themselves do not contain any spaces) supported by the 
+platform. Extensions defined here must be supported by all devices associated 
+with this platform.
+-}
+{#enum CLPlatformInfo {} #}
+
+getPlatformInfoValue :: CLPlatformInfo -> CLPlatformInfo_
+getPlatformInfoValue = fromIntegral . fromEnum
+
 -- -----------------------------------------------------------------------------
 #c
 enum CLDeviceType {
@@ -90,11 +135,15 @@ CLDEVICE_TYPE_ALL=CL_DEVICE_TYPE_ALL
 #endc
 
 {-|
- * 'CLDEVICE_TYPE_CPU', An OpenCL device that is the host processor. The host processor runs the OpenCL implementations and is a single or multi-core CPU.
+ * 'CLDEVICE_TYPE_CPU', An OpenCL device that is the host processor. The host 
+processor runs the OpenCL implementations and is a single or multi-core CPU.
                   
- * 'CLDEVICE_TYPE_GPU', An OpenCL device that is a GPU. By this we mean that the device can also be used to accelerate a 3D API such as OpenGL or DirectX.
+ * 'CLDEVICE_TYPE_GPU', An OpenCL device that is a GPU. By this we mean that the 
+device can also be used to accelerate a 3D API such as OpenGL or DirectX.
                   
- * 'CLDEVICE_TYPE_ACCELERATOR', Dedicated OpenCL accelerators (for example the IBM CELL Blade). These devices communicate with the host processor using a peripheral interconnect such as PCIe.
+ * 'CLDEVICE_TYPE_ACCELERATOR', Dedicated OpenCL accelerators (for example the 
+IBM CELL Blade). These devices communicate with the host processor using a 
+peripheral interconnect such as PCIe.
                 
  * 'CLDEVICE_TYPE_DEFAULT', The default OpenCL device in the system.
            
@@ -185,6 +234,7 @@ enum CLDeviceLocalMemType {
 getDeviceLocalMemType :: CLDeviceLocalMemType_ -> Maybe CLDeviceLocalMemType
 getDeviceLocalMemType = Just . toEnum . fromIntegral
 
+-- -----------------------------------------------------------------------------
 #c
 enum CLCommandType {
   CLCOMMAND_NDRANGE_KERNEL=CL_COMMAND_NDRANGE_KERNEL,
