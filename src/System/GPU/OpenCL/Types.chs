@@ -15,21 +15,23 @@
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
 module System.GPU.OpenCL.Types( 
-  ErrorCode(..), CLbool, CLint, CLuint, CLulong, CLPlatformInfo_, CLMem, 
-  CLProgram, CLEvent,
-  CLDeviceType_, CLDeviceInfo_, CLContextInfo_, CLDeviceFPConfig(..), 
-  CLDeviceMemCacheType(..), CLDeviceExecCapability(..), CLDeviceLocalMemType(..),
-  CLPlatformID, CLDeviceID, CLContext, CLCommandQueue, CLContextProperty_,
-  CLDeviceType(..), CLCommandQueueProperty(..), CLCommandQueueInfo_, 
-  CLEventInfo_, CLProfilingInfo_, CLCommandType(..), CLCommandType_, 
-  CLCommandExecutionStatus(..), CLProfilingInfo(..), getProfilingInfoValue,
-  CLCommandQueueProperty_, CLMemFlags_, CLImageFormat_p, CLMemObjectType_, 
-  CLMemInfo_, CLImageInfo_, CLImageFormat(..), CLPlatformInfo(..), 
-  getImageFormat, getDeviceTypeValue, getDeviceLocalMemType, 
-  getDeviceMemCacheType, getCommandType, getCommandExecutionStatus, 
-  bitmaskToDeviceTypes, bitmaskFromDeviceTypes, bitmaskToCommandQueueProperties, 
-  bitmaskFromCommandQueueProperties, bitmaskToFPConfig, bitmaskToExecCapability, 
-  getPlatformInfoValue )
+  -- * Symple CL Types
+  CLbool, CLint, CLuint, CLulong, CLProgram, CLEvent, CLMem, CLPlatformID, 
+  CLDeviceID, CLContext, CLCommandQueue, CLPlatformInfo_, CLDeviceType_, 
+  CLDeviceInfo_, CLContextInfo_, CLContextProperty_, CLCommandQueueInfo_, 
+  CLEventInfo_, CLProfilingInfo_, CLCommandType_, CLCommandQueueProperty_, 
+  CLMemFlags_, CLImageFormat_p, CLMemObjectType_, CLMemInfo_, CLImageInfo_,
+  -- * High Level Types
+  ErrorCode(..), CLDeviceFPConfig(..), CLDeviceMemCacheType(..), 
+  CLDeviceExecCapability(..), CLDeviceLocalMemType(..), CLDeviceType(..), 
+  CLCommandQueueProperty(..), CLCommandType(..),  CLCommandExecutionStatus(..), 
+  CLProfilingInfo(..), CLImageFormat(..), CLPlatformInfo(..),
+  -- * Functions
+  getProfilingInfoValue, getImageFormat, getDeviceTypeValue, 
+  getDeviceLocalMemType, getDeviceMemCacheType, getCommandType, 
+  getCommandExecutionStatus, bitmaskToDeviceTypes, bitmaskFromDeviceTypes, 
+  bitmaskToCommandQueueProperties, bitmaskFromCommandQueueProperties, 
+  bitmaskToFPConfig, bitmaskToExecCapability, getPlatformInfoValue )
        where
 
 -- -----------------------------------------------------------------------------
