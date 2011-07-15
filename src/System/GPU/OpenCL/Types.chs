@@ -25,9 +25,10 @@ module System.GPU.OpenCL.Types(
   CLError(..), ErrorCode(..), CLDeviceFPConfig(..), CLDeviceMemCacheType(..), 
   CLDeviceExecCapability(..), CLDeviceLocalMemType(..), CLDeviceType(..), 
   CLCommandQueueProperty(..), CLCommandType(..),  CLCommandExecutionStatus(..), 
-  CLProfilingInfo(..), CLPlatformInfo(..), CLMemFlag(..),
+  CLProfilingInfo(..), CLPlatformInfo(..), CLMemFlag(..), CLMemObjectType(..),
   -- * Functions
-  clSuccess, wrapPError, wrapCheckSuccess, getCLValue, getDeviceLocalMemType, 
+  clSuccess, wrapPError, wrapCheckSuccess, wrapGetInfo, getCLValue, getEnumCL,
+  getDeviceLocalMemType, 
   getDeviceMemCacheType, getCommandType, getCommandExecutionStatus, 
   bitmaskToDeviceTypes, bitmaskFromFlags, bitmaskToCommandQueueProperties, 
   bitmaskToFPConfig, bitmaskToExecCapability )
@@ -304,6 +305,14 @@ wrapPError f = alloca $ \perr -> do
 wrapCheckSuccess :: IO CLint -> IO Bool
 wrapCheckSuccess f = f >>= return . (==CL_SUCCESS) . toEnum . fromIntegral
 
+wrapGetInfo :: Storable a => (Ptr a -> Ptr CSize -> IO CLint) -> (a -> b) 
+               -> IO (Either CLError b)
+wrapGetInfo fget fconvert= alloca $ \dat -> do
+  errcode <- fget dat nullPtr
+  if errcode == (fromIntegral . fromEnum $ CL_SUCCESS )
+    then fmap (Right . fconvert) $ peek dat
+    else return . Left . toEnum . fromIntegral $ errcode
+
 -- -----------------------------------------------------------------------------
 #c
 enum CLPlatformInfo {
@@ -569,23 +578,42 @@ initialize the contents of the cl_mem object allocated using host-accessible
 -} 
 {#enum CLMemFlag {upcaseFirstLetter} deriving( Show ) #}
 
+#c
+enum CLMemObjectType {
+  cL_MEM_OBJECT_BUFFER=CL_MEM_OBJECT_BUFFER,
+  cL_MEM_OBJECT_IMAGE2D=CL_MEM_OBJECT_IMAGE2D,
+  cL_MEM_OBJECT_IMAGE3D=CL_MEM_OBJECT_IMAGE3D
+  };
+#endc
+
+{-| * 'CL_MEM_OBJECT_BUFFER' if memobj is created with 'clCreateBuffer'. 
+ 
+ * 'CL_MEM_OBJECT_IMAGE2D' if memobj is created with 'clCreateImage2D' 
+
+ * 'CL_MEM_OBJECT_IMAGE3D' if memobj is created with 'clCreateImage3D'.
+-}
+{#enum CLMemObjectType {upcaseFirstLetter} deriving( Show ) #}
+
 -- -----------------------------------------------------------------------------
 getCLValue :: (Enum a, Integral b) => a -> b
 getCLValue = fromIntegral . fromEnum
 
+getEnumCL :: (Integral a, Enum b) => a -> b
+getEnumCL = toEnum . fromIntegral 
+
 getDeviceMemCacheType :: CLDeviceMemCacheType_ -> Maybe CLDeviceMemCacheType
-getDeviceMemCacheType = Just . toEnum . fromIntegral
+getDeviceMemCacheType = Just . getEnumCL
 
 getDeviceLocalMemType :: CLDeviceLocalMemType_ -> Maybe CLDeviceLocalMemType
-getDeviceLocalMemType = Just . toEnum . fromIntegral
+getDeviceLocalMemType = Just . getEnumCL
 
 getCommandType :: CLCommandType_ -> Maybe CLCommandType
-getCommandType = Just . toEnum . fromIntegral
+getCommandType = Just . getEnumCL
 
 getCommandExecutionStatus :: CLint -> Maybe CLCommandExecutionStatus                                
 getCommandExecutionStatus n 
   | n < 0 = Just CL_EXEC_ERROR
-  | otherwise = Just . toEnum . fromIntegral $ n
+  | otherwise = Just . getEnumCL $ n
                 
 -- -----------------------------------------------------------------------------
 binaryFlags :: (Ord b, Enum b, Bounded b) => b -> [b]
