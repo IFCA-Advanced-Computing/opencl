@@ -28,10 +28,10 @@ module System.GPU.OpenCL.Types(
   CLProfilingInfo(..), CLPlatformInfo(..), CLMemFlag(..), CLMemObjectType(..),
   -- * Functions
   clSuccess, wrapPError, wrapCheckSuccess, wrapGetInfo, getCLValue, getEnumCL,
-  getDeviceLocalMemType, 
+  getDeviceLocalMemType, bitmaskToFlags,
   getDeviceMemCacheType, getCommandType, getCommandExecutionStatus, 
   bitmaskToDeviceTypes, bitmaskFromFlags, bitmaskToCommandQueueProperties, 
-  bitmaskToFPConfig, bitmaskToExecCapability )
+  bitmaskToFPConfig, bitmaskToExecCapability, bitmaskToMemFlags )
        where
 
 -- -----------------------------------------------------------------------------
@@ -576,7 +576,7 @@ exclusive. 'CL_MEM_COPY_HOST_PTR' can be used with 'CL_MEM_ALLOC_HOST_PTR' to
 initialize the contents of the cl_mem object allocated using host-accessible
 (e.g. PCIe) memory.  
 -} 
-{#enum CLMemFlag {upcaseFirstLetter} deriving( Show ) #}
+{#enum CLMemFlag {upcaseFirstLetter} deriving( Show, Bounded, Eq, Ord ) #}
 
 #c
 enum CLMemObjectType {
@@ -625,16 +625,22 @@ testMask mask v = (v .&. mask) == v
 bitmaskFromFlags :: (Enum a, Bits b) => [a] -> b
 bitmaskFromFlags = foldl' (.|.) 0 . map (fromIntegral . fromEnum)
 
+bitmaskToFlags :: (Enum a, Bits b) => [a] -> b -> [a]
+bitmaskToFlags xs mask = filter (testMask mask . fromIntegral . fromEnum) xs
+
 bitmaskToDeviceTypes :: CLDeviceType_ -> [CLDeviceType]
-bitmaskToDeviceTypes mask = filter (testMask mask . fromIntegral . fromEnum) $ [CL_DEVICE_TYPE_CPU,CL_DEVICE_TYPE_GPU,CL_DEVICE_TYPE_ACCELERATOR,CL_DEVICE_TYPE_DEFAULT,CL_DEVICE_TYPE_ALL]
+bitmaskToDeviceTypes = bitmaskToFlags [CL_DEVICE_TYPE_CPU,CL_DEVICE_TYPE_GPU,CL_DEVICE_TYPE_ACCELERATOR,CL_DEVICE_TYPE_DEFAULT,CL_DEVICE_TYPE_ALL]
 
 bitmaskToCommandQueueProperties :: CLCommandQueueProperty_ -> [CLCommandQueueProperty]
-bitmaskToCommandQueueProperties mask = filter (testMask mask . fromIntegral . fromEnum) $ binaryFlags maxBound
+bitmaskToCommandQueueProperties = bitmaskToFlags (binaryFlags maxBound)
       
 bitmaskToFPConfig :: CLDeviceFPConfig_ -> [CLDeviceFPConfig]
-bitmaskToFPConfig mask = filter (testMask mask . fromIntegral . fromEnum) $ binaryFlags maxBound
+bitmaskToFPConfig = bitmaskToFlags (binaryFlags maxBound)
 
 bitmaskToExecCapability :: CLDeviceExecCapability_ -> [CLDeviceExecCapability]
-bitmaskToExecCapability mask = filter (testMask mask . fromIntegral . fromEnum) $ binaryFlags maxBound
+bitmaskToExecCapability = bitmaskToFlags (binaryFlags maxBound)
+
+bitmaskToMemFlags :: CLMemFlags_ -> [CLMemFlag]
+bitmaskToMemFlags = bitmaskToFlags (binaryFlags maxBound)
 
 -- -----------------------------------------------------------------------------
