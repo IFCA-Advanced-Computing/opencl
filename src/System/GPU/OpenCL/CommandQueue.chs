@@ -30,14 +30,15 @@ module System.GPU.OpenCL.CommandQueue(
   ) where
 
 -- -----------------------------------------------------------------------------
-import Foreign( Ptr, castPtr, nullPtr, alloca, peek )
-import Foreign.C.Types( CSize )
-import Foreign.Storable( sizeOf )
-import Foreign.Marshal.Utils( fromBool )
+import Foreign
+import Foreign.C.Types
 import System.GPU.OpenCL.Types( 
-  CLint, CLbool, CLuint, CLCommandQueueProperty_, CLCommandQueueInfo_,
+  CLint, CLbool, CLuint, CLCommandQueueProperty_, CLCommandQueueInfo_, CLError,
   CLCommandQueue, CLDeviceID, CLContext, CLCommandQueueProperty(..), ErrorCode(..),
+  wrapCheckSuccess, wrapPError, wrapGetInfo, getCLValue,
   bitmaskToCommandQueueProperties, bitmaskFromFlags, clSuccess )
+
+#include <CL/cl.h>
 
 -- -----------------------------------------------------------------------------
 foreign import ccall "clCreateCommandQueue" raw_clCreateCommandQueue :: 
@@ -105,13 +106,9 @@ used to enqueue a wait for event or a barrier command can be enqueued that must
 complete before reads or writes to the memory object(s) occur.
 -}
 clCreateCommandQueue :: CLContext -> CLDeviceID -> [CLCommandQueueProperty] 
-                     -> IO (Maybe CLCommandQueue)
-clCreateCommandQueue ctx did xs = alloca $ \perr -> do
-  cq <- raw_clCreateCommandQueue ctx did props perr
-  errcode <- peek perr >>= return . ErrorCode
-  if errcode == clSuccess
-    then return . Just $ cq
-    else return Nothing
+                     -> IO (Either CLError CLCommandQueue)
+clCreateCommandQueue ctx did xs = wrapPError $ \perr -> do
+  raw_clCreateCommandQueue ctx did props perr
     where
       props = bitmaskFromFlags xs
 
@@ -125,8 +122,7 @@ clCreateCommandQueue ctx did xs = alloca $ \perr -> do
 -- Returns 'True' if the function is executed successfully. It returns 'False'
 -- if command_queue is not a valid command-queue.
 clRetainCommandQueue :: CLCommandQueue -> IO Bool
-clRetainCommandQueue cq = raw_clRetainCommandQueue cq
-                          >>= return . (==clSuccess) . ErrorCode
+clRetainCommandQueue = wrapCheckSuccess . raw_clRetainCommandQueue
 
 -- | Decrements the command_queue reference count.
 -- After the command_queue reference count becomes zero and all commands queued 
@@ -135,53 +131,54 @@ clRetainCommandQueue cq = raw_clRetainCommandQueue cq
 -- Returns 'True' if the function is executed successfully. It returns 'False'
 -- if command_queue is not a valid command-queue.
 clReleaseCommandQueue :: CLCommandQueue -> IO Bool
-clReleaseCommandQueue cq = raw_clReleaseCommandQueue cq
-                       >>= return . (==clSuccess) . ErrorCode
+clReleaseCommandQueue = wrapCheckSuccess . raw_clReleaseCommandQueue
+
+#c
+enum CLCommandQueueInfo {
+  cL_QUEUE_CONTEXT=CL_QUEUE_CONTEXT,
+  cL_QUEUE_DEVICE=CL_QUEUE_DEVICE,
+  cL_QUEUE_REFERENCE_COUNT=CL_QUEUE_REFERENCE_COUNT,
+  cL_QUEUE_PROPERTIES=CL_QUEUE_PROPERTIES,
+  };
+#endc
+{#enum CLCommandQueueInfo {upcaseFirstLetter} #}
 
 -- | Return the context specified when the command-queue is created.
-clGetCommandQueueContext :: CLCommandQueue -> IO (Maybe CLContext)
-clGetCommandQueueContext cq = alloca $ \(dat :: Ptr CLContext) -> do
-  errcode <- fmap ErrorCode $ raw_clGetCommandQueueInfo cq 0x1090 size (castPtr dat) nullPtr
-  if errcode == clSuccess
-    then fmap Just $ peek dat
-    else return Nothing
+clGetCommandQueueContext :: CLCommandQueue -> IO (Either CLError CLContext)
+clGetCommandQueueContext cq = wrapGetInfo (\(dat :: Ptr CLContext) 
+                                           -> raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) id
     where 
+      infoid = getCLValue CL_QUEUE_CONTEXT
       size = fromIntegral $ sizeOf (nullPtr::CLContext)
 
 -- | Return the device specified when the command-queue is created.
-clGetCommandQueueDevice :: CLCommandQueue -> IO (Maybe CLDeviceID)
-clGetCommandQueueDevice cq = alloca $ \(dat :: Ptr CLDeviceID) -> do
-  errcode <- fmap ErrorCode $ raw_clGetCommandQueueInfo cq 0x1091 size (castPtr dat) nullPtr
-  if errcode == clSuccess
-    then fmap Just $ peek dat
-    else return Nothing
+clGetCommandQueueDevice :: CLCommandQueue -> IO (Either CLError CLDeviceID)
+clGetCommandQueueDevice cq = wrapGetInfo (\(dat :: Ptr CLDeviceID) 
+                                           -> raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) id
     where 
+      infoid = getCLValue CL_QUEUE_DEVICE
       size = fromIntegral $ sizeOf (nullPtr::CLDeviceID)
 
 -- | Return the command-queue reference count.
 -- The reference count returned should be considered immediately stale. It is 
 -- unsuitable for general use in applications. This feature is provided for 
 -- identifying memory leaks.
-clGetCommandQueueReferenceCount :: CLCommandQueue -> IO (Maybe CLuint)
-clGetCommandQueueReferenceCount cq = alloca $ \(dat :: Ptr CLuint) -> do
-  errcode <- fmap ErrorCode $ raw_clGetCommandQueueInfo cq 0x1092 size (castPtr dat) nullPtr
-  if errcode == clSuccess
-    then fmap Just $ peek dat
-    else return Nothing
+clGetCommandQueueReferenceCount :: CLCommandQueue -> IO (Either CLError CLuint)
+clGetCommandQueueReferenceCount cq = wrapGetInfo (\(dat :: Ptr CLuint) 
+                                           -> raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) id
     where 
+      infoid = getCLValue CL_QUEUE_REFERENCE_COUNT
       size = fromIntegral $ sizeOf (0::CLuint)
 
 
 -- | Return the currently specified properties for the command-queue. These 
 -- properties are specified by the properties argument in 'clCreateCommandQueue'
 -- , and can be changed by 'clSetCommandQueueProperty'.
-clGetCommandQueueProperties :: CLCommandQueue -> IO [CLCommandQueueProperty]
-clGetCommandQueueProperties cq = alloca $ \(dat :: Ptr CLCommandQueueProperty_) -> do
-  errcode <- fmap ErrorCode $ raw_clGetCommandQueueInfo cq 0x1093 size (castPtr dat) nullPtr
-  if errcode == clSuccess
-    then fmap bitmaskToCommandQueueProperties $ peek dat
-    else return []
+clGetCommandQueueProperties :: CLCommandQueue -> IO (Either CLError [CLCommandQueueProperty])
+clGetCommandQueueProperties cq = wrapGetInfo (\(dat :: Ptr CLCommandQueueProperty_) 
+                                           -> raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) bitmaskToCommandQueueProperties
     where 
+      infoid = getCLValue CL_QUEUE_PROPERTIES
       size = fromIntegral $ sizeOf (0::CLCommandQueueProperty_)
 
 -- | Enable or disable the properties of a command-queue.
@@ -237,8 +234,7 @@ clSetCommandQueueProperty cq xs val = alloca $ \(dat :: Ptr CLCommandQueueProper
 -- an implicit flush of the command-queue where the commands that refer to these 
 -- event objects are enqueued.
 clFlush :: CLCommandQueue -> IO Bool
-clFlush cq = raw_clFlush cq
-             >>= return . (==clSuccess) . ErrorCode
+clFlush = wrapCheckSuccess . raw_clFlush
              
 -- | Blocks until all previously queued OpenCL commands in a command-queue are 
 -- issued to the associated device and have completed.
@@ -250,7 +246,6 @@ clFlush cq = raw_clFlush cq
 -- a failure to allocate resources required by the OpenCL implementation on the 
 -- host.
 clFinish :: CLCommandQueue -> IO Bool
-clFinish cq = raw_clFinish cq
-             >>= return . (==clSuccess) . ErrorCode
+clFinish = wrapCheckSuccess . raw_clFinish
              
 -- -----------------------------------------------------------------------------
