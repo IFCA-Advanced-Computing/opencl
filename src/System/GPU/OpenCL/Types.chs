@@ -25,13 +25,12 @@ module System.GPU.OpenCL.Types(
   CLError(..), ErrorCode(..), CLDeviceFPConfig(..), CLDeviceMemCacheType(..), 
   CLDeviceExecCapability(..), CLDeviceLocalMemType(..), CLDeviceType(..), 
   CLCommandQueueProperty(..), CLCommandType(..),  CLCommandExecutionStatus(..), 
-  CLProfilingInfo(..), CLImageFormat(..), CLPlatformInfo(..), CLMemFlag(..),
+  CLProfilingInfo(..), CLPlatformInfo(..), CLMemFlag(..),
   -- * Functions
-  clSuccess, wrapPError, getCLValue, getImageFormat, 
-  getDeviceLocalMemType, getDeviceMemCacheType, 
-  getCommandType, getCommandExecutionStatus, bitmaskToDeviceTypes, 
-  bitmaskFromFlags, bitmaskToCommandQueueProperties, bitmaskToFPConfig, 
-  bitmaskToExecCapability )
+  clSuccess, wrapPError, getCLValue, getDeviceLocalMemType, 
+  getDeviceMemCacheType, getCommandType, getCommandExecutionStatus, 
+  bitmaskToDeviceTypes, bitmaskFromFlags, bitmaskToCommandQueueProperties, 
+  bitmaskToFPConfig, bitmaskToExecCapability )
        where
 
 -- -----------------------------------------------------------------------------
@@ -77,8 +76,8 @@ type CLImageInfo_ = {#type cl_image_info#}
 
 {#pointer *cl_image_format as CLImageFormat_p#}
 
-type CLImageChannelOrder_ = {#type cl_channel_order#}
-type CLImageChannelDataType_ = {#type cl_channel_type#}
+--type CLImageChannelOrder_ = {#type cl_channel_order#}
+--type CLImageChannelDataType_ = {#type cl_channel_type#}
 
 -- -----------------------------------------------------------------------------
 newtype ErrorCode = ErrorCode CLint deriving( Eq )
@@ -568,24 +567,6 @@ initialize the contents of the cl_mem object allocated using host-accessible
 {#enum CLMemFlag {} deriving( Show ) #}
 
 -- -----------------------------------------------------------------------------
---getImageChannelOrder :: CLImageFormat_p -> IO CLImageChannelOrder_
---getImageChannelOrder = {#get cl_image_format->image_channel_order#}
-
---getImageChannelDataType :: CLImageFormat_p -> IO CLImageChannelDataType_
---getImageChannelDataType = {#get cl_image_format->image_channel_data_type#}
-
-data CLImageFormat = CLImageFormat { 
-  image_channel_order :: CLImageChannelOrder_,
-  image_channel_data_type :: CLImageChannelDataType_
-  } deriving( Show )
-
-getImageFormat :: CLImageFormat_p -> IO CLImageFormat
-getImageFormat p = do
---  order <- getImageChannelOrder p
---  datatype <- getImageChannelDataType p
---  return $ CLImageFormat order datatype
-  return $ CLImageFormat 0 0
-  
 getCLValue :: (Enum a, Integral b) => a -> b
 getCLValue = fromIntegral . fromEnum
 
