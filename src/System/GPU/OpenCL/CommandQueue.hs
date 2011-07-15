@@ -37,7 +37,7 @@ import Foreign.Marshal.Utils( fromBool )
 import System.GPU.OpenCL.Types( 
   CLint, CLbool, CLuint, CLCommandQueueProperty_, CLCommandQueueInfo_,
   CLCommandQueue, CLDeviceID, CLContext, CLCommandQueueProperty(..), ErrorCode(..),
-  bitmaskToCommandQueueProperties, bitmaskFromCommandQueueProperties, clSuccess )
+  bitmaskToCommandQueueProperties, bitmaskFromFlags, clSuccess )
 
 -- -----------------------------------------------------------------------------
 foreign import ccall "clCreateCommandQueue" raw_clCreateCommandQueue :: 
@@ -113,7 +113,7 @@ clCreateCommandQueue ctx did xs = alloca $ \perr -> do
     then return . Just $ cq
     else return Nothing
     where
-      props = bitmaskFromCommandQueueProperties xs
+      props = bitmaskFromFlags xs
 
 -- | Increments the command_queue reference count.
 -- 'clCreateCommandQueue' performs an implicit retain. This is very helpful for 
@@ -211,7 +211,7 @@ clSetCommandQueueProperty cq xs val = alloca $ \(dat :: Ptr CLCommandQueueProper
     then fmap bitmaskToCommandQueueProperties $ peek dat
     else return []
     where
-      props = bitmaskFromCommandQueueProperties xs
+      props = bitmaskFromFlags xs
 
 -- -----------------------------------------------------------------------------
 -- | Issues all previously queued OpenCL commands in a command-queue to the 

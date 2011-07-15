@@ -32,7 +32,7 @@ import Foreign.C.String( CString, peekCString )
 import Foreign.Storable( sizeOf )
 import System.GPU.OpenCL.Types( 
   CLuint, CLint, CLDeviceType_, CLContextInfo_, CLContextProperty_, ErrorCode(..),
-  CLDeviceID, CLContext, CLDeviceType, bitmaskFromDeviceTypes, clSuccess )
+  CLDeviceID, CLContext, CLDeviceType, bitmaskFromFlags, clSuccess )
 
 -- -----------------------------------------------------------------------------
 type ContextCallback = CString -> Ptr () -> CSize -> Ptr () -> IO ()
@@ -85,7 +85,7 @@ clCreateContextFromType xs f = alloca $ \perr -> do
     then return . Just $ context
     else return Nothing
     where
-      types = bitmaskFromDeviceTypes xs
+      types = bitmaskFromFlags xs
 
 -- | Increment the context reference count.
 -- 'clCreateContext' and 'clCreateContextFromType' perform an implicit retain. 

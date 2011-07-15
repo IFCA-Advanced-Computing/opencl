@@ -30,9 +30,8 @@ module System.GPU.OpenCL.Types(
   clSuccess, wrapPError, getProfilingInfoValue, getImageFormat, 
   getDeviceTypeValue, getDeviceLocalMemType, getDeviceMemCacheType, 
   getCommandType, getCommandExecutionStatus, bitmaskToDeviceTypes, 
-  bitmaskFromDeviceTypes, bitmaskToCommandQueueProperties, bitmaskFromMemFlags,
-  bitmaskFromCommandQueueProperties, bitmaskToFPConfig, bitmaskToExecCapability, 
-  getPlatformInfoValue )
+  bitmaskFromFlags, bitmaskToCommandQueueProperties, bitmaskToFPConfig, 
+  bitmaskToExecCapability, getPlatformInfoValue )
        where
 
 -- -----------------------------------------------------------------------------
@@ -75,6 +74,7 @@ type CLMemFlags_ = {#type cl_mem_flags#}
 type CLMemObjectType_ = {#type cl_mem_object_type#}
 type CLMemInfo_ = {#type cl_mem_info#}
 type CLImageInfo_ = {#type cl_image_info#}
+
 {#pointer *cl_image_format as CLImageFormat_p#}
 
 type CLImageChannelOrder_ = {#type cl_channel_order#}
@@ -591,11 +591,11 @@ initialize the contents of the cl_mem object allocated using host-accessible
 {#enum CLMemFlag {} deriving( Show ) #}
 
 -- -----------------------------------------------------------------------------
-getImageChannelOrder :: CLImageFormat_p -> IO CLImageChannelOrder_
-getImageChannelOrder = {#get cl_image_format->image_channel_order#}
+--getImageChannelOrder :: CLImageFormat_p -> IO CLImageChannelOrder_
+--getImageChannelOrder = {#get cl_image_format->image_channel_order#}
 
-getImageChannelDataType :: CLImageFormat_p -> IO CLImageChannelDataType_
-getImageChannelDataType = {#get cl_image_format->image_channel_data_type#}
+--getImageChannelDataType :: CLImageFormat_p -> IO CLImageChannelDataType_
+--getImageChannelDataType = {#get cl_image_format->image_channel_data_type#}
 
 data CLImageFormat = CLImageFormat { 
   image_channel_order :: CLImageChannelOrder_,
@@ -604,9 +604,10 @@ data CLImageFormat = CLImageFormat {
 
 getImageFormat :: CLImageFormat_p -> IO CLImageFormat
 getImageFormat p = do
-  order <- getImageChannelOrder p
-  datatype <- getImageChannelDataType p
-  return $ CLImageFormat order datatype
+--  order <- getImageChannelOrder p
+--  datatype <- getImageChannelDataType p
+--  return $ CLImageFormat order datatype
+  return $ CLImageFormat 0 0
   
 -- -----------------------------------------------------------------------------
 binaryFlags :: (Ord b, Enum b, Bounded b) => b -> [b]
@@ -615,25 +616,19 @@ binaryFlags m = map toEnum . takeWhile (<= (fromEnum m)) $ [1 `shiftL` n | n <- 
 testMask :: Bits b => b -> b -> Bool
 testMask mask v = (v .&. mask) == v
 
+bitmaskFromFlags :: (Enum a, Bits b) => [a] -> b
+bitmaskFromFlags = foldl' (.|.) 0 . map (fromIntegral . fromEnum)
+
 bitmaskToDeviceTypes :: CLDeviceType_ -> [CLDeviceType]
 bitmaskToDeviceTypes mask = filter (testMask mask . fromIntegral . fromEnum) $ [CLDEVICE_TYPE_CPU,CLDEVICE_TYPE_GPU,CLDEVICE_TYPE_ACCELERATOR,CLDEVICE_TYPE_DEFAULT,CLDEVICE_TYPE_ALL]
 
-bitmaskFromDeviceTypes :: [CLDeviceType] -> CLDeviceType_
-bitmaskFromDeviceTypes = foldl' (.|.) 0 . map (fromIntegral . fromEnum)
-  
 bitmaskToCommandQueueProperties :: CLCommandQueueProperty_ -> [CLCommandQueueProperty]
 bitmaskToCommandQueueProperties mask = filter (testMask mask . fromIntegral . fromEnum) $ binaryFlags maxBound
       
-bitmaskFromCommandQueueProperties :: [CLCommandQueueProperty] -> CLCommandQueueProperty_
-bitmaskFromCommandQueueProperties = foldl' (.|.) 0 . map (fromIntegral.fromEnum)
-
 bitmaskToFPConfig :: CLDeviceFPConfig_ -> [CLDeviceFPConfig]
 bitmaskToFPConfig mask = filter (testMask mask . fromIntegral . fromEnum) $ binaryFlags maxBound
 
 bitmaskToExecCapability :: CLDeviceExecCapability_ -> [CLDeviceExecCapability]
 bitmaskToExecCapability mask = filter (testMask mask . fromIntegral . fromEnum) $ binaryFlags maxBound
 
-bitmaskFromMemFlags :: [CLMemFlag] -> CLMemFlags_
-bitmaskFromMemFlags = foldl' (.|.) 0 . map (fromIntegral . fromEnum)
-  
 -- -----------------------------------------------------------------------------

@@ -26,8 +26,9 @@ module System.GPU.OpenCL.Memory(
 import Foreign( Ptr )
 import Foreign.C.Types( CSize )
 import System.GPU.OpenCL.Types( 
-  CLMem, CLContext, CLuint, CLint, CLMemFlags_, CLImageFormat_p, CLError(..),
-  CLMemObjectType_, CLMemInfo_, CLImageInfo_, CLMemFlag(..) )
+  CLMem, CLContext, CLuint, CLint, CLMemFlags_, CLImageFormat_p, CLError,
+  CLMemObjectType_, CLMemInfo_, CLImageInfo_, CLMemFlag(..), wrapPError, 
+  bitmaskFromFlags )
 
 -- -----------------------------------------------------------------------------
 foreign import ccall "clCreateBuffer" raw_clCreateBuffer :: 
@@ -52,6 +53,17 @@ foreign import ccall "clGetImageInfo" raw_clGetImageInfo ::
 
 -- -----------------------------------------------------------------------------
 clCreateBuffer :: CLContext -> [CLMemFlag] -> (CSize, Ptr ()) -> IO (Either CLError CLMem)
-clCreateBuffer ctx xs (sbuff,buff) = return $ Left CLSUCCESS
-
+clCreateBuffer ctx xs (sbuff,buff) = wrapPError $ \perr -> do
+  raw_clCreateBuffer ctx flags sbuff buff perr
+    where
+      flags = bitmaskFromFlags xs
+    
+--clCreateImage2D :: CLContext -> [CLMemFlag] -> CLImageFormat 
+--                   -> CSize -> CSize -> CSize -> Ptr () -> IO (Either CLError CLMem)
+--clCreateImage2D ctx xs format width height pitch buff = wrapPError $ \perr -> do
+--  alloca $ \fmt -> 
+--    raw_clCreateImage2D ctx flags fmt width height pitch buff
+--    where
+--      flags = bitmaskFromMemFlags xs
+      
 -- -----------------------------------------------------------------------------
