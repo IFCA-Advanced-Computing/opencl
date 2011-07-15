@@ -17,7 +17,6 @@
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
 module System.GPU.OpenCL.Query( 
   -- * Types
-  CLuint, CLulong, 
   CLPlatformInfo(..), CLPlatformID, CLDeviceID, CLDeviceType(..),
   CLDeviceFPConfig(..), CLDeviceExecCapability(..), CLDeviceLocalMemType(..),
   CLDeviceMemCacheType(..),

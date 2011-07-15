@@ -17,8 +17,7 @@
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
 module System.GPU.OpenCL.Event(  
   -- * Types
-  CLint, CLEvent, CLCommandType(..), CLProfilingInfo(..), 
-  CLCommandExecutionStatus(..),
+  CLEvent, CLCommandType(..), CLProfilingInfo(..), CLCommandExecutionStatus(..),
   -- * Functions
   clWaitForEvents, clRetainEvent, clReleaseEvent, clGetEventCommandQueue, 
   clGetEventCommandType, clGetEventReferenceCount, 

@@ -15,6 +15,9 @@
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
 module System.GPU.OpenCL( 
+  -- * Basic Types
+  CLError(..), CLint, CLuint, CLulong,
+  -- * Modules
   module System.GPU.OpenCL.Query,
   module System.GPU.OpenCL.Context,
   module System.GPU.OpenCL.CommandQueue, 
@@ -30,5 +33,7 @@ import System.GPU.OpenCL.CommandQueue
 import System.GPU.OpenCL.Memory
 import System.GPU.OpenCL.Event
 import System.GPU.OpenCL.Program
+import System.GPU.OpenCL.Types( 
+  CLError(..), CLint, CLuint, CLulong )
 
 -- -----------------------------------------------------------------------------
