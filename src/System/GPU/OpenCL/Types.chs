@@ -27,7 +27,7 @@ module System.GPU.OpenCL.Types(
   CLCommandQueueProperty(..), CLCommandType(..),  CLCommandExecutionStatus(..), 
   CLProfilingInfo(..), CLImageFormat(..), CLPlatformInfo(..),
   -- * Functions
-  getProfilingInfoValue, getImageFormat, getDeviceTypeValue, 
+  clSuccess, getProfilingInfoValue, getImageFormat, getDeviceTypeValue, 
   getDeviceLocalMemType, getDeviceMemCacheType, getCommandType, 
   getCommandExecutionStatus, bitmaskToDeviceTypes, bitmaskFromDeviceTypes, 
   bitmaskToCommandQueueProperties, bitmaskFromCommandQueueProperties, 
@@ -79,7 +79,11 @@ type CLImageInfo_ = {#type cl_image_info#}
 type CLImageChannelOrder_ = {#type cl_channel_order#}
 type CLImageChannelDataType_ = {#type cl_channel_type#}
 
-newtype ErrorCode = ErrorCode CInt deriving( Eq )
+-- -----------------------------------------------------------------------------
+newtype ErrorCode = ErrorCode CLint deriving( Eq )
+
+clSuccess :: ErrorCode
+clSuccess = ErrorCode (0)
 
 -- -----------------------------------------------------------------------------
 #c

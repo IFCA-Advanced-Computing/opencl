@@ -31,9 +31,8 @@ import Foreign.C.Types( CSize )
 import Foreign.C.String( CString, peekCString )
 import Foreign.Storable( sizeOf )
 import System.GPU.OpenCL.Types( 
-  CLuint, CLint, CLDeviceType_, CLContextInfo_, CLContextProperty_,
-  CLDeviceID, CLContext, CLDeviceType, bitmaskFromDeviceTypes )
-import System.GPU.OpenCL.Errors( ErrorCode(..), clSuccess )
+  CLuint, CLint, CLDeviceType_, CLContextInfo_, CLContextProperty_, ErrorCode(..),
+  CLDeviceID, CLContext, CLDeviceType, bitmaskFromDeviceTypes, clSuccess )
 
 -- -----------------------------------------------------------------------------
 type ContextCallback = CString -> Ptr () -> CSize -> Ptr () -> IO ()

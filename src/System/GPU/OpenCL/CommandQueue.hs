@@ -36,9 +36,8 @@ import Foreign.Storable( sizeOf )
 import Foreign.Marshal.Utils( fromBool )
 import System.GPU.OpenCL.Types( 
   CLint, CLbool, CLuint, CLCommandQueueProperty_, CLCommandQueueInfo_,
-  CLCommandQueue, CLDeviceID, CLContext, CLCommandQueueProperty(..),
-  bitmaskToCommandQueueProperties, bitmaskFromCommandQueueProperties )
-import System.GPU.OpenCL.Errors( ErrorCode(..), clSuccess )
+  CLCommandQueue, CLDeviceID, CLContext, CLCommandQueueProperty(..), ErrorCode(..),
+  bitmaskToCommandQueueProperties, bitmaskFromCommandQueueProperties, clSuccess )
 
 -- -----------------------------------------------------------------------------
 foreign import ccall "clCreateCommandQueue" raw_clCreateCommandQueue :: 

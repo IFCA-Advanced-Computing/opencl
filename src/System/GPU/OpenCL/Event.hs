@@ -30,10 +30,10 @@ import Foreign( Ptr, castPtr, nullPtr, alloca, allocaArray, peek, pokeArray )
 import Foreign.C.Types( CSize )
 import Foreign.Storable( sizeOf )
 import System.GPU.OpenCL.Types( 
-  CLEvent, CLint, CLuint, CLulong, CLEventInfo_, CLProfilingInfo_, 
+  CLEvent, CLint, CLuint, CLulong, CLEventInfo_, CLProfilingInfo_, ErrorCode(..),
   CLCommandQueue, CLCommandType(..), CLCommandType_, CLCommandExecutionStatus(..), 
-  CLProfilingInfo(..), getCommandType, getCommandExecutionStatus, getProfilingInfoValue )
-import System.GPU.OpenCL.Errors( clSuccess, ErrorCode(..) )
+  CLProfilingInfo(..), clSuccess, getCommandType, getCommandExecutionStatus, 
+  getProfilingInfoValue )
 
 -- -----------------------------------------------------------------------------
 foreign import ccall "clWaitForEvents" raw_clWaitForEvents :: 

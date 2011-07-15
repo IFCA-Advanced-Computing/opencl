@@ -58,13 +58,12 @@ import Foreign.C.Types( CSize )
 import Foreign.Storable( sizeOf )
 import System.GPU.OpenCL.Types( 
   CLbool, CLint, CLuint, CLulong, CLPlatformInfo_, CLDeviceType_, 
-  CLDeviceInfo_, CLDeviceFPConfig(..), CLDeviceExecCapability(..), 
+  CLDeviceInfo_, CLDeviceFPConfig(..), CLDeviceExecCapability(..), ErrorCode(..),
   CLDeviceLocalMemType(..), CLDeviceMemCacheType(..), CLPlatformInfo(..),
   CLPlatformID, CLDeviceID, CLDeviceType(..), CLCommandQueueProperty, 
-  getDeviceMemCacheType, getDeviceLocalMemType, getDeviceTypeValue, 
+  getDeviceMemCacheType, getDeviceLocalMemType, getDeviceTypeValue, clSuccess,
   getPlatformInfoValue, bitmaskToDeviceTypes, bitmaskToCommandQueueProperties, 
   bitmaskToFPConfig, bitmaskToExecCapability )
-import System.GPU.OpenCL.Errors( ErrorCode(..), clSuccess )
 
 -- -----------------------------------------------------------------------------
 foreign import ccall "clGetPlatformIDs" raw_clGetPlatformIDs :: 
