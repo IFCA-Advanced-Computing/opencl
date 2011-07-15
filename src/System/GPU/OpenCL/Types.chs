@@ -27,7 +27,7 @@ module System.GPU.OpenCL.Types(
   CLCommandQueueProperty(..), CLCommandType(..),  CLCommandExecutionStatus(..), 
   CLProfilingInfo(..), CLPlatformInfo(..), CLMemFlag(..),
   -- * Functions
-  clSuccess, wrapPError, getCLValue, getDeviceLocalMemType, 
+  clSuccess, wrapPError, wrapCheckSuccess, getCLValue, getDeviceLocalMemType, 
   getDeviceMemCacheType, getCommandType, getCommandExecutionStatus, 
   bitmaskToDeviceTypes, bitmaskFromFlags, bitmaskToCommandQueueProperties, 
   bitmaskToFPConfig, bitmaskToExecCapability )
@@ -301,6 +301,9 @@ wrapPError f = alloca $ \perr -> do
     then return $ Right v
     else return $ Left errcode
   
+wrapCheckSuccess :: IO CLint -> IO Bool
+wrapCheckSuccess f = f >>= return . (==CLSUCCESS) . toEnum . fromIntegral
+
 -- -----------------------------------------------------------------------------
 #c
 enum CLPlatformInfo {
