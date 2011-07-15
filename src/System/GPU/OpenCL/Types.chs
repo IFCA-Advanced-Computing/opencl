@@ -27,11 +27,12 @@ module System.GPU.OpenCL.Types(
   CLCommandQueueProperty(..), CLCommandType(..),  CLCommandExecutionStatus(..), 
   CLProfilingInfo(..), CLImageFormat(..), CLPlatformInfo(..), CLMemFlag(..),
   -- * Functions
-  clSuccess, getProfilingInfoValue, getImageFormat, getDeviceTypeValue, 
-  getDeviceLocalMemType, getDeviceMemCacheType, getCommandType, 
-  getCommandExecutionStatus, bitmaskToDeviceTypes, bitmaskFromDeviceTypes, 
-  bitmaskToCommandQueueProperties, bitmaskFromCommandQueueProperties, 
-  bitmaskToFPConfig, bitmaskToExecCapability, getPlatformInfoValue )
+  clSuccess, wrapPError, getProfilingInfoValue, getImageFormat, 
+  getDeviceTypeValue, getDeviceLocalMemType, getDeviceMemCacheType, 
+  getCommandType, getCommandExecutionStatus, bitmaskToDeviceTypes, 
+  bitmaskFromDeviceTypes, bitmaskToCommandQueueProperties, bitmaskFromMemFlags,
+  bitmaskFromCommandQueueProperties, bitmaskToFPConfig, bitmaskToExecCapability, 
+  getPlatformInfoValue )
        where
 
 -- -----------------------------------------------------------------------------
@@ -135,7 +136,6 @@ enum CLError {
   CLSUCCESS=CL_SUCCESS
   };
 #endc
-
 
 {-| 
 * 'CLBUILD_PROGRAM_FAILURE', Returned if there is a failure to build the
@@ -292,8 +292,16 @@ not available (because the command identified by event has not completed).
 
  * 'CLSUCCESS', Indicates that the function executed successfully.
 -}
-{#enum CLError {} deriving( Show ) #}
+{#enum CLError {} deriving( Show, Eq ) #}
 
+wrapPError :: (Ptr CLint -> IO a) -> IO (Either CLError a)
+wrapPError f = alloca $ \perr -> do
+  v <- f perr
+  errcode <- peek perr >>= return . toEnum . fromIntegral
+  if errcode == CLSUCCESS
+    then return $ Right v
+    else return $ Left errcode
+  
 -- -----------------------------------------------------------------------------
 #c
 enum CLPlatformInfo {
@@ -625,4 +633,7 @@ bitmaskToFPConfig mask = filter (testMask mask . fromIntegral . fromEnum) $ bina
 bitmaskToExecCapability :: CLDeviceExecCapability_ -> [CLDeviceExecCapability]
 bitmaskToExecCapability mask = filter (testMask mask . fromIntegral . fromEnum) $ binaryFlags maxBound
 
+bitmaskFromMemFlags :: [CLMemFlag] -> CLMemFlags_
+bitmaskFromMemFlags = foldl' (.|.) 0 . map (fromIntegral . fromEnum)
+  
 -- -----------------------------------------------------------------------------
