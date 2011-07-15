@@ -60,8 +60,8 @@ import System.GPU.OpenCL.Types(
   CLDeviceInfo_, CLDeviceFPConfig(..), CLDeviceExecCapability(..), ErrorCode(..),
   CLDeviceLocalMemType(..), CLDeviceMemCacheType(..), CLPlatformInfo(..),
   CLPlatformID, CLDeviceID, CLDeviceType(..), CLCommandQueueProperty, 
-  getDeviceMemCacheType, getDeviceLocalMemType, getDeviceTypeValue, clSuccess,
-  getPlatformInfoValue, bitmaskToDeviceTypes, bitmaskToCommandQueueProperties, 
+  getDeviceMemCacheType, getDeviceLocalMemType, getCLValue, clSuccess,
+  bitmaskToDeviceTypes, bitmaskToCommandQueueProperties, 
   bitmaskToFPConfig, bitmaskToExecCapability )
 
 -- -----------------------------------------------------------------------------
@@ -115,7 +115,7 @@ clGetPlatformInfo platform infoid = do
         then fmap Just $ peekCString buff
         else return Nothing
     where
-      infoval = getPlatformInfoValue infoid
+      infoval = getCLValue infoid
 
 -- -----------------------------------------------------------------------------
 getNumDevices :: CLPlatformID -> CLDeviceType_ -> IO (Maybe CLuint)
@@ -140,7 +140,7 @@ clGetDeviceIDs platform dtype = do
         then peekArray (fromIntegral n) devs
         else return []
     where
-      dval = getDeviceTypeValue dtype
+      dval = getCLValue dtype
 
 getDeviceInfoSize :: CLDeviceID -> CLDeviceInfo_ -> IO (Maybe CSize)
 getDeviceInfoSize device infoid = alloca $ \(value_size :: Ptr CSize) -> do

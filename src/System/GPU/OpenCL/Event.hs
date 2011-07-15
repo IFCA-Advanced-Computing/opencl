@@ -32,7 +32,7 @@ import System.GPU.OpenCL.Types(
   CLEvent, CLint, CLuint, CLulong, CLEventInfo_, CLProfilingInfo_, ErrorCode(..),
   CLCommandQueue, CLCommandType(..), CLCommandType_, CLCommandExecutionStatus(..), 
   CLProfilingInfo(..), clSuccess, getCommandType, getCommandExecutionStatus, 
-  getProfilingInfoValue )
+  getCLValue )
 
 -- -----------------------------------------------------------------------------
 foreign import ccall "clWaitForEvents" raw_clWaitForEvents :: 
@@ -155,6 +155,6 @@ clGetEventProfilingInfo ev prof = alloca $ \(dat :: Ptr CLulong) -> do
     else return Nothing
     where 
       size = fromIntegral $ sizeOf (0::CLulong)
-      infoid = getProfilingInfoValue prof
+      infoid = getCLValue prof
 
 -- -----------------------------------------------------------------------------

@@ -27,11 +27,11 @@ module System.GPU.OpenCL.Types(
   CLCommandQueueProperty(..), CLCommandType(..),  CLCommandExecutionStatus(..), 
   CLProfilingInfo(..), CLImageFormat(..), CLPlatformInfo(..), CLMemFlag(..),
   -- * Functions
-  clSuccess, wrapPError, getProfilingInfoValue, getImageFormat, 
-  getDeviceTypeValue, getDeviceLocalMemType, getDeviceMemCacheType, 
+  clSuccess, wrapPError, getCLValue, getImageFormat, 
+  getDeviceLocalMemType, getDeviceMemCacheType, 
   getCommandType, getCommandExecutionStatus, bitmaskToDeviceTypes, 
   bitmaskFromFlags, bitmaskToCommandQueueProperties, bitmaskToFPConfig, 
-  bitmaskToExecCapability, getPlatformInfoValue )
+  bitmaskToExecCapability )
        where
 
 -- -----------------------------------------------------------------------------
@@ -342,9 +342,6 @@ with this platform.
 -}
 {#enum CLPlatformInfo {} deriving( Show ) #}
 
-getPlatformInfoValue :: CLPlatformInfo -> CLPlatformInfo_
-getPlatformInfoValue = fromIntegral . fromEnum
-
 -- -----------------------------------------------------------------------------
 #c
 enum CLDeviceType {
@@ -372,9 +369,6 @@ peripheral interconnect such as PCIe.
  * 'CLDEVICE_TYPE_ALL', All OpenCL devices available in the system.
 -}
 {#enum CLDeviceType {} deriving( Show ) #}
-
-getDeviceTypeValue :: CLDeviceType -> CLDeviceType_
-getDeviceTypeValue = fromIntegral . fromEnum
 
 #c
 enum CLCommandQueueProperty { 
@@ -442,9 +436,6 @@ enum CLDeviceMemCacheType {
 
 {#enum CLDeviceMemCacheType {} deriving( Show ) #}
 
-getDeviceMemCacheType :: CLDeviceMemCacheType_ -> Maybe CLDeviceMemCacheType
-getDeviceMemCacheType = Just . toEnum . fromIntegral
-
 #c
 enum CLDeviceLocalMemType {
   CLLOCAL=CL_LOCAL, CLGLOBAL=CL_GLOBAL
@@ -452,9 +443,6 @@ enum CLDeviceLocalMemType {
 #endc
 
 {#enum CLDeviceLocalMemType {} deriving( Show ) #}
-
-getDeviceLocalMemType :: CLDeviceLocalMemType_ -> Maybe CLDeviceLocalMemType
-getDeviceLocalMemType = Just . toEnum . fromIntegral
 
 -- -----------------------------------------------------------------------------
 #c
@@ -482,9 +470,6 @@ enum CLCommandType {
 -- | Command associated with an event.
 {#enum CLCommandType {} deriving( Show ) #}
 
-getCommandType :: CLCommandType_ -> Maybe CLCommandType
-getCommandType = Just . toEnum . fromIntegral
-
 #c
 enum CLCommandExecutionStatus {
   CLQUEUED=CL_QUEUED, CLSUBMITTED=CL_SUBMITTED, CLRUNNING=CL_RUNNING,
@@ -506,11 +491,6 @@ device associated with the command-queue.
 -}
 {#enum CLCommandExecutionStatus {} deriving( Show ) #}
 
-getCommandExecutionStatus :: CLint -> Maybe CLCommandExecutionStatus                                
-getCommandExecutionStatus n 
-  | n < 0 = Just CLEXEC_ERROR
-  | otherwise = Just . toEnum . fromIntegral $ n
-                
 #c
 enum CLProfilingInfo {
   CLPROFILING_COMMAND_QUEUED=CL_PROFILING_COMMAND_QUEUED,
@@ -540,9 +520,6 @@ time counter in nanoseconds when the command identified by event has finished
 execution on the device.
 -}
 {#enum CLProfilingInfo {} deriving( Show ) #}
-
-getProfilingInfoValue :: CLProfilingInfo -> CLProfilingInfo_
-getProfilingInfoValue = fromIntegral . fromEnum
 
 -- -----------------------------------------------------------------------------
 #c
@@ -609,6 +586,23 @@ getImageFormat p = do
 --  return $ CLImageFormat order datatype
   return $ CLImageFormat 0 0
   
+getCLValue :: (Enum a, Integral b) => a -> b
+getCLValue = fromIntegral . fromEnum
+
+getDeviceMemCacheType :: CLDeviceMemCacheType_ -> Maybe CLDeviceMemCacheType
+getDeviceMemCacheType = Just . toEnum . fromIntegral
+
+getDeviceLocalMemType :: CLDeviceLocalMemType_ -> Maybe CLDeviceLocalMemType
+getDeviceLocalMemType = Just . toEnum . fromIntegral
+
+getCommandType :: CLCommandType_ -> Maybe CLCommandType
+getCommandType = Just . toEnum . fromIntegral
+
+getCommandExecutionStatus :: CLint -> Maybe CLCommandExecutionStatus                                
+getCommandExecutionStatus n 
+  | n < 0 = Just CLEXEC_ERROR
+  | otherwise = Just . toEnum . fromIntegral $ n
+                
 -- -----------------------------------------------------------------------------
 binaryFlags :: (Ord b, Enum b, Bounded b) => b -> [b]
 binaryFlags m = map toEnum . takeWhile (<= (fromEnum m)) $ [1 `shiftL` n | n <- [0..]]
