@@ -12,7 +12,7 @@ myTry f = do
     Right res -> return res
 
 programSource :: String
-programSource = "__kernel void duparray(__global float *in, __global float *out ){\n  int id = get_global_id(0);\n  out[id] = 2*in[id];\n}"
+programSource = "__kernel void duparray(__global float *in, __global float *out ){\n  int id = get_global_id(0);\n  out[id] = 2*in[id];\n} __kernel void dup(__global float *in, __global float *out ){\n  int id = get_global_id(0);\n  out[id] = 2*in[id];\n}"
 
 main = do
   (platform:_) <- clGetPlatformIDs
