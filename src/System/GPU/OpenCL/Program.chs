@@ -21,12 +21,13 @@ module System.GPU.OpenCL.Program(
   ) where
 
 -- -----------------------------------------------------------------------------
-import Data.Word( Word8 )
-import Foreign( Ptr, FunPtr )
-import Foreign.C.Types( CSize )
+import Foreign
+import Foreign.C.Types
 import Foreign.C.String( CString )
 import System.GPU.OpenCL.Types( 
   CLint, CLuint, CLProgram, CLContext, CLDeviceID )
+
+#include <CL/cl.h>
 
 -- -----------------------------------------------------------------------------
 type BuildCallback = CString -> Ptr () -> CSize -> Ptr () -> IO ()
@@ -48,4 +49,5 @@ foreign import ccall "clGetProgramInfo" raw_clGetProgramInfo ::
   CLProgram -> CLuint -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 foreign import ccall "clGetProgramBuildInfo"  raw_clGetProgramBuildInfo :: 
   CLProgram -> CLuint -> CSize -> Ptr () -> Ptr CSize -> IO CLint
+
 -- -----------------------------------------------------------------------------
