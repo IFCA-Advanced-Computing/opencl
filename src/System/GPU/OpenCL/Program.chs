@@ -17,13 +17,17 @@
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
 module System.GPU.OpenCL.Program(  
   -- * Types
-  CLProgram, CLBuildStatus(..),
-  -- * Functions
+  CLProgram, CLBuildStatus(..), CLKernel,
+  -- * Program Functions
   clCreateProgramWithSource, clRetainProgram, clReleaseProgram, 
   clUnloadCompiler, clBuildProgram, clGetProgramReferenceCount, 
   clGetProgramContext, clGetProgramNumDevices, clGetProgramDevices,
   clGetProgramSource, clGetProgramBinarySizes, clGetProgramBinaries, 
-  clGetProgramBuildStatus, clGetProgramBuildOptions, clGetProgramBuildLog
+  clGetProgramBuildStatus, clGetProgramBuildOptions, clGetProgramBuildLog,
+  -- * Kernel Functions
+  clCreateKernel, clCreateKernelsInProgram, clRetainKernel, clReleaseKernel, 
+  clGetKernelFunctionName, clGetKernelNumArgs, clGetKernelReferenceCount, 
+  clGetKernelContext, clGetKernelProgram
   ) where
 
 -- -----------------------------------------------------------------------------
@@ -31,9 +35,10 @@ import Foreign
 import Foreign.C.Types
 import Foreign.C.String( CString, withCString, newCString, peekCString )
 import System.GPU.OpenCL.Types( 
-  CLint, CLuint, CLProgram, CLContext, CLDeviceID, CLError(..), CLProgramInfo_,
-  CLBuildStatus(..), CLBuildStatus_, wrapCheckSuccess, wrapPError, wrapGetInfo, 
-  getCLValue, getEnumCL )
+  CLint, CLuint, CLProgram, CLContext, CLKernel, CLDeviceID, CLError(..), 
+  CLProgramInfo_, CLBuildStatus(..), CLBuildStatus_, CLProgramBuildInfo_, 
+  CLKernelInfo_, CLKernelWorkGroupInfo_, wrapCheckSuccess, wrapPError, 
+  wrapGetInfo, getCLValue, getEnumCL )
 
 #include <CL/cl.h>
 
@@ -52,9 +57,23 @@ foreign import ccall "clBuildProgram" raw_clBuildProgram ::
 foreign import ccall "clUnloadCompiler" raw_clUnloadCompiler :: 
   IO CLint
 foreign import ccall "clGetProgramInfo" raw_clGetProgramInfo :: 
-  CLProgram -> CLuint -> CSize -> Ptr () -> Ptr CSize -> IO CLint
+  CLProgram -> CLProgramInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 foreign import ccall "clGetProgramBuildInfo"  raw_clGetProgramBuildInfo :: 
-  CLProgram -> CLDeviceID -> CLuint -> CSize -> Ptr () -> Ptr CSize -> IO CLint
+  CLProgram -> CLDeviceID -> CLProgramBuildInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
+foreign import ccall "clCreateKernel" raw_clCreateKernel :: 
+  CLProgram -> CString -> Ptr CLint -> IO CLKernel 
+foreign import ccall "clCreateKernelsInProgram" raw_clCreateKernelsInProgram :: 
+  CLProgram -> CLuint -> Ptr CLKernel -> Ptr CLuint -> IO CLint 
+foreign import ccall "clRetainKernel" raw_clRetainKernel :: 
+  CLKernel -> IO CLint 
+foreign import ccall "clReleaseKernel" raw_clReleaseKernel :: 
+  CLKernel -> IO CLint 
+foreign import ccall "clSetKernelArg" raw_clSetKernelArg :: 
+  CLKernel -> CLuint -> CSize -> Ptr () -> IO CLint
+foreign import ccall "clGetKernelInfo" raw_clGetKernelInfo :: 
+  CLKernel -> CLKernelInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
+foreign import ccall "clGetKernelWorkGroupInfo" raw_clGetKernelWorkGroupInfo :: 
+  CLKernel -> CLDeviceID -> CLKernelWorkGroupInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 
 -- -----------------------------------------------------------------------------
 {-| Creates a program object for a context, and loads the source code specified
@@ -473,4 +492,153 @@ clGetProgramBuildLog prg device = do
     where 
       infoid = getCLValue CL_PROGRAM_BUILD_LOG
   
+-- -----------------------------------------------------------------------------
+{-| Creates a kernal object. A kernel is a function declared in a program. A
+kernel is identified by the __kernel qualifier applied to any function in a
+program. A kernel object encapsulates the specific __kernel function declared in
+a program and the argument values to be used when executing this __kernel
+function.
+
+'clCreateKernel' returns a valid non-zero kernel object if the kernel object is
+created successfully. Otherwise, it returns one of the following error values:
+
+ * 'CL_INVALID_PROGRAM' if program is not a valid program object.
+
+ * 'CL_INVALID_PROGRAM_EXECUTABLE' if there is no successfully built executable
+ for program.
+
+ * 'CL_INVALID_KERNEL_NAME' if kernel_name is not found in program.
+
+ * 'CL_INVALID_KERNEL_DEFINITION' if the function definition for __kernel
+function given by kernel_name such as the number of arguments, the argument
+types are not the same for all devices for which the program executable has been
+built.
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.  
+-}
+clCreateKernel :: CLProgram -> String -> IO (Either CLError CLKernel)
+clCreateKernel prg name = withCString name $ \cname -> wrapPError $ \perr -> do
+  raw_clCreateKernel prg cname perr
+
+{-| Creates kernel objects for all kernel functions in a program object. Kernel
+objects are not created for any __kernel functions in program that do not have
+the same function definition across all devices for which a program executable
+has been successfully built.
+
+Kernel objects can only be created once you have a program object with a valid
+program source or binary loaded into the program object and the program
+executable has been successfully built for one or more devices associated with
+program. No changes to the program executable are allowed while there are kernel
+objects associated with a program object. This means that calls to
+'clBuildProgram' return 'CL_INVALID_OPERATION' if there are kernel objects
+attached to a program object. The OpenCL context associated with program will be
+the context associated with kernel. The list of devices associated with program
+are the devices associated with kernel. Devices associated with a program object
+for which a valid program executable has been built can be used to execute
+kernels declared in the program object.
+
+'clCreateKernelsInProgram' will return the kernel objects if the kernel objects
+were successfully allocated, returns 'CL_INVALID_PROGRAM' if program is not a
+valid program object, returns 'CL_INVALID_PROGRAM_EXECUTABLE' if there is no
+successfully built executable for any device in program and returns
+'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required by
+the OpenCL implementation on the host.
+-}
+clCreateKernelsInProgram :: CLProgram -> IO (Either CLError [CLKernel])
+clCreateKernelsInProgram prg = do
+  nks <- alloca $ \pn -> do
+    errcode <- raw_clCreateKernelsInProgram prg 0 nullPtr pn
+    if errcode == (getCLValue CL_SUCCESS)
+      then peek pn >>= (return . Right)
+      else return $ Left errcode
+  
+  case nks of
+    Left err -> return . Left . getEnumCL $ err
+    Right n -> allocaArray (fromIntegral n) $ \pks -> do
+      errcode <- raw_clCreateKernelsInProgram prg n pks nullPtr
+      if errcode == (getCLValue CL_SUCCESS)
+        then peekArray (fromIntegral n) pks >>= (return . Right)
+        else return . Left .getEnumCL $ errcode
+
+-- | Increments the program program reference count. 'clRetainKernel' returns
+-- 'True' if the function is executed successfully. 'clCreateKernel' or
+-- 'clCreateKernelsInProgram' do an implicit retain.
+clRetainKernel :: CLKernel -> IO Bool
+clRetainKernel krn = wrapCheckSuccess $ raw_clRetainKernel krn
+
+-- | Decrements the kernel reference count. The kernel object is deleted once
+-- the number of instances that are retained to kernel become zero and the
+-- kernel object is no longer needed by any enqueued commands that use
+-- kernel. 'clReleaseKernel' returns 'True' if the function is executed
+-- successfully.
+clReleaseKernel :: CLKernel -> IO Bool
+clReleaseKernel krn = wrapCheckSuccess $ raw_clReleaseKernel krn
+
+#c
+enum CLKernelInfo {
+  cL_KERNEL_FUNCTION_NAME=CL_KERNEL_FUNCTION_NAME,
+  cL_KERNEL_NUM_ARGS=CL_KERNEL_NUM_ARGS,
+  cL_KERNEL_REFERENCE_COUNT=CL_KERNEL_REFERENCE_COUNT,
+  cL_KERNEL_CONTEXT=CL_KERNEL_CONTEXT,
+  cL_KERNEL_PROGRAM=CL_KERNEL_PROGRAM
+  };
+#endc
+{#enum CLKernelInfo {upcaseFirstLetter} #}
+
+getKernelInfoSize :: CLKernel -> CLKernelInfo_ -> IO (Either CLError CSize)
+getKernelInfoSize krn infoid = alloca $ \(value_size :: Ptr CSize) -> do
+  errcode <- raw_clGetKernelInfo krn infoid 0 nullPtr value_size
+  if errcode == (fromIntegral . fromEnum $ CL_SUCCESS)
+    then fmap Right $ peek value_size
+    else return . Left . toEnum . fromIntegral $ errcode
+  
+-- | Return the kernel function name.
+clGetKernelFunctionName :: CLKernel -> IO (Either CLError String)
+clGetKernelFunctionName krn = do
+  sval <- getKernelInfoSize krn infoid
+  case sval of
+    Left err -> return . Left $ err
+    Right n -> allocaArray (fromIntegral n) $ \(buff :: CString) -> do
+      errcode <- raw_clGetKernelInfo krn infoid n (castPtr buff) nullPtr
+      if errcode == (fromIntegral . fromEnum $ CL_SUCCESS)
+        then fmap Right $ peekCString buff
+        else return . Left . toEnum . fromIntegral $ errcode
+    where 
+      infoid = getCLValue CL_KERNEL_FUNCTION_NAME
+
+-- | Return the number of arguments to kernel.
+clGetKernelNumArgs :: CLKernel -> IO (Either CLError CLuint)
+clGetKernelNumArgs krn = wrapGetInfo (\(dat :: Ptr CLuint) 
+                                      -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_KERNEL_NUM_ARGS
+      size = fromIntegral $ sizeOf (0::CLuint)
+
+-- | Return the kernel reference count. The reference count returned should be
+-- considered immediately stale. It is unsuitable for general use in
+-- applications. This feature is provided for identifying memory leaks.
+clGetKernelReferenceCount :: CLKernel -> IO (Either CLError CLuint)
+clGetKernelReferenceCount krn = wrapGetInfo (\(dat :: Ptr CLuint) 
+                                             -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_KERNEL_REFERENCE_COUNT
+      size = fromIntegral $ sizeOf (0::CLuint)
+
+-- | Return the context associated with kernel.
+clGetKernelContext :: CLKernel -> IO (Either CLError CLContext)
+clGetKernelContext krn = wrapGetInfo (\(dat :: Ptr CLContext) 
+                                      -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_KERNEL_CONTEXT
+      size = fromIntegral $ sizeOf (nullPtr::CLContext)
+
+-- | Return the program object associated with kernel.
+clGetKernelProgram :: CLKernel -> IO (Either CLError CLProgram)
+clGetKernelProgram krn = wrapGetInfo (\(dat :: Ptr CLProgram) 
+                                      -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_KERNEL_PROGRAM
+      size = fromIntegral $ sizeOf (nullPtr::CLProgram)
+
 -- -----------------------------------------------------------------------------

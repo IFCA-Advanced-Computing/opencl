@@ -21,7 +21,8 @@ module System.GPU.OpenCL.Types(
   CLDeviceInfo_, CLContextInfo_, CLContextProperty_, CLCommandQueueInfo_, 
   CLEventInfo_, CLProfilingInfo_, CLCommandType_, CLCommandQueueProperty_, 
   CLMemFlags_, CLImageFormat_p, CLMemObjectType_, CLMemInfo_, CLImageInfo_,
-  CLProgramInfo_, CLBuildStatus_,CLKernel
+  CLProgramInfo_, CLBuildStatus_,CLKernel, CLProgramBuildInfo_, CLKernelInfo_,
+  CLKernelWorkGroupInfo_,
   -- * High Level Types
   CLError(..), ErrorCode(..), CLDeviceFPConfig(..), CLDeviceMemCacheType(..), 
   CLDeviceExecCapability(..), CLDeviceLocalMemType(..), CLDeviceType(..), 
@@ -78,7 +79,11 @@ type CLMemObjectType_ = {#type cl_mem_object_type#}
 type CLMemInfo_ = {#type cl_mem_info#}
 type CLImageInfo_ = {#type cl_image_info#}
 type CLProgramInfo_ = {#type cl_program_info#}
+type CLProgramBuildInfo_ = {#type cl_program_build_info#}
 type CLBuildStatus_ = {#type cl_build_status#}
+type CLKernelInfo_ = {#type cl_kernel_info#}
+type CLKernelWorkGroupInfo_ = {#type cl_kernel_work_group_info#}
+
 
 {#pointer *cl_image_format as CLImageFormat_p#}
 
