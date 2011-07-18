@@ -21,6 +21,31 @@ module System.GPU.OpenCL.Program(
   ) where
 
 -- -----------------------------------------------------------------------------
-import System.GPU.OpenCL.Types( CLProgram )
+import Data.Word( Word8 )
+import Foreign( Ptr, FunPtr )
+import Foreign.C.Types( CSize )
+import Foreign.C.String( CString )
+import System.GPU.OpenCL.Types( 
+  CLint, CLuint, CLProgram, CLContext, CLDeviceID )
 
+-- -----------------------------------------------------------------------------
+type BuildCallback = CString -> Ptr () -> CSize -> Ptr () -> IO ()
+foreign import ccall "wrapper" wrapBuildCallback :: 
+  BuildCallback -> IO (FunPtr BuildCallback)
+foreign import ccall "clCreateProgramWithSource" raw_clCreateProgramWithSource :: 
+  CLContext -> CLuint -> Ptr CString -> Ptr CSize -> Ptr CLint -> IO CLProgram
+foreign import ccall "clCreateProgramWithBinary" raw_clCreateProgramWithBinary :: 
+  CLContext -> CLuint -> Ptr CLDeviceID -> Ptr CSize -> Ptr (Ptr Word8) -> Ptr CLint -> Ptr CLint -> IO CLProgram
+foreign import ccall "clRetainProgram" raw_clRetainProgram :: 
+  CLProgram -> IO CLint
+foreign import ccall "clReleaseProgram" raw_clReleaseProgram :: 
+  CLProgram -> IO CLint
+foreign import ccall "clBuildProgram" raw_clBuildProgram :: 
+  CLProgram -> CLuint -> Ptr CLDeviceID -> CString -> FunPtr BuildCallback -> Ptr () -> IO CLint
+foreign import ccall "clUnloadCompiler" raw_clUnloadCompiler :: 
+  IO CLint
+foreign import ccall "clGetProgramInfo" raw_clGetProgramInfo :: 
+  CLProgram -> CLuint -> CSize -> Ptr () -> Ptr CSize -> IO CLint
+foreign import ccall "clGetProgramBuildInfo"  raw_clGetProgramBuildInfo :: 
+  CLProgram -> CLuint -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 -- -----------------------------------------------------------------------------
