@@ -45,4 +45,4 @@ main = do
   result <- peekArray (length original) input
   print result
 
-  return ()
+  return (platform,dev,context,program)
