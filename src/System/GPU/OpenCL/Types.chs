@@ -21,11 +21,13 @@ module System.GPU.OpenCL.Types(
   CLDeviceInfo_, CLContextInfo_, CLContextProperty_, CLCommandQueueInfo_, 
   CLEventInfo_, CLProfilingInfo_, CLCommandType_, CLCommandQueueProperty_, 
   CLMemFlags_, CLImageFormat_p, CLMemObjectType_, CLMemInfo_, CLImageInfo_,
+  CLProgramInfo_, CLBuildStatus_,
   -- * High Level Types
   CLError(..), ErrorCode(..), CLDeviceFPConfig(..), CLDeviceMemCacheType(..), 
   CLDeviceExecCapability(..), CLDeviceLocalMemType(..), CLDeviceType(..), 
   CLCommandQueueProperty(..), CLCommandType(..),  CLCommandExecutionStatus(..), 
   CLProfilingInfo(..), CLPlatformInfo(..), CLMemFlag(..), CLMemObjectType(..),
+  CLBuildStatus(..),
   -- * Functions
   clSuccess, wrapPError, wrapCheckSuccess, wrapGetInfo, getCLValue, getEnumCL,
   getDeviceLocalMemType, bitmaskToFlags,
@@ -74,6 +76,8 @@ type CLMemFlags_ = {#type cl_mem_flags#}
 type CLMemObjectType_ = {#type cl_mem_object_type#}
 type CLMemInfo_ = {#type cl_mem_info#}
 type CLImageInfo_ = {#type cl_image_info#}
+type CLProgramInfo_ = {#type cl_program_info#}
+type CLBuildStatus_ = {#type cl_build_status#}
 
 {#pointer *cl_image_format as CLImageFormat_p#}
 
@@ -593,6 +597,29 @@ enum CLMemObjectType {
  * 'CL_MEM_OBJECT_IMAGE3D' if memobj is created with 'clCreateImage3D'.
 -}
 {#enum CLMemObjectType {upcaseFirstLetter} deriving( Show ) #}
+
+#c
+enum CLBuildStatus {
+  cL_BUILD_NONE=CL_BUILD_NONE,
+  cL_BUILD_ERROR=CL_BUILD_ERROR,
+  cL_BUILD_SUCCESS=CL_BUILD_SUCCESS,
+  cL_BUILD_IN_PROGRESS=CL_BUILD_IN_PROGRESS,
+  };
+#endc
+
+{-| * 'CL_BUILD_NONE'. The build status returned if no build has been performed
+on the specified program object for device.
+
+ * 'CL_BUILD_ERROR'. The build status returned if the last call to
+'clBuildProgram' on the specified program object for device generated an error.
+
+ * 'CL_BUILD_SUCCESS'. The build status retrned if the last call to
+'clBuildProgram' on the specified program object for device was successful.
+
+ * 'CL_BUILD_IN_PROGRESS'. The build status returned if the last call to 
+'clBuildProgram' on the specified program object for device has not finished.
+-}
+{#enum CLBuildStatus {upcaseFirstLetter} deriving( Show ) #}
 
 -- -----------------------------------------------------------------------------
 getCLValue :: (Enum a, Integral b) => a -> b
