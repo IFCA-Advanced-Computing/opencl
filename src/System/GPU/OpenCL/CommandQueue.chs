@@ -24,6 +24,7 @@ module System.GPU.OpenCL.CommandQueue(
   clGetCommandQueueReferenceCount, clGetCommandQueueProperties,
   clSetCommandQueueProperty,
   -- * Memory Commands
+  clEnqueueReadBuffer, clEnqueueWriteBuffer,
   -- * Executing Kernels
   -- * Flush and Finish
   clFlush, clFinish
@@ -33,8 +34,9 @@ module System.GPU.OpenCL.CommandQueue(
 import Foreign
 import Foreign.C.Types
 import System.GPU.OpenCL.Types( 
-  CLint, CLbool, CLuint, CLCommandQueueProperty_, CLCommandQueueInfo_, CLError,
-  CLCommandQueue, CLDeviceID, CLContext, CLCommandQueueProperty(..), ErrorCode(..),
+  CLint, CLbool, CLuint, CLCommandQueueProperty_, CLCommandQueueInfo_, 
+  CLError(..), CLCommandQueue, CLDeviceID, CLContext, CLCommandQueueProperty(..), 
+  CLEvent, CLMem, ErrorCode(..),
   wrapCheckSuccess, wrapPError, wrapGetInfo, getCLValue,
   bitmaskToCommandQueueProperties, bitmaskFromFlags, clSuccess )
 
@@ -51,6 +53,10 @@ foreign import ccall "clGetCommandQueueInfo" raw_clGetCommandQueueInfo ::
   CLCommandQueue -> CLCommandQueueInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 foreign import ccall "clSetCommandQueueProperty" raw_clSetCommandQueueProperty :: 
   CLCommandQueue -> CLCommandQueueProperty_ -> CLbool -> Ptr CLCommandQueueProperty_ -> IO CLint
+foreign import ccall "clEnqueueReadBuffer" raw_clEnqueueReadBuffer ::
+  CLCommandQueue -> CLMem -> CLbool -> CSize -> CSize -> Ptr () -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
+foreign import ccall "clEnqueueWriteBuffer" raw_clEnqueueWriteBuffer ::
+  CLCommandQueue -> CLMem -> CLbool -> CSize -> CSize -> Ptr () -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
 foreign import ccall "clFlush" raw_clFlush ::
   CLCommandQueue -> IO CLint
 foreign import ccall "clFinish" raw_clFinish ::
@@ -209,6 +215,123 @@ clSetCommandQueueProperty cq xs val = alloca $ \(dat :: Ptr CLCommandQueueProper
     else return []
     where
       props = bitmaskFromFlags xs
+
+-- -----------------------------------------------------------------------------
+{-| Enqueue commands to read from a buffer object to host memory. Calling
+clEnqueueReadBuffer to read a region of the buffer object with the ptr argument
+value set to host_ptr + offset, where host_ptr is a pointer to the memory region
+specified when the buffer object being read is created with
+'CL_MEM_USE_HOST_PTR', must meet the following requirements in order to avoid
+undefined behavior:
+
+ * All commands that use this buffer object have finished execution before the
+read command begins execution
+
+ * The buffer object is not mapped
+
+ * The buffer object is not used by any command-queue until the read command has
+finished execution Errors
+
+'clEnqueueReadBuffer' returns the event if the function is executed
+successfully. Otherwise, it returns one of the following errors:
+
+ * 'CL_INVALID_COMMAND_QUEUE' if command_queue is not a valid command-queue.
+
+ * 'CL_INVALID_CONTEXT' if the context associated with command_queue and buffer
+are not the same or if the context associated with command_queue and events in
+event_wait_list are not the same.
+
+ * 'CL_INVALID_MEM_OBJECT' if buffer is not a valid buffer object.
+
+ * 'CL_INVALID_VALUE' if the region being read specified by (offset, cb) is out
+of bounds or if ptr is a NULL value.
+
+ * 'CL_INVALID_EVENT_WAIT_LIST' if event_wait_list is NULL and
+num_events_in_wait_list greater than 0, or event_wait_list is not NULL and
+num_events_in_wait_list is 0, or if event objects in event_wait_list are not
+valid events.
+
+ * 'CL_MEM_OBJECT_ALLOCATION_FAILURE' if there is a failure to allocate memory
+for data store associated with buffer.
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.
+-}
+clEnqueueReadBuffer :: CLCommandQueue -> CLMem -> Bool -> CSize -> CSize 
+                       -> Ptr () -> [CLEvent] -> IO (Either CLError CLEvent)
+clEnqueueReadBuffer cq mem check off size dat [] = alloca $ \event -> do
+  errcode <- raw_clEnqueueReadBuffer cq mem (fromBool check) off size dat 0 nullPtr event
+  if errcode == (fromIntegral . fromEnum $ CL_SUCCESS )
+    then fmap Right $ peek event
+    else return . Left . toEnum . fromIntegral $ errcode
+clEnqueueReadBuffer cq mem check off size dat events = allocaArray nevents $ \pevents -> do
+  pokeArray pevents events
+  alloca $ \event -> do
+    errcode <- raw_clEnqueueReadBuffer cq mem (fromBool check) off size dat cnevents pevents event
+    if errcode == (fromIntegral . fromEnum $ CL_SUCCESS )
+      then fmap Right $ peek event
+      else return . Left . toEnum . fromIntegral $ errcode
+    where
+      nevents = length events
+      cnevents = fromIntegral nevents
+
+{-| Enqueue commands to write to a buffer object from host memory.Calling
+clEnqueueWriteBuffer to update the latest bits in a region of the buffer object
+with the ptr argument value set to host_ptr + offset, where host_ptr is a
+pointer to the memory region specified when the buffer object being written is
+created with 'CL_MEM_USE_HOST_PTR', must meet the following requirements in
+order to avoid undefined behavior:
+
+ * The host memory region given by (host_ptr + offset, cb) contains the latest
+bits when the enqueued write command begins execution.
+
+ * The buffer object is not mapped.
+
+ * The buffer object is not used by any command-queue until the write command
+has finished execution.
+
+'clEnqueueWriteBuffer' returns the Event if the function is executed
+successfully. Otherwise, it returns one of the following errors:
+
+ * 'CL_INVALID_COMMAND_QUEUE' if command_queue is not a valid command-queue.
+
+ * 'CL_INVALID_CONTEXT' if the context associated with command_queue and buffer
+are not the same or if the context associated with command_queue and events in
+event_wait_list are not the same.
+
+ * 'CL_INVALID_MEM_OBJECT' if buffer is not a valid buffer object.
+
+ * 'CL_INVALID_VALUE' if the region being written specified by (offset, cb) is
+out of bounds or if ptr is a NULL value.
+
+ * 'CL_INVALID_EVENT_WAIT_LIST' if event_wait_list is NULL and
+num_events_in_wait_list greater than 0, or event_wait_list is not NULL and
+num_events_in_wait_list is 0, or if event objects in event_wait_list are not
+valid events.
+
+ * 'CL_MEM_OBJECT_ALLOCATION_FAILURE' if there is a failure to allocate memory
+for data store associated with buffer.
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.
+-}
+clEnqueueWriteBuffer :: CLCommandQueue -> CLMem -> Bool -> CSize -> CSize 
+                       -> Ptr () -> [CLEvent] -> IO (Either CLError CLEvent)
+clEnqueueWriteBuffer cq mem check off size dat [] = alloca $ \event -> do
+  errcode <- raw_clEnqueueWriteBuffer cq mem (fromBool check) off size dat 0 nullPtr event
+  if errcode == (fromIntegral . fromEnum $ CL_SUCCESS )
+    then fmap Right $ peek event
+    else return . Left . toEnum . fromIntegral $ errcode
+clEnqueueWriteBuffer cq mem check off size dat events = allocaArray nevents $ \pevents -> do
+  pokeArray pevents events
+  alloca $ \event -> do
+    errcode <- raw_clEnqueueWriteBuffer cq mem (fromBool check) off size dat cnevents pevents event
+    if errcode == (fromIntegral . fromEnum $ CL_SUCCESS )
+      then fmap Right $ peek event
+      else return . Left . toEnum . fromIntegral $ errcode
+    where
+      nevents = length events
+      cnevents = fromIntegral nevents
 
 -- -----------------------------------------------------------------------------
 -- | Issues all previously queued OpenCL commands in a command-queue to the 
