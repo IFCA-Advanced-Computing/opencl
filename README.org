@@ -1,0 +1,15 @@
+OpenCL highlevel wrapper for Haskell.
+
+Based on Jeff Heard OpenCLRaw.
+
+* TODO
+
+** Image Buffer functions 
+   clCreateImage2D, clCreateImage3D, clGetSupportedImageFormats,
+   clEnqueueReadImage, clEnqueueWriteImage, clEnqueueCopyImage,
+   clEnqueueCopyImageToBuffer, clEnqueueCopyBufferToImage, clEnqueueMapBuffer,
+   clEnqueueMapImage, clEnqueueUnmapMemObject, clGetImageInfo
+
+** clCreateProgramWithBinary
+   
+** clEnqueueNativeKernel
