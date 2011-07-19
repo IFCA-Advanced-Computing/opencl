@@ -22,7 +22,7 @@ module System.GPU.OpenCL.Types(
   CLEventInfo_, CLProfilingInfo_, CLCommandType_, CLCommandQueueProperty_, 
   CLMemFlags_, CLImageFormat_p, CLMemObjectType_, CLMemInfo_, CLImageInfo_,
   CLProgramInfo_, CLBuildStatus_,CLKernel, CLProgramBuildInfo_, CLKernelInfo_,
-  CLKernelWorkGroupInfo_,
+  CLKernelWorkGroupInfo_, CLDeviceLocalMemType_, CLDeviceMemCacheType_,
   -- * High Level Types
   CLError(..), CLDeviceFPConfig(..), CLDeviceMemCacheType(..), 
   CLDeviceExecCapability(..), CLDeviceLocalMemType(..), CLDeviceType(..), 
@@ -30,11 +30,10 @@ module System.GPU.OpenCL.Types(
   CLProfilingInfo(..), CLPlatformInfo(..), CLMemFlag(..), CLMemObjectType(..),
   CLBuildStatus(..),
   -- * Functions
-  wrapPError, wrapCheckSuccess, wrapGetInfo, getCLValue, getEnumCL,
-  getDeviceLocalMemType, bitmaskToFlags,
-  getDeviceMemCacheType, getCommandExecutionStatus, 
-  bitmaskToDeviceTypes, bitmaskFromFlags, bitmaskToCommandQueueProperties, 
-  bitmaskToFPConfig, bitmaskToExecCapability, bitmaskToMemFlags )
+  wrapPError, wrapCheckSuccess, wrapGetInfo, whenSuccess, getCLValue, 
+  getEnumCL, bitmaskToFlags, getCommandExecutionStatus, bitmaskToDeviceTypes, 
+  bitmaskFromFlags, bitmaskToCommandQueueProperties, bitmaskToFPConfig, 
+  bitmaskToExecCapability, bitmaskToMemFlags )
        where
 
 -- -----------------------------------------------------------------------------
@@ -317,6 +316,13 @@ wrapGetInfo fget fconvert= alloca $ \dat -> do
     then fmap (Right . fconvert) $ peek dat
     else return . Left . toEnum . fromIntegral $ errcode
 
+whenSuccess :: IO CLint -> IO a -> IO (Either CLError a)
+whenSuccess fcheck fval = do
+  errcode <- fcheck
+  if errcode == getCLValue CL_SUCCESS
+    then fval >>= return . Right
+    else return . Left . getEnumCL $ errcode
+         
 -- -----------------------------------------------------------------------------
 #c
 enum CLPlatformInfo {
@@ -627,12 +633,6 @@ getCLValue = fromIntegral . fromEnum
 
 getEnumCL :: (Integral a, Enum b) => a -> b
 getEnumCL = toEnum . fromIntegral 
-
-getDeviceMemCacheType :: CLDeviceMemCacheType_ -> Maybe CLDeviceMemCacheType
-getDeviceMemCacheType = Just . getEnumCL
-
-getDeviceLocalMemType :: CLDeviceLocalMemType_ -> Maybe CLDeviceLocalMemType
-getDeviceLocalMemType = Just . getEnumCL
 
 getCommandExecutionStatus :: CLint -> CLCommandExecutionStatus
 getCommandExecutionStatus n 

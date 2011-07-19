@@ -16,8 +16,8 @@ programSource = "__kernel void duparray(__global float *in, __global float *out 
 main :: IO ()
 main = do
   -- Initialize OpenCL
-  (platform:_) <- clGetPlatformIDs
-  (dev:_) <- clGetDeviceIDs platform CL_DEVICE_TYPE_ALL
+  (platform:_) <- myTry $ clGetPlatformIDs
+  (dev:_) <- myTry $ clGetDeviceIDs platform CL_DEVICE_TYPE_ALL
   context <- myTry $ clCreateContext [dev] print
   q <- myTry $ clCreateCommandQueue context dev []
   
