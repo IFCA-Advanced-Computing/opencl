@@ -26,6 +26,7 @@ module System.GPU.OpenCL.CommandQueue(
   -- * Memory Commands
   clEnqueueReadBuffer, clEnqueueWriteBuffer,
   -- * Executing Kernels
+  clEnqueueNDRangeKernel, clEnqueueTask,
   -- * Flush and Finish
   clFlush, clFinish
   ) where
@@ -36,7 +37,7 @@ import Foreign.C.Types
 import System.GPU.OpenCL.Types( 
   CLint, CLbool, CLuint, CLCommandQueueProperty_, CLCommandQueueInfo_, 
   CLError(..), CLCommandQueue, CLDeviceID, CLContext, CLCommandQueueProperty(..), 
-  CLEvent, CLMem, ErrorCode(..),
+  CLEvent, CLMem, ErrorCode(..), CLKernel,
   wrapCheckSuccess, wrapPError, wrapGetInfo, getCLValue,
   bitmaskToCommandQueueProperties, bitmaskFromFlags, clSuccess )
 
@@ -57,6 +58,10 @@ foreign import ccall "clEnqueueReadBuffer" raw_clEnqueueReadBuffer ::
   CLCommandQueue -> CLMem -> CLbool -> CSize -> CSize -> Ptr () -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
 foreign import ccall "clEnqueueWriteBuffer" raw_clEnqueueWriteBuffer ::
   CLCommandQueue -> CLMem -> CLbool -> CSize -> CSize -> Ptr () -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
+foreign import ccall "clEnqueueNDRangeKernel" raw_clEnqueueNDRangeKernel :: 
+  CLCommandQueue -> CLKernel -> CLuint -> Ptr CSize -> Ptr CSize -> Ptr CSize -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
+foreign import ccall "clEnqueueTask" raw_clEnqueueTask :: 
+  CLCommandQueue -> CLKernel -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
 foreign import ccall "clFlush" raw_clFlush ::
   CLCommandQueue -> IO CLint
 foreign import ccall "clFinish" raw_clFinish ::
@@ -217,6 +222,24 @@ clSetCommandQueueProperty cq xs val = alloca $ \(dat :: Ptr CLCommandQueueProper
       props = bitmaskFromFlags xs
 
 -- -----------------------------------------------------------------------------
+clEnqueue :: (CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint) -> [CLEvent] -> IO (Either CLError CLEvent)
+clEnqueue f [] = alloca $ \event -> do
+  errcode <- f 0 nullPtr event
+  if errcode == (fromIntegral . fromEnum $ CL_SUCCESS )
+    then fmap Right $ peek event
+    else return . Left . toEnum . fromIntegral $ errcode
+clEnqueue f events = allocaArray nevents $ \pevents -> do
+  pokeArray pevents events
+  alloca $ \event -> do
+    errcode <- f cnevents pevents event
+    if errcode == (fromIntegral . fromEnum $ CL_SUCCESS )
+      then fmap Right $ peek event
+      else return . Left . toEnum . fromIntegral $ errcode
+    where
+      nevents = length events
+      cnevents = fromIntegral nevents
+
+-- -----------------------------------------------------------------------------
 {-| Enqueue commands to read from a buffer object to host memory. Calling
 clEnqueueReadBuffer to read a region of the buffer object with the ptr argument
 value set to host_ptr + offset, where host_ptr is a pointer to the memory region
@@ -259,21 +282,7 @@ by the OpenCL implementation on the host.
 -}
 clEnqueueReadBuffer :: CLCommandQueue -> CLMem -> Bool -> CSize -> CSize 
                        -> Ptr () -> [CLEvent] -> IO (Either CLError CLEvent)
-clEnqueueReadBuffer cq mem check off size dat [] = alloca $ \event -> do
-  errcode <- raw_clEnqueueReadBuffer cq mem (fromBool check) off size dat 0 nullPtr event
-  if errcode == (fromIntegral . fromEnum $ CL_SUCCESS )
-    then fmap Right $ peek event
-    else return . Left . toEnum . fromIntegral $ errcode
-clEnqueueReadBuffer cq mem check off size dat events = allocaArray nevents $ \pevents -> do
-  pokeArray pevents events
-  alloca $ \event -> do
-    errcode <- raw_clEnqueueReadBuffer cq mem (fromBool check) off size dat cnevents pevents event
-    if errcode == (fromIntegral . fromEnum $ CL_SUCCESS )
-      then fmap Right $ peek event
-      else return . Left . toEnum . fromIntegral $ errcode
-    where
-      nevents = length events
-      cnevents = fromIntegral nevents
+clEnqueueReadBuffer cq mem check off size dat = clEnqueue (raw_clEnqueueReadBuffer cq mem (fromBool check) off size dat)
 
 {-| Enqueue commands to write to a buffer object from host memory.Calling
 clEnqueueWriteBuffer to update the latest bits in a region of the buffer object
@@ -317,22 +326,56 @@ by the OpenCL implementation on the host.
 -}
 clEnqueueWriteBuffer :: CLCommandQueue -> CLMem -> Bool -> CSize -> CSize 
                        -> Ptr () -> [CLEvent] -> IO (Either CLError CLEvent)
-clEnqueueWriteBuffer cq mem check off size dat [] = alloca $ \event -> do
-  errcode <- raw_clEnqueueWriteBuffer cq mem (fromBool check) off size dat 0 nullPtr event
-  if errcode == (fromIntegral . fromEnum $ CL_SUCCESS )
-    then fmap Right $ peek event
-    else return . Left . toEnum . fromIntegral $ errcode
-clEnqueueWriteBuffer cq mem check off size dat events = allocaArray nevents $ \pevents -> do
-  pokeArray pevents events
-  alloca $ \event -> do
-    errcode <- raw_clEnqueueWriteBuffer cq mem (fromBool check) off size dat cnevents pevents event
-    if errcode == (fromIntegral . fromEnum $ CL_SUCCESS )
-      then fmap Right $ peek event
-      else return . Left . toEnum . fromIntegral $ errcode
-    where
-      nevents = length events
-      cnevents = fromIntegral nevents
+clEnqueueWriteBuffer cq mem check off size dat = clEnqueue (raw_clEnqueueWriteBuffer cq mem (fromBool check) off size dat)
 
+-- -----------------------------------------------------------------------------
+clEnqueueNDRangeKernel :: CLCommandQueue -> CLKernel -> [CSize] -> [CSize] -> [CLEvent] -> IO (Either CLError CLEvent)
+clEnqueueNDRangeKernel cq krn gws lws events = withArray gws $ \pgws -> withArray lws $ \plws -> do
+  clEnqueue (raw_clEnqueueNDRangeKernel cq krn num nullPtr pgws plws) events
+    where
+      num = fromIntegral $ length gws
+      
+{-| Enqueues a command to execute a kernel on a device. The kernel is executed
+using a single work-item.
+
+'clEnqueueTask' is equivalent to calling 'clEnqueueNDRangeKernel' with work_dim
+= 1, global_work_offset = [], global_work_size[0] set to 1, and
+local_work_size[0] set to 1.
+
+Returns the evens if the kernel execution was successfully queued, or one of the
+errors below:
+
+ * 'CL_INVALID_PROGRAM_EXECUTABLE' if there is no successfully built program
+executable available for device associated with command_queue.
+
+ * 'CL_INVALID_COMMAND_QUEUE if' command_queue is not a valid command-queue.
+
+ * 'CL_INVALID_KERNEL' if kernel is not a valid kernel object.
+
+ * 'CL_INVALID_CONTEXT' if context associated with command_queue and kernel is
+not the same or if the context associated with command_queue and events in
+event_wait_list are not the same.
+
+ * 'CL_INVALID_KERNEL_ARGS' if the kernel argument values have not been specified.
+
+ * 'CL_INVALID_WORK_GROUP_SIZE' if a work-group size is specified for kernel
+using the __attribute__((reqd_work_group_size(X, Y, Z))) qualifier in program
+source and is not (1, 1, 1).
+
+ * 'CL_OUT_OF_RESOURCES' if there is a failure to queue the execution instance
+of kernel on the command-queue because of insufficient resources needed to
+execute the kernel.
+
+ * 'CL_MEM_OBJECT_ALLOCATION_FAILURE' if there is a failure to allocate memory
+for data store associated with image or buffer objects specified as arguments to
+kernel.
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.
+-}
+clEnqueueTask :: CLCommandQueue -> CLKernel -> [CLEvent] -> IO (Either CLError CLEvent)
+clEnqueueTask cq krn = clEnqueue (raw_clEnqueueTask cq krn)
+  
 -- -----------------------------------------------------------------------------
 -- | Issues all previously queued OpenCL commands in a command-queue to the 
 -- device associated with the command-queue.
