@@ -28,10 +28,10 @@ module System.GPU.OpenCL.Event(
 import Foreign
 import Foreign.C.Types
 import System.GPU.OpenCL.Types( 
-  CLEvent, CLint, CLuint, CLulong, CLEventInfo_, CLProfilingInfo_, ErrorCode(..),
-  CLCommandQueue, CLCommandType(..), CLCommandType_, CLCommandExecutionStatus(..), 
-  CLProfilingInfo(..), clSuccess, getCommandType, getCommandExecutionStatus, 
-  getCLValue )
+  CLEvent, CLint, CLuint, CLulong, CLEventInfo_, CLProfilingInfo_, CLError(..),
+  CLCommandQueue, CLCommandType(..), CLCommandType_, 
+  CLCommandExecutionStatus(..), CLProfilingInfo(..), getCommandExecutionStatus, 
+  getCLValue, getEnumCL, wrapCheckSuccess, wrapGetInfo )
 
 #include <CL/cl.h>
 
@@ -59,8 +59,7 @@ clWaitForEvents :: [CLEvent] -> IO Bool
 clWaitForEvents [] = return False
 clWaitForEvents xs = allocaArray nevents $ \pevents -> do
   pokeArray pevents xs
-  errcode <- fmap ErrorCode $ raw_clWaitForEvents (fromIntegral nevents) pevents
-  return (errcode==clSuccess) 
+  wrapCheckSuccess $ raw_clWaitForEvents (fromIntegral nevents) pevents
     where
       nevents = length xs
   
@@ -69,8 +68,7 @@ clWaitForEvents xs = allocaArray nevents $ \pevents -> do
 -- Returns 'True' if the function is executed successfully. It returns 'False' 
 -- if event is not a valid event object.
 clRetainEvent :: CLEvent -> IO Bool
-clRetainEvent ev = raw_clRetainEvent ev
-                   >>= return . (==clSuccess) . ErrorCode
+clRetainEvent ev = wrapCheckSuccess $ raw_clRetainEvent ev
 
 -- | Decrements the event reference count.
 -- Decrements the event reference count. The event object is deleted once the 
@@ -80,8 +78,7 @@ clRetainEvent ev = raw_clRetainEvent ev
 -- Returns 'True' if the function is executed successfully. It returns 'False' 
 -- if event is not a valid event object.
 clReleaseEvent :: CLEvent -> IO Bool
-clReleaseEvent ev = raw_clReleaseEvent ev
-                    >>= return . (==clSuccess) . ErrorCode
+clReleaseEvent ev = wrapCheckSuccess $ raw_clReleaseEvent ev
 
 #c
 enum CLEventInfo {
@@ -95,47 +92,35 @@ enum CLEventInfo {
 
 
 -- | Return the command-queue associated with event.
-clGetEventCommandQueue :: CLEvent -> IO (Maybe CLCommandQueue)
-clGetEventCommandQueue ev = alloca $ \(dat :: Ptr CLCommandQueue) -> do
-  errcode <- fmap ErrorCode $ raw_clGetEventInfo ev infoid size (castPtr dat) nullPtr
-  if errcode == clSuccess
-    then fmap Just $ peek dat
-    else return Nothing
+clGetEventCommandQueue :: CLEvent -> IO (Either CLError CLCommandQueue)
+clGetEventCommandQueue ev = wrapGetInfo (\(dat :: Ptr CLCommandQueue) 
+                                         -> raw_clGetEventInfo ev infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_EVENT_COMMAND_QUEUE
       size = fromIntegral $ sizeOf (nullPtr::CLCommandQueue)
-
+      
 -- | Return the command associated with event.
-clGetEventCommandType :: CLEvent -> IO (Maybe CLCommandType)
-clGetEventCommandType ev = alloca $ \(dat :: Ptr CLCommandType_) -> do
-  errcode <- fmap ErrorCode $ raw_clGetEventInfo ev infoid size (castPtr dat) nullPtr
-  if errcode == clSuccess
-    then fmap getCommandType $ peek dat
-    else return Nothing
+clGetEventCommandType :: CLEvent -> IO (Either CLError CLCommandType)
+clGetEventCommandType ev = wrapGetInfo (\(dat :: Ptr CLCommandType_) 
+                                        -> raw_clGetEventInfo ev infoid size (castPtr dat)) getEnumCL
     where 
       infoid = getCLValue CL_EVENT_COMMAND_TYPE
       size = fromIntegral $ sizeOf (0::CLCommandType_)
-
+      
 -- | Return the event reference count. The reference count returned should be 
 -- considered immediately stale. It is unsuitable for general use in applications. 
 -- This feature is provided for identifying memory leaks.
-clGetEventReferenceCount :: CLEvent -> IO (Maybe CLint)
-clGetEventReferenceCount ev = alloca $ \(dat :: Ptr CLint) -> do
-  errcode <- fmap ErrorCode $ raw_clGetEventInfo ev infoid size (castPtr dat) nullPtr
-  if errcode == clSuccess
-    then fmap Just $ peek dat
-    else return Nothing
+clGetEventReferenceCount :: CLEvent -> IO (Either CLError CLint)
+clGetEventReferenceCount ev = wrapGetInfo (\(dat :: Ptr CLint) 
+                                           -> raw_clGetEventInfo ev infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_EVENT_REFERENCE_COUNT
       size = fromIntegral $ sizeOf (0::CLint)
 
 -- | Return the execution status of the command identified by event.
-clGetEventCommandExecutionStatus :: CLEvent -> IO (Maybe CLCommandExecutionStatus)
-clGetEventCommandExecutionStatus ev = alloca $ \(dat :: Ptr CLint) -> do
-  errcode <- fmap ErrorCode $ raw_clGetEventInfo ev infoid size (castPtr dat) nullPtr
-  if errcode == clSuccess
-    then fmap (getCommandExecutionStatus) $ peek dat
-    else return Nothing
+clGetEventCommandExecutionStatus :: CLEvent -> IO (Either CLError CLCommandExecutionStatus)
+clGetEventCommandExecutionStatus ev = wrapGetInfo (\(dat :: Ptr CLint) 
+                                                   -> raw_clGetEventInfo ev infoid size (castPtr dat)) getCommandExecutionStatus
     where 
       infoid = getCLValue CL_EVENT_COMMAND_EXECUTION_STATUS
       size = fromIntegral $ sizeOf (0::CLint)
@@ -163,14 +148,11 @@ command-queue and if the profiling information is currently not available
 (because the command identified by event has not completed), or if event is a 
 not a valid event object.
 -} 
-clGetEventProfilingInfo :: CLEvent -> CLProfilingInfo -> IO (Maybe CLulong)
-clGetEventProfilingInfo ev prof = alloca $ \(dat :: Ptr CLulong) -> do
-  errcode <- fmap ErrorCode $ raw_clGetEventProfilingInfo ev infoid size (castPtr dat) nullPtr
-  if errcode == clSuccess
-    then fmap Just $ peek dat
-    else return Nothing
+clGetEventProfilingInfo :: CLEvent -> CLProfilingInfo -> IO (Either CLError CLulong)
+clGetEventProfilingInfo ev prof = wrapGetInfo (\(dat :: Ptr CLulong) 
+                                               -> raw_clGetEventProfilingInfo ev infoid size (castPtr dat)) id
     where 
-      size = fromIntegral $ sizeOf (0::CLulong)
       infoid = getCLValue prof
+      size = fromIntegral $ sizeOf (0::CLulong)
 
 -- -----------------------------------------------------------------------------
