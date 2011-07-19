@@ -32,7 +32,9 @@ import Foreign.C.String( CString, peekCString )
 import Foreign.Storable( sizeOf )
 import System.GPU.OpenCL.Types( 
   CLuint, CLint, CLDeviceType_, CLContextInfo_, CLContextProperty_, ErrorCode(..),
-  CLDeviceID, CLContext, CLDeviceType, bitmaskFromFlags, clSuccess )
+  CLDeviceID, CLContext, CLDeviceType, bitmaskFromFlags, clSuccess, getCLValue )
+
+#include <CL/cl.h>
 
 -- -----------------------------------------------------------------------------
 type ContextCallback = CString -> Ptr () -> CSize -> Ptr () -> IO ()
@@ -117,12 +119,21 @@ getContextInfoSize ctx infoid = alloca $ \(value_size :: Ptr CSize) -> do
     then fmap Just $ peek value_size
     else return Nothing
 
+#c
+enum CLContextInfo {
+  cL_CONTEXT_REFERENCE_COUNT=CL_CONTEXT_REFERENCE_COUNT,
+  cL_CONTEXT_DEVICES=CL_CONTEXT_DEVICES,
+  cL_CONTEXT_PROPERTIES=CL_CONTEXT_PROPERTIES
+  };
+#endc
+{#enum CLContextInfo {upcaseFirstLetter} #}
+
 -- | Return the context reference count. The reference count returned should be 
 -- considered immediately stale. It is unsuitable for general use in 
 -- applications. This feature is provided for identifying memory leaks.
 clGetContextReferenceCount :: CLContext -> IO (Maybe CLuint)
 clGetContextReferenceCount ctx = alloca $ \(dat :: Ptr CLuint) -> do
-  errcode <- fmap ErrorCode $ raw_clGetContextInfo ctx 0x1080 size (castPtr dat) nullPtr
+  errcode <- fmap ErrorCode $ raw_clGetContextInfo ctx (getCLValue CL_CONTEXT_REFERENCE_COUNT) size (castPtr dat) nullPtr
   if errcode == clSuccess
     then fmap Just $ peek dat
     else return Nothing
@@ -142,30 +153,6 @@ clGetContextDevices ctx = do
         then peekArray n buff
         else return []
     where
-      infoid = 0x1081
-
---data ContextProperty = CL_CONTEXT_PLATFORM CLPlatformID deriving( Show )
-
---contextPropertyToVal :: ContextProperty -> [CLContextProperty_]
-
--- | Return the properties argument specified in 'clCreateContext'.
---clGetContextProperties :: CLContext -> IO []
---clGetContextProperties ctx = do
---  val <- getContextInfoSize ctx infoid
---  case val of
---    Nothing -> return []
---    Just size
---        | size == 0 -> return []
---        | otherwise -> let n = (fromIntegral size) `div` (sizeOf (nullPtr :: Ptr (Ptr CInt)))
---                       in allocaArray n $ \(buff :: Ptr (Ptr CInt)) -> do
---      errcode <- fmap ErrorCode $ raw_clGetContextInfo ctx infoid size (castPtr buff) nullPtr
---      if errcode == clSuccess
---        then do
---          props <- peekArray n buff
---          print props
---          return []
---        else return []
---    where
---      infoid = 0x1082
+      infoid = getCLValue CL_CONTEXT_DEVICES
 
 -- -----------------------------------------------------------------------------
