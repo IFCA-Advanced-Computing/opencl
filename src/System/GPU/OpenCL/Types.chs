@@ -24,15 +24,15 @@ module System.GPU.OpenCL.Types(
   CLProgramInfo_, CLBuildStatus_,CLKernel, CLProgramBuildInfo_, CLKernelInfo_,
   CLKernelWorkGroupInfo_,
   -- * High Level Types
-  CLError(..), ErrorCode(..), CLDeviceFPConfig(..), CLDeviceMemCacheType(..), 
+  CLError(..), CLDeviceFPConfig(..), CLDeviceMemCacheType(..), 
   CLDeviceExecCapability(..), CLDeviceLocalMemType(..), CLDeviceType(..), 
   CLCommandQueueProperty(..), CLCommandType(..),  CLCommandExecutionStatus(..), 
   CLProfilingInfo(..), CLPlatformInfo(..), CLMemFlag(..), CLMemObjectType(..),
   CLBuildStatus(..),
   -- * Functions
-  clSuccess, wrapPError, wrapCheckSuccess, wrapGetInfo, getCLValue, getEnumCL,
+  wrapPError, wrapCheckSuccess, wrapGetInfo, getCLValue, getEnumCL,
   getDeviceLocalMemType, bitmaskToFlags,
-  getDeviceMemCacheType, getCommandType, getCommandExecutionStatus, 
+  getDeviceMemCacheType, getCommandExecutionStatus, 
   bitmaskToDeviceTypes, bitmaskFromFlags, bitmaskToCommandQueueProperties, 
   bitmaskToFPConfig, bitmaskToExecCapability, bitmaskToMemFlags )
        where
@@ -89,12 +89,6 @@ type CLKernelWorkGroupInfo_ = {#type cl_kernel_work_group_info#}
 
 --type CLImageChannelOrder_ = {#type cl_channel_order#}
 --type CLImageChannelDataType_ = {#type cl_channel_type#}
-
--- -----------------------------------------------------------------------------
-newtype ErrorCode = ErrorCode CLint deriving( Eq )
-
-clSuccess :: ErrorCode
-clSuccess = ErrorCode (0)
 
 -- -----------------------------------------------------------------------------
 #c
@@ -640,13 +634,10 @@ getDeviceMemCacheType = Just . getEnumCL
 getDeviceLocalMemType :: CLDeviceLocalMemType_ -> Maybe CLDeviceLocalMemType
 getDeviceLocalMemType = Just . getEnumCL
 
-getCommandType :: CLCommandType_ -> Maybe CLCommandType
-getCommandType = Just . getEnumCL
-
-getCommandExecutionStatus :: CLint -> Maybe CLCommandExecutionStatus                                
+getCommandExecutionStatus :: CLint -> CLCommandExecutionStatus
 getCommandExecutionStatus n 
-  | n < 0 = Just CL_EXEC_ERROR
-  | otherwise = Just . getEnumCL $ n
+  | n < 0 = CL_EXEC_ERROR
+  | otherwise = getEnumCL $ n
                 
 -- -----------------------------------------------------------------------------
 binaryFlags :: (Ord b, Enum b, Bounded b) => b -> [b]

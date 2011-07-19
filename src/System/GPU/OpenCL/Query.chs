@@ -56,11 +56,11 @@ import Foreign.C.String( CString, peekCString )
 import Foreign.C.Types( CSize )
 import Foreign.Storable( sizeOf )
 import System.GPU.OpenCL.Types( 
-  CLbool, CLint, CLuint, CLulong, CLPlatformInfo_, CLDeviceType_, 
-  CLDeviceInfo_, CLDeviceFPConfig(..), CLDeviceExecCapability(..), ErrorCode(..),
+  CLbool, CLint, CLuint, CLulong, CLPlatformInfo_, CLDeviceType_, CLError(..),
+  CLDeviceInfo_, CLDeviceFPConfig(..), CLDeviceExecCapability(..),
   CLDeviceLocalMemType(..), CLDeviceMemCacheType(..), CLPlatformInfo(..),
   CLPlatformID, CLDeviceID, CLDeviceType(..), CLCommandQueueProperty, 
-  getDeviceMemCacheType, getDeviceLocalMemType, getCLValue, clSuccess,
+  getDeviceMemCacheType, getDeviceLocalMemType, getCLValue,
   bitmaskToDeviceTypes, bitmaskToCommandQueueProperties, 
   bitmaskToFPConfig, bitmaskToExecCapability )
 
@@ -79,8 +79,8 @@ foreign import ccall "clGetDeviceInfo" raw_clGetDeviceInfo ::
 -- -----------------------------------------------------------------------------
 getNumPlatforms :: IO (Maybe CLuint)
 getNumPlatforms = alloca $ \(num_platforms :: Ptr CLuint) -> do
-  errcode <- fmap ErrorCode $ raw_clGetPlatformIDs 0 nullPtr num_platforms
-  if errcode == clSuccess
+  errcode <- raw_clGetPlatformIDs 0 nullPtr num_platforms
+  if errcode == getCLValue CL_SUCCESS
     then fmap Just $ peek num_platforms
     else return Nothing
 
@@ -92,15 +92,15 @@ clGetPlatformIDs = do
   case nplats of
     Nothing -> return []
     Just n -> allocaArray (fromIntegral n) $ \(plats :: Ptr CLPlatformID) -> do
-      errcode <- fmap ErrorCode $ raw_clGetPlatformIDs n plats nullPtr
-      if errcode == clSuccess
+      errcode <- raw_clGetPlatformIDs n plats nullPtr
+      if errcode == getCLValue CL_SUCCESS
         then peekArray (fromIntegral n) plats
         else return []
 
 getPlatformInfoSize :: CLPlatformID -> CLuint -> IO (Maybe CSize)
 getPlatformInfoSize platform infoid = alloca $ \(value_size :: Ptr CSize) -> do
-  errcode <- fmap ErrorCode $ raw_clGetPlatformInfo platform infoid 0 nullPtr value_size
-  if errcode == clSuccess
+  errcode <- raw_clGetPlatformInfo platform infoid 0 nullPtr value_size
+  if errcode == getCLValue CL_SUCCESS
     then fmap Just $ peek value_size
     else return Nothing
   
@@ -112,8 +112,8 @@ clGetPlatformInfo platform infoid = do
   case sval of
     Nothing -> return Nothing
     Just n -> allocaArray (fromIntegral n) $ \(buff :: CString) -> do
-      errcode <- fmap ErrorCode $ raw_clGetPlatformInfo platform infoval n (castPtr buff) nullPtr
-      if errcode == clSuccess
+      errcode <- raw_clGetPlatformInfo platform infoval n (castPtr buff) nullPtr
+      if errcode == getCLValue CL_SUCCESS
         then fmap Just $ peekCString buff
         else return Nothing
     where
@@ -122,8 +122,8 @@ clGetPlatformInfo platform infoid = do
 -- -----------------------------------------------------------------------------
 getNumDevices :: CLPlatformID -> CLDeviceType_ -> IO (Maybe CLuint)
 getNumDevices platform dtype = alloca $ \(num_devices :: Ptr CLuint) -> do
-  errcode <- fmap ErrorCode $ raw_clGetDeviceIDs platform dtype 0 nullPtr num_devices
-  if errcode == clSuccess
+  errcode <- raw_clGetDeviceIDs platform dtype 0 nullPtr num_devices
+  if errcode == getCLValue CL_SUCCESS
     then fmap Just $ peek num_devices
     else return Nothing
 
@@ -137,8 +137,8 @@ clGetDeviceIDs platform dtype = do
   case ndevs of
     Nothing -> return []
     Just n -> allocaArray (fromIntegral n) $ \(devs :: Ptr CLDeviceID) -> do
-      errcode <- fmap ErrorCode $ raw_clGetDeviceIDs platform dval n devs nullPtr
-      if errcode == clSuccess
+      errcode <- raw_clGetDeviceIDs platform dval n devs nullPtr
+      if errcode == getCLValue CL_SUCCESS
         then peekArray (fromIntegral n) devs
         else return []
     where
@@ -146,8 +146,8 @@ clGetDeviceIDs platform dtype = do
 
 getDeviceInfoSize :: CLDeviceID -> CLDeviceInfo_ -> IO (Maybe CSize)
 getDeviceInfoSize device infoid = alloca $ \(value_size :: Ptr CSize) -> do
-  errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid 0 nullPtr value_size
-  if errcode == clSuccess
+  errcode <- raw_clGetDeviceInfo device infoid 0 nullPtr value_size
+  if errcode == getCLValue CL_SUCCESS
     then fmap Just $ peek value_size
     else return Nothing
   
@@ -157,15 +157,15 @@ getDeviceInfoString infoid device = do
   case sval of
     Nothing -> return Nothing
     Just n -> allocaArray (fromIntegral n) $ \(buff :: CString) -> do
-      errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid n (castPtr buff) nullPtr
-      if errcode == clSuccess
+      errcode <- raw_clGetDeviceInfo device infoid n (castPtr buff) nullPtr
+      if errcode == getCLValue CL_SUCCESS
         then fmap Just $ peekCString buff
         else return Nothing
   
 getDeviceInfoUint :: CLDeviceInfo_ -> CLDeviceID -> IO (Maybe CLuint)
 getDeviceInfoUint infoid device = alloca $ \(dat :: Ptr CLuint) -> do
-  errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
-  if errcode == clSuccess
+  errcode <- raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
+  if errcode == getCLValue CL_SUCCESS
     then fmap Just $ peek dat
     else return Nothing
     where 
@@ -173,8 +173,8 @@ getDeviceInfoUint infoid device = alloca $ \(dat :: Ptr CLuint) -> do
 
 getDeviceInfoUlong :: CLDeviceInfo_ -> CLDeviceID -> IO (Maybe CLulong)
 getDeviceInfoUlong infoid device = alloca $ \(dat :: Ptr CLulong) -> do
-  errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
-  if errcode == clSuccess
+  errcode <- raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
+  if errcode == getCLValue CL_SUCCESS
     then fmap Just $ peek dat
     else return Nothing
     where 
@@ -182,8 +182,8 @@ getDeviceInfoUlong infoid device = alloca $ \(dat :: Ptr CLulong) -> do
 
 getDeviceInfoSizet :: CLDeviceInfo_ -> CLDeviceID -> IO (Maybe CSize)
 getDeviceInfoSizet infoid device = alloca $ \(dat :: Ptr CSize) -> do
-  errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
-  if errcode == clSuccess
+  errcode <- raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
+  if errcode == getCLValue CL_SUCCESS
     then fmap Just $ peek dat
     else return Nothing
     where 
@@ -191,8 +191,8 @@ getDeviceInfoSizet infoid device = alloca $ \(dat :: Ptr CSize) -> do
   
 getDeviceInfoBool :: CLDeviceInfo_ -> CLDeviceID -> IO (Maybe Bool)
 getDeviceInfoBool infoid device = alloca $ \(dat :: Ptr CLbool) -> do
-  errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
-  if errcode == clSuccess
+  errcode <- raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
+  if errcode == getCLValue CL_SUCCESS
     then fmap (Just . (/=0)) $ peek dat
     else return Nothing
     where 
@@ -464,8 +464,8 @@ clGetDeviceMaxWorkItemSizes device = do
   case val of
     Nothing -> return []
     Just n -> allocaArray (fromIntegral n) $ \(buff :: Ptr CSize) -> do
-      errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid (size n) (castPtr buff) nullPtr
-      if errcode == clSuccess
+      errcode <- raw_clGetDeviceInfo device infoid (size n) (castPtr buff) nullPtr
+      if errcode == getCLValue CL_SUCCESS
         then peekArray (fromIntegral n) buff
         else return []
     where
@@ -493,8 +493,8 @@ clGetDeviceName = getDeviceInfoString . getCLValue $ CL_DEVICE_NAME
 -- | The platform associated with this device.
 clGetDevicePlatform :: CLDeviceID -> IO (Maybe CLPlatformID)
 clGetDevicePlatform device = alloca $ \(dat :: Ptr CLPlatformID) -> do
-  errcode <- fmap ErrorCode $ raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
-  if errcode == clSuccess
+  errcode <- raw_clGetDeviceInfo device infoid size (castPtr dat) nullPtr
+  if errcode == getCLValue CL_SUCCESS
     then fmap Just $ peek dat
     else return Nothing
     where 
