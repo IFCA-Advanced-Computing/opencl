@@ -26,8 +26,10 @@ module System.GPU.OpenCL.Program(
   clGetProgramBuildStatus, clGetProgramBuildOptions, clGetProgramBuildLog,
   -- * Kernel Functions
   clCreateKernel, clCreateKernelsInProgram, clRetainKernel, clReleaseKernel, 
-  clGetKernelFunctionName, clGetKernelNumArgs, clGetKernelReferenceCount, 
-  clGetKernelContext, clGetKernelProgram
+  clSetKernelArg, clGetKernelFunctionName, clGetKernelNumArgs, 
+  clGetKernelReferenceCount, clGetKernelContext, clGetKernelProgram, 
+  clGetKernelWorkGroupSize, clGetKernelCompileWorkGroupSize, 
+  clGetKernelLocalMemSize
   ) where
 
 -- -----------------------------------------------------------------------------
@@ -36,10 +38,10 @@ import Foreign
 import Foreign.C.Types
 import Foreign.C.String( CString, withCString, newCString, peekCString )
 import System.GPU.OpenCL.Types( 
-  CLint, CLuint, CLProgram, CLContext, CLKernel, CLDeviceID, CLError(..), 
-  CLProgramInfo_, CLBuildStatus(..), CLBuildStatus_, CLProgramBuildInfo_, 
-  CLKernelInfo_, CLKernelWorkGroupInfo_, wrapCheckSuccess, wrapPError, 
-  wrapGetInfo, getCLValue, getEnumCL )
+  CLint, CLuint, CLulong, CLProgram, CLContext, CLKernel, CLDeviceID, 
+  CLError(..), CLProgramInfo_, CLBuildStatus(..), CLBuildStatus_, 
+  CLProgramBuildInfo_, CLKernelInfo_, CLKernelWorkGroupInfo_, wrapCheckSuccess, 
+  wrapPError, wrapGetInfo, getCLValue, getEnumCL )
 
 #include <CL/cl.h>
 
@@ -576,6 +578,48 @@ clRetainKernel krn = wrapCheckSuccess $ raw_clRetainKernel krn
 clReleaseKernel :: CLKernel -> IO Bool
 clReleaseKernel krn = wrapCheckSuccess $ raw_clReleaseKernel krn
 
+{-| Used to set the argument value for a specific argument of a kernel.
+
+A kernel object does not update the reference count for objects such as memory,
+sampler objects specified as argument values by 'clSetKernelArg', Users may not
+rely on a kernel object to retain objects specified as argument values to the
+kernel.
+
+Implementations shall not allow 'CLKernel' objects to hold reference counts to
+'CLKernel' arguments, because no mechanism is provided for the user to tell the
+kernel to release that ownership right. If the kernel holds ownership rights on
+kernel args, that would make it impossible for the user to tell with certainty
+when he may safely release user allocated resources associated with OpenCL
+objects such as the CLMem backing store used with 'CL_MEM_USE_HOST_PTR'.
+
+'clSetKernelArg' returns returns one of the following errors when fails:
+
+ * 'CL_INVALID_KERNEL' if kernel is not a valid kernel object.
+ 
+ * 'CL_INVALID_ARG_INDEX' if arg_index is not a valid argument index.
+
+ * 'CL_INVALID_ARG_VALUE' if arg_value specified is NULL for an argument that is
+not declared with the __local qualifier or vice-versa.
+
+ * 'CL_INVALID_MEM_OBJECT' for an argument declared to be a memory object when
+the specified arg_value is not a valid memory object.
+
+ * 'CL_INVALID_SAMPLER' for an argument declared to be of type sampler_t when
+the specified arg_value is not a valid sampler object.
+
+ * 'CL_INVALID_ARG_SIZE' if arg_size does not match the size of the data type
+for an argument that is not a memory object or if the argument is a memory
+object and arg_size != sizeof(cl_mem) or if arg_size is zero and the argument is
+declared with the __local qualifier or if the argument is a sampler and arg_size
+!= sizeof(cl_sampler).  
+-}
+clSetKernelArg :: Storable a => CLKernel -> CLuint -> a -> IO (Either CLError ())
+clSetKernelArg krn idx val = with val $ \pval -> do
+  errcode <- raw_clSetKernelArg krn idx (fromIntegral . sizeOf $ val) (castPtr pval)
+  if errcode == (fromIntegral . fromEnum $ CL_SUCCESS)
+    then return $ Right ()
+    else return . Left . toEnum . fromIntegral $ errcode
+
 #c
 enum CLKernelInfo {
   cL_KERNEL_FUNCTION_NAME=CL_KERNEL_FUNCTION_NAME,
@@ -642,4 +686,60 @@ clGetKernelProgram krn = wrapGetInfo (\(dat :: Ptr CLProgram)
       infoid = getCLValue CL_KERNEL_PROGRAM
       size = fromIntegral $ sizeOf (nullPtr::CLProgram)
 
+
+#c
+enum CLKernelGroupInfo {
+  cL_KERNEL_WORK_GROUP_SIZE=CL_KERNEL_WORK_GROUP_SIZE,
+  cL_KERNEL_COMPILE_WORK_GROUP_SIZE=CL_KERNEL_COMPILE_WORK_GROUP_SIZE,
+  cL_KERNEL_LOCAL_MEM_SIZE=CL_KERNEL_LOCAL_MEM_SIZE,
+  };
+#endc
+{#enum CLKernelGroupInfo {upcaseFirstLetter} #}
+
+-- | This provides a mechanism for the application to query the work-group size
+-- that can be used to execute a kernel on a specific device given by
+-- device. The OpenCL implementation uses the resource requirements of the
+-- kernel (register usage etc.) to determine what this work-group size should
+-- be.
+clGetKernelWorkGroupSize :: CLKernel -> CLDeviceID -> IO (Either CLError CSize)
+clGetKernelWorkGroupSize krn device = wrapGetInfo (\(dat :: Ptr CSize)
+                                                   -> raw_clGetKernelWorkGroupInfo krn device infoid size (castPtr dat)) id
+    where
+      infoid = getCLValue CL_KERNEL_WORK_GROUP_SIZE
+      size = fromIntegral $ sizeOf (0::CSize)
+
+-- | Returns the work-group size specified by the __attribute__((reqd_work_gr
+-- oup_size(X, Y, Z))) qualifier. See Function Qualifiers. If the work-group
+-- size is not specified using the above attribute qualifier (0, 0, 0) is
+-- returned.
+clGetKernelCompileWorkGroupSize :: CLKernel -> CLDeviceID -> IO (Either CLError [CSize])
+clGetKernelCompileWorkGroupSize krn device = do
+  allocaArray num $ \(buff :: Ptr CSize) -> do
+    errcode <- raw_clGetKernelWorkGroupInfo krn device infoid size (castPtr buff) nullPtr
+    if errcode == (fromIntegral . fromEnum $ CL_SUCCESS)
+      then fmap Right $ peekArray num buff
+      else return . Left . toEnum . fromIntegral $ errcode
+    where 
+      infoid = getCLValue CL_KERNEL_COMPILE_WORK_GROUP_SIZE
+      num = 3
+      elemSize = fromIntegral $ sizeOf (0::CSize)
+      size = fromIntegral $ num * elemSize
+
+
+-- | Returns the amount of local memory in bytes being used by a kernel. This
+-- includes local memory that may be needed by an implementation to execute the
+-- kernel, variables declared inside the kernel with the __local address
+-- qualifier and local memory to be allocated for arguments to the kernel
+-- declared as pointers with the __local address qualifier and whose size is
+-- specified with 'clSetKernelArg'.
+--
+-- If the local memory size, for any pointer argument to the kernel declared
+-- with the __local address qualifier, is not specified, its size is assumed to
+-- be 0.
+clGetKernelLocalMemSize :: CLKernel -> CLDeviceID -> IO (Either CLError CLulong)
+clGetKernelLocalMemSize krn device = wrapGetInfo (\(dat :: Ptr CLulong)
+                                                  -> raw_clGetKernelWorkGroupInfo krn device infoid size (castPtr dat)) id
+    where
+      infoid = getCLValue CL_KERNEL_LOCAL_MEM_SIZE
+      size = fromIntegral $ sizeOf (0::CLulong)
 -- -----------------------------------------------------------------------------
