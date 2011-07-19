@@ -25,14 +25,15 @@ module System.GPU.OpenCL.Event(
   ) where
 
 -- -----------------------------------------------------------------------------
-import Foreign( Ptr, castPtr, nullPtr, alloca, allocaArray, peek, pokeArray )
-import Foreign.C.Types( CSize )
-import Foreign.Storable( sizeOf )
+import Foreign
+import Foreign.C.Types
 import System.GPU.OpenCL.Types( 
   CLEvent, CLint, CLuint, CLulong, CLEventInfo_, CLProfilingInfo_, ErrorCode(..),
   CLCommandQueue, CLCommandType(..), CLCommandType_, CLCommandExecutionStatus(..), 
   CLProfilingInfo(..), clSuccess, getCommandType, getCommandExecutionStatus, 
   getCLValue )
+
+#include <CL/cl.h>
 
 -- -----------------------------------------------------------------------------
 foreign import ccall "clWaitForEvents" raw_clWaitForEvents :: 
@@ -82,24 +83,37 @@ clReleaseEvent :: CLEvent -> IO Bool
 clReleaseEvent ev = raw_clReleaseEvent ev
                     >>= return . (==clSuccess) . ErrorCode
 
+#c
+enum CLEventInfo {
+  cL_EVENT_COMMAND_QUEUE=CL_EVENT_COMMAND_QUEUE,
+  cL_EVENT_COMMAND_TYPE=CL_EVENT_COMMAND_TYPE,
+  cL_EVENT_COMMAND_EXECUTION_STATUS=CL_EVENT_COMMAND_EXECUTION_STATUS,
+  cL_EVENT_REFERENCE_COUNT=CL_EVENT_REFERENCE_COUNT
+  };
+#endc
+{#enum CLEventInfo {upcaseFirstLetter} #}
+
+
 -- | Return the command-queue associated with event.
 clGetEventCommandQueue :: CLEvent -> IO (Maybe CLCommandQueue)
 clGetEventCommandQueue ev = alloca $ \(dat :: Ptr CLCommandQueue) -> do
-  errcode <- fmap ErrorCode $ raw_clGetEventInfo ev 0x11D0 size (castPtr dat) nullPtr
+  errcode <- fmap ErrorCode $ raw_clGetEventInfo ev infoid size (castPtr dat) nullPtr
   if errcode == clSuccess
     then fmap Just $ peek dat
     else return Nothing
     where 
+      infoid = getCLValue CL_EVENT_COMMAND_QUEUE
       size = fromIntegral $ sizeOf (nullPtr::CLCommandQueue)
 
 -- | Return the command associated with event.
 clGetEventCommandType :: CLEvent -> IO (Maybe CLCommandType)
 clGetEventCommandType ev = alloca $ \(dat :: Ptr CLCommandType_) -> do
-  errcode <- fmap ErrorCode $ raw_clGetEventInfo ev 0x11D1 size (castPtr dat) nullPtr
+  errcode <- fmap ErrorCode $ raw_clGetEventInfo ev infoid size (castPtr dat) nullPtr
   if errcode == clSuccess
     then fmap getCommandType $ peek dat
     else return Nothing
     where 
+      infoid = getCLValue CL_EVENT_COMMAND_TYPE
       size = fromIntegral $ sizeOf (0::CLCommandType_)
 
 -- | Return the event reference count. The reference count returned should be 
@@ -107,21 +121,23 @@ clGetEventCommandType ev = alloca $ \(dat :: Ptr CLCommandType_) -> do
 -- This feature is provided for identifying memory leaks.
 clGetEventReferenceCount :: CLEvent -> IO (Maybe CLint)
 clGetEventReferenceCount ev = alloca $ \(dat :: Ptr CLint) -> do
-  errcode <- fmap ErrorCode $ raw_clGetEventInfo ev 0x11D2 size (castPtr dat) nullPtr
+  errcode <- fmap ErrorCode $ raw_clGetEventInfo ev infoid size (castPtr dat) nullPtr
   if errcode == clSuccess
     then fmap Just $ peek dat
     else return Nothing
     where 
+      infoid = getCLValue CL_EVENT_REFERENCE_COUNT
       size = fromIntegral $ sizeOf (0::CLint)
 
 -- | Return the execution status of the command identified by event.
 clGetEventCommandExecutionStatus :: CLEvent -> IO (Maybe CLCommandExecutionStatus)
 clGetEventCommandExecutionStatus ev = alloca $ \(dat :: Ptr CLint) -> do
-  errcode <- fmap ErrorCode $ raw_clGetEventInfo ev 0x11D3 size (castPtr dat) nullPtr
+  errcode <- fmap ErrorCode $ raw_clGetEventInfo ev infoid size (castPtr dat) nullPtr
   if errcode == clSuccess
     then fmap (getCommandExecutionStatus) $ peek dat
     else return Nothing
     where 
+      infoid = getCLValue CL_EVENT_COMMAND_EXECUTION_STATUS
       size = fromIntegral $ sizeOf (0::CLint)
       
 {-| Returns profiling information for the command associated with event if 
