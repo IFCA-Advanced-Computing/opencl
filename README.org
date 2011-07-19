@@ -3,6 +3,31 @@ OpenCL highlevel wrapper for Haskell.
 
 Based on Jeff Heard OpenCLRaw.
 
+* Install the package
+
+  In order to install the package. You need the CL/cl.h include file in a knowe
+  path. With the usual commands to install as a user library:
+  
+  : runhaskell Setup configure --user
+  : runhaskell Setup build
+  : runhaskell Setup install
+
+  The programs that use the library, need to link against OpenCL
+
+** Example
+   
+   There is an simple working example in the examples folder. You can create an
+   executable using:
+
+   : ghc --make -lOpenCL examples/example01.hs
+
+** Executing on ghci
+
+   It's possible to execute the command line interface of ghc linking with
+   OpenCL, e.g:
+
+   : ghci -lOpenCL examples/example01.hs
+
 * Things To Do
  - [ ] better types
  - [ ] define Image Buffer functions 
@@ -12,3 +37,5 @@ Based on Jeff Heard OpenCLRaw.
    clEnqueueMapImage, clEnqueueUnmapMemObject, clGetImageInfo
  - [ ] define clCreateProgramWithBinary
  - [ ] define clEnqueueNativeKernel
+ - [ ] define clGetContextProperties
+ - [ ] better install proccess, configure
