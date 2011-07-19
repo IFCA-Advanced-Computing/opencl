@@ -17,19 +17,26 @@
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
 module System.GPU.OpenCL.Memory(
   -- * Types
-  CLMem, CLMemFlag(..), CLMemObjectType(..),
-  -- * Functions
+  CLMem, CLSampler, CLMemFlag(..), CLMemObjectType(..), CLAddressingMode(..), 
+  CLFilterMode(..),
+  -- * Memory Functions
   clCreateBuffer, clRetainMemObject, clReleaseMemObject, clGetMemType, 
   clGetMemFlags, clGetMemSize, clGetMemHostPtr, clGetMemMapCount, 
-  clGetMemReferenceCount, clGetMemContext
+  clGetMemReferenceCount, clGetMemContext,
+  -- * Sampler Functions
+  clCreateSampler, clRetainSampler, clReleaseSampler, clGetSamplerReferenceCount, 
+  clGetSamplerContext, clGetSamplerAddressingMode, clGetSamplerFilterMode, 
+  clGetSamplerNormalizedCoords
   ) where
 
 -- -----------------------------------------------------------------------------
 import Foreign
 import Foreign.C.Types
 import System.GPU.OpenCL.Types( 
-  CLMem, CLContext, CLint, CLuint, CLMemFlags_, CLError(..), CLMemInfo_, 
-  CLMemFlag(..), CLMemObjectType_, CLMemObjectType(..), 
+  CLMem, CLContext, CLSampler, CLint, CLuint, CLbool, CLMemFlags_, CLError(..), 
+  CLMemInfo_, CLAddressingMode_, CLFilterMode_, CLSamplerInfo_, 
+  CLAddressingMode(..), CLFilterMode(..), CLMemFlag(..), CLMemObjectType_, 
+  CLMemObjectType(..), 
   wrapPError, wrapCheckSuccess, wrapGetInfo, getEnumCL, bitmaskFromFlags, 
   bitmaskToMemFlags, getCLValue )
 
@@ -55,6 +62,14 @@ foreign import ccall "clGetMemObjectInfo" raw_clGetMemObjectInfo ::
   CLMem -> CLMemInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 --foreign import ccall "clGetImageInfo" raw_clGetImageInfo :: 
 --  CLMem -> CLImageInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
+foreign import ccall "clCreateSampler" raw_clCreateSampler :: 
+  CLContext -> CLbool -> CLAddressingMode_ -> CLFilterMode_ -> Ptr CLint -> IO CLSampler
+foreign import ccall "clRetainSampler" raw_clRetainSampler :: 
+  CLSampler -> IO CLint
+foreign import ccall "clReleaseSampler" raw_clReleaseSampler :: 
+  CLSampler -> IO CLint
+foreign import ccall "clGetSamplerInfo" raw_clGetSamplerInfo :: 
+  CLSampler -> CLSamplerInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 
 -- -----------------------------------------------------------------------------
 {-| Creates a buffer object. Returns a valid non-zero buffer object if the
@@ -171,5 +186,101 @@ clGetMemContext mem = wrapGetInfo (\(dat :: Ptr CLContext)
     where 
       infoid = getCLValue CL_MEM_CONTEXT
       size = fromIntegral $ sizeOf (0 :: CLuint)
+
+-- -----------------------------------------------------------------------------
+{-| Creates a sampler object. A sampler object describes how to sample an image
+when the image is read in the kernel. The built-in functions to read from an
+image in a kernel take a sampler as an argument. The sampler arguments to the
+image read function can be sampler objects created using OpenCL functions and
+passed as argument values to the kernel or can be samplers declared inside a
+kernel. In this section we discuss how sampler objects are created using OpenCL
+functions.
+
+Returns a valid non-zero sampler object if the sampler object is created
+successfully. Otherwise, it returns one of the following error values:
+
+ * 'CL_INVALID_CONTEXT' if context is not a valid context.
+
+ * 'CL_INVALID_VALUE' if addressing_mode, filter_mode, or normalized_coords or a
+combination of these argument values are not valid.
+
+ * 'CL_INVALID_OPERATION' if images are not supported by any device associated
+with context (i.e. 'CL_DEVICE_IMAGE_SUPPORT' specified in the table of OpenCL
+Device Queries for clGetDeviceInfo is 'False').
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.
+-}
+clCreateSampler :: CLContext -> Bool -> CLAddressingMode -> CLFilterMode -> IO (Either CLError CLSampler)
+clCreateSampler ctx norm am fm = wrapPError $ \perr -> do
+  raw_clCreateSampler ctx (fromBool norm) (getCLValue am) (getCLValue fm) perr
+
+-- | Increments the sampler reference count. 'clCreateSampler' does an implicit
+-- retain. Returns 'True' if the function is executed successfully. It returns
+-- 'False' if sampler is not a valid sampler object.
+clRetainSampler :: CLSampler -> IO Bool
+clRetainSampler mem = wrapCheckSuccess $ raw_clRetainSampler mem
+
+-- | Decrements the sampler reference count. The sampler object is deleted after
+-- the reference count becomes zero and commands queued for execution on a
+-- command-queue(s) that use sampler have finished. 'clReleaseSampler' returns
+-- 'True' if the function is executed successfully. It returns 'False' if
+-- sampler is not a valid sampler object.
+clReleaseSampler :: CLSampler -> IO Bool
+clReleaseSampler mem = wrapCheckSuccess $ raw_clReleaseSampler mem
+
+#c
+enum CLSamplerInfo {
+  cL_SAMPLER_REFERENCE_COUNT=CL_SAMPLER_REFERENCE_COUNT,
+  cL_SAMPLER_CONTEXT=CL_SAMPLER_CONTEXT,
+  cL_SAMPLER_ADDRESSING_MODE=CL_SAMPLER_ADDRESSING_MODE,
+  cL_SAMPLER_FILTER_MODE=CL_SAMPLER_FILTER_MODE,
+  cL_SAMPLER_NORMALIZED_COORDS=CL_SAMPLER_NORMALIZED_COORDS
+  };
+#endc
+{#enum CLSamplerInfo {upcaseFirstLetter} #}
+
+-- | Return the sampler reference count. The reference count returned should be
+-- considered immediately stale. It is unsuitable for general use in
+-- applications. This feature is provided for identifying memory leaks.
+clGetSamplerReferenceCount :: CLSampler -> IO (Either CLError CLuint)
+clGetSamplerReferenceCount sam = wrapGetInfo (\(dat :: Ptr CLuint)
+                                   -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_SAMPLER_REFERENCE_COUNT
+      size = fromIntegral $ sizeOf (0 :: CLuint)
+
+-- | Return the context specified when the sampler is created.
+clGetSamplerContext :: CLSampler -> IO (Either CLError CLContext)
+clGetSamplerContext sam = wrapGetInfo (\(dat :: Ptr CLContext)
+                                       -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_SAMPLER_CONTEXT
+      size = fromIntegral $ sizeOf (nullPtr :: CLContext)
+
+-- | Return the value specified by addressing_mode argument to clCreateSampler.
+clGetSamplerAddressingMode :: CLSampler -> IO (Either CLError CLAddressingMode)
+clGetSamplerAddressingMode sam = wrapGetInfo (\(dat :: Ptr CLAddressingMode_)
+                                              -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) getEnumCL
+    where 
+      infoid = getCLValue CL_SAMPLER_ADDRESSING_MODE
+      size = fromIntegral $ sizeOf (0 :: CLAddressingMode_)
+
+-- | Return the value specified by filter_mode argument to clCreateSampler.
+clGetSamplerFilterMode :: CLSampler -> IO (Either CLError CLFilterMode)
+clGetSamplerFilterMode sam = wrapGetInfo (\(dat :: Ptr CLFilterMode_)
+                                          -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) getEnumCL
+    where 
+      infoid = getCLValue CL_SAMPLER_FILTER_MODE
+      size = fromIntegral $ sizeOf (0 :: CLFilterMode_)
+
+-- | Return the value specified by normalized_coords argument to
+-- clCreateSampler.
+clGetSamplerNormalizedCoords :: CLSampler -> IO (Either CLError Bool)
+clGetSamplerNormalizedCoords sam = wrapGetInfo (\(dat :: Ptr CLbool)
+                                                -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) (/=0)
+    where 
+      infoid = getCLValue CL_SAMPLER_NORMALIZED_COORDS
+      size = fromIntegral $ sizeOf (0 :: CLbool)
 
 -- -----------------------------------------------------------------------------

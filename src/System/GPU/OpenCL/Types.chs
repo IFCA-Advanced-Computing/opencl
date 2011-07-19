@@ -23,12 +23,13 @@ module System.GPU.OpenCL.Types(
   CLMemFlags_, CLImageFormat_p, CLMemObjectType_, CLMemInfo_, CLImageInfo_,
   CLProgramInfo_, CLBuildStatus_,CLKernel, CLProgramBuildInfo_, CLKernelInfo_,
   CLKernelWorkGroupInfo_, CLDeviceLocalMemType_, CLDeviceMemCacheType_,
+  CLSampler, CLFilterMode_, CLSamplerInfo_, CLAddressingMode_,
   -- * High Level Types
   CLError(..), CLDeviceFPConfig(..), CLDeviceMemCacheType(..), 
   CLDeviceExecCapability(..), CLDeviceLocalMemType(..), CLDeviceType(..), 
   CLCommandQueueProperty(..), CLCommandType(..),  CLCommandExecutionStatus(..), 
   CLProfilingInfo(..), CLPlatformInfo(..), CLMemFlag(..), CLMemObjectType(..),
-  CLBuildStatus(..),
+  CLBuildStatus(..), CLAddressingMode(..), CLFilterMode(..),
   -- * Functions
   wrapPError, wrapCheckSuccess, wrapGetInfo, whenSuccess, getCLValue, 
   getEnumCL, bitmaskToFlags, getCommandExecutionStatus, bitmaskToDeviceTypes, 
@@ -53,6 +54,7 @@ type CLMem = {#type cl_mem#}
 type CLEvent = {#type cl_event#}
 type CLProgram = {#type cl_program#}
 type CLKernel = {#type cl_kernel#}
+type CLSampler = {#type cl_sampler#}
 
 type CLint = {#type cl_int#}
 type CLuint = {#type cl_uint#}
@@ -82,7 +84,9 @@ type CLProgramBuildInfo_ = {#type cl_program_build_info#}
 type CLBuildStatus_ = {#type cl_build_status#}
 type CLKernelInfo_ = {#type cl_kernel_info#}
 type CLKernelWorkGroupInfo_ = {#type cl_kernel_work_group_info#}
-
+type CLFilterMode_ = {#type cl_filter_mode#}
+type CLSamplerInfo_ = {#type cl_sampler_info#}
+type CLAddressingMode_ = {#type cl_addressing_mode#}
 
 {#pointer *cl_image_format as CLImageFormat_p#}
 
@@ -626,6 +630,24 @@ on the specified program object for device.
 'clBuildProgram' on the specified program object for device has not finished.
 -}
 {#enum CLBuildStatus {upcaseFirstLetter} deriving( Show ) #}
+
+#c
+enum CLAddressingMode {
+  cL_ADDRESS_REPEAT=CL_ADDRESS_REPEAT,
+  cL_ADDRESS_CLAMP_TO_EDGE =CL_ADDRESS_CLAMP_TO_EDGE ,
+  cL_ADDRESS_CLAMP=CL_ADDRESS_CLAMP,
+  cL_ADDRESS_NONE=CL_ADDRESS_NONE
+  };
+#endc
+{#enum CLAddressingMode {upcaseFirstLetter} deriving( Show ) #}
+
+#c
+enum CLFilterMode {
+  cL_FILTER_NEAREST=CL_FILTER_NEAREST,
+  cL_FILTER_LINEAR=CL_FILTER_LINEAR,
+  };
+#endc
+{#enum CLFilterMode {upcaseFirstLetter} deriving( Show ) #}
 
 -- -----------------------------------------------------------------------------
 getCLValue :: (Enum a, Integral b) => a -> b
