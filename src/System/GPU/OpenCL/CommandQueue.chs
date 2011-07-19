@@ -26,7 +26,8 @@ module System.GPU.OpenCL.CommandQueue(
   -- * Memory Commands
   clEnqueueReadBuffer, clEnqueueWriteBuffer,
   -- * Executing Kernels
-  clEnqueueNDRangeKernel, clEnqueueTask,
+  clEnqueueNDRangeKernel, clEnqueueTask, clEnqueueMarker, 
+  clEnqueueWaitForEvents, clEnqueueBarrier,
   -- * Flush and Finish
   clFlush, clFinish
   ) where
@@ -37,9 +38,9 @@ import Foreign.C.Types
 import System.GPU.OpenCL.Types( 
   CLint, CLbool, CLuint, CLCommandQueueProperty_, CLCommandQueueInfo_, 
   CLError(..), CLCommandQueue, CLDeviceID, CLContext, CLCommandQueueProperty(..), 
-  CLEvent, CLMem, ErrorCode(..), CLKernel,
-  wrapCheckSuccess, wrapPError, wrapGetInfo, getCLValue,
-  bitmaskToCommandQueueProperties, bitmaskFromFlags, clSuccess )
+  CLEvent, CLMem, CLKernel,
+  wrapCheckSuccess, wrapPError, wrapGetInfo, getCLValue, getEnumCL,
+  bitmaskToCommandQueueProperties, bitmaskFromFlags )
 
 #include <CL/cl.h>
 
@@ -62,6 +63,12 @@ foreign import ccall "clEnqueueNDRangeKernel" raw_clEnqueueNDRangeKernel ::
   CLCommandQueue -> CLKernel -> CLuint -> Ptr CSize -> Ptr CSize -> Ptr CSize -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
 foreign import ccall "clEnqueueTask" raw_clEnqueueTask :: 
   CLCommandQueue -> CLKernel -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
+foreign import ccall "clEnqueueMarker" raw_clEnqueueMarker :: 
+  CLCommandQueue -> Ptr CLEvent -> IO CLint 
+foreign import ccall "clEnqueueWaitForEvents" raw_clEnqueueWaitForEvents :: 
+  CLCommandQueue -> CLuint -> Ptr CLEvent -> IO CLint
+foreign import ccall "clEnqueueBarrier" raw_clEnqueueBarrier :: 
+  CLCommandQueue -> IO CLint 
 foreign import ccall "clFlush" raw_clFlush ::
   CLCommandQueue -> IO CLint
 foreign import ccall "clFinish" raw_clFinish ::
@@ -123,15 +130,15 @@ clCreateCommandQueue ctx did xs = wrapPError $ \perr -> do
     where
       props = bitmaskFromFlags xs
 
--- | Increments the command_queue reference count.
--- 'clCreateCommandQueue' performs an implicit retain. This is very helpful for 
--- 3rd party libraries, which typically get a command-queue passed to them by 
--- the application. However, it is possible that the application may delete the 
--- command-queue without informing the library. Allowing functions to attach to 
--- (i.e. retain) and release a command-queue solves the problem of a 
--- command-queue being used by a library no longer being valid.
--- Returns 'True' if the function is executed successfully. It returns 'False'
--- if command_queue is not a valid command-queue.
+{-| Increments the command_queue reference count. 'clCreateCommandQueue'
+performs an implicit retain. This is very helpful for 3rd party libraries, which
+typically get a command-queue passed to them by the application. However, it is
+possible that the application may delete the command-queue without informing the
+library. Allowing functions to attach to (i.e. retain) and release a
+command-queue solves the problem of a command-queue being used by a library no
+longer being valid.  Returns 'True' if the function is executed successfully. It
+returns 'False' if command_queue is not a valid command-queue.  
+-}
 clRetainCommandQueue :: CLCommandQueue -> IO Bool
 clRetainCommandQueue = wrapCheckSuccess . raw_clRetainCommandQueue
 
@@ -192,49 +199,50 @@ clGetCommandQueueProperties cq = wrapGetInfo (\(dat :: Ptr CLCommandQueuePropert
       infoid = getCLValue CL_QUEUE_PROPERTIES
       size = fromIntegral $ sizeOf (0::CLCommandQueueProperty_)
 
--- | Enable or disable the properties of a command-queue.
--- Returns the command-queue properties before they were changed by 
--- 'clSetCommandQueueProperty'.
--- As specified for 'clCreateCommandQueue', the 
--- 'CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE' command-queue property determines 
--- whether the commands in a command-queue are executed in-order or 
--- out-of-order. Changing this command-queue property will cause the OpenCL 
--- implementation to block until all previously queued commands in command_queue 
--- have completed. This can be an expensive operation and therefore changes to 
--- the 'CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE' property should be only done 
--- when absolutely necessary.
--- 
--- It is possible that a device(s) becomes unavailable after a context and 
--- command-queues that use this device(s) have been created and commands have 
--- been queued to command-queues. In this case the behavior of OpenCL API calls 
--- that use this context (and command-queues) are considered to be 
--- implementation-defined. The user callback function, if specified when the 
--- context is created, can be used to record appropriate information 
--- when the device becomes unavailable.
+{-| Enable or disable the properties of a command-queue.  Returns the
+command-queue properties before they were changed by
+'clSetCommandQueueProperty'.  As specified for 'clCreateCommandQueue', the
+'CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE' command-queue property determines
+whether the commands in a command-queue are executed in-order or
+out-of-order. Changing this command-queue property will cause the OpenCL
+implementation to block until all previously queued commands in command_queue
+have completed. This can be an expensive operation and therefore changes to the
+'CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE' property should be only done when
+absolutely necessary.
+
+ It is possible that a device(s) becomes unavailable after a context and
+command-queues that use this device(s) have been created and commands have been
+queued to command-queues. In this case the behavior of OpenCL API calls that use
+this context (and command-queues) are considered to be
+implementation-defined. The user callback function, if specified when the
+context is created, can be used to record appropriate information when the
+device becomes unavailable.
+-}
 clSetCommandQueueProperty :: CLCommandQueue -> [CLCommandQueueProperty] -> Bool 
-                          -> IO [CLCommandQueueProperty]
+                          -> IO (Either CLError [CLCommandQueueProperty])
 clSetCommandQueueProperty cq xs val = alloca $ \(dat :: Ptr CLCommandQueueProperty_) -> do
-  errcode <- fmap ErrorCode $ raw_clSetCommandQueueProperty cq props (fromBool val) dat
-  if errcode == clSuccess
-    then fmap bitmaskToCommandQueueProperties $ peek dat
-    else return []
+  errcode <- raw_clSetCommandQueueProperty cq props (fromBool val) dat
+  if errcode == getCLValue CL_SUCCESS
+    then fmap (Right . bitmaskToCommandQueueProperties) $ peek dat
+    else return . Left . getEnumCL $ errcode
     where
       props = bitmaskFromFlags xs
 
 -- -----------------------------------------------------------------------------
-clEnqueue :: (CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint) -> [CLEvent] -> IO (Either CLError CLEvent)
+clEnqueue :: (CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint) -> [CLEvent] 
+             -> IO (Either CLError CLEvent)
 clEnqueue f [] = alloca $ \event -> do
   errcode <- f 0 nullPtr event
-  if errcode == (fromIntegral . fromEnum $ CL_SUCCESS )
+  if errcode == getCLValue CL_SUCCESS
     then fmap Right $ peek event
-    else return . Left . toEnum . fromIntegral $ errcode
+    else return . Left . getEnumCL $ errcode
 clEnqueue f events = allocaArray nevents $ \pevents -> do
   pokeArray pevents events
   alloca $ \event -> do
     errcode <- f cnevents pevents event
-    if errcode == (fromIntegral . fromEnum $ CL_SUCCESS )
+    if errcode == getCLValue CL_SUCCESS
       then fmap Right $ peek event
-      else return . Left . toEnum . fromIntegral $ errcode
+      else return . Left . getEnumCL $ errcode
     where
       nevents = length events
       cnevents = fromIntegral nevents
@@ -438,32 +446,95 @@ kernel.
  * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
 by the OpenCL implementation on the host.
 -}
-clEnqueueTask :: CLCommandQueue -> CLKernel -> [CLEvent] -> IO (Either CLError CLEvent)
+clEnqueueTask :: CLCommandQueue -> CLKernel -> [CLEvent] 
+                 -> IO (Either CLError CLEvent)
 clEnqueueTask cq krn = clEnqueue (raw_clEnqueueTask cq krn)
   
 -- -----------------------------------------------------------------------------
--- | Issues all previously queued OpenCL commands in a command-queue to the 
--- device associated with the command-queue.
--- 'clFlush' only guarantees that all queued commands to command_queue get 
--- issued to the appropriate device. There is no guarantee that they will be 
--- complete after 'clFlush' returns.
--- 
--- 'clFlush' returns 'True' if the function call was executed successfully. It 
--- returns 'False' if command_queue is not a valid command-queue or if there is 
--- a failure to allocate resources required by the OpenCL implementation on the 
--- host.
---
--- Any blocking commands queued in a command-queue such as 'clEnqueueReadImage' 
--- or 'clEnqueueReadBuffer' with blocking_read set to 'True', 
--- 'clEnqueueWriteImage' or 'clEnqueueWriteBuffer' with blocking_write set to 
--- 'True', 'clEnqueueMapImage' or 'clEnqueueMapBuffer' with blocking_map set to 
--- 'True' or 'clWaitForEvents' perform an implicit flush of the command-queue.
---
--- To use event objects that refer to commands enqueued in a command-queue as 
--- event objects to wait on by commands enqueued in a different command-queue, 
--- the application must call a 'clFlush' or any blocking commands that perform 
--- an implicit flush of the command-queue where the commands that refer to these 
--- event objects are enqueued.
+-- | Enqueues a marker command to command_queue. The marker command returns an
+-- event which can be used to queue a wait on this marker event i.e. wait for
+-- all commands queued before the marker command to complete. Returns the event
+-- if the function is successfully executed. It returns
+-- 'CL_INVALID_COMMAND_QUEUE' if command_queue is not a valid command-queue and
+-- returns 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources
+-- required by the OpenCL implementation on the host.
+clEnqueueMarker :: CLCommandQueue -> IO (Either CLError CLEvent)
+clEnqueueMarker cq = alloca $ \event -> do
+  errcode <- raw_clEnqueueMarker cq event
+  if errcode == getCLValue CL_SUCCESS
+    then fmap Right $ peek event
+    else return . Left . getEnumCL $ errcode
+         
+{-| Enqueues a wait for a specific event or a list of events to complete before
+any future commands queued in the command-queue are executed. The context
+associated with events in event_list and command_queue must be the same.
+
+Returns one of the errors below when fails:
+
+ * 'CL_INVALID_COMMAND_QUEUE' if command_queue is not a valid command-queue.
+
+ * 'CL_INVALID_CONTEXT' if the context associated with command_queue and events
+in event_list are not the same.
+
+ * 'CL_INVALID_VALUE' if num_events is zero.
+
+ * 'CL_INVALID_EVENT' if event objects specified in event_list are not valid
+events.
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.
+-}
+clEnqueueWaitForEvents :: CLCommandQueue -> [CLEvent] -> IO (Either CLError ())
+clEnqueueWaitForEvents cq [] = do
+  errcode <- raw_clEnqueueWaitForEvents cq 0 nullPtr
+  if errcode == getCLValue CL_SUCCESS
+    then return $ Right ()
+    else return . Left . getEnumCL $ errcode
+clEnqueueWaitForEvents cq events = allocaArray nevents $ \pevents -> do
+  pokeArray pevents events
+  errcode <- raw_clEnqueueWaitForEvents cq cnevents pevents
+  if errcode == getCLValue CL_SUCCESS
+    then return $ Right ()
+    else return . Left . getEnumCL $ errcode
+    where
+      nevents = length events
+      cnevents = fromIntegral nevents
+
+-- | 'clEnqueueBarrier' is a synchronization point that ensures that all queued
+-- commands in command_queue have finished execution before the next batch of
+-- commands can begin execution. It returns 'CL_INVALID_COMMAND_QUEUE' if
+-- command_queue is not a valid command-queue and returns
+-- 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+-- by the OpenCL implementation on the host.
+clEnqueueBarrier :: CLCommandQueue -> IO (Either CLError ())
+clEnqueueBarrier cq = do
+  errcode <- raw_clEnqueueBarrier cq
+  if errcode == getCLValue CL_SUCCESS
+    then return $ Right ()
+    else return . Left . getEnumCL $ errcode
+  
+-- -----------------------------------------------------------------------------
+{-| Issues all previously queued OpenCL commands in a command-queue to the
+device associated with the command-queue.  'clFlush' only guarantees that all
+queued commands to command_queue get issued to the appropriate device. There is
+no guarantee that they will be complete after 'clFlush' returns.
+
+ 'clFlush' returns 'True' if the function call was executed successfully. It
+returns 'False' if command_queue is not a valid command-queue or if there is a
+failure to allocate resources required by the OpenCL implementation on the host.
+
+ Any blocking commands queued in a command-queue such as 'clEnqueueReadImage' or
+'clEnqueueReadBuffer' with blocking_read set to 'True', 'clEnqueueWriteImage' or
+'clEnqueueWriteBuffer' with blocking_write set to 'True', 'clEnqueueMapImage' or
+'clEnqueueMapBuffer' with blocking_map set to 'True' or 'clWaitForEvents'
+perform an implicit flush of the command-queue.
+
+ To use event objects that refer to commands enqueued in a command-queue as
+event objects to wait on by commands enqueued in a different command-queue, the
+application must call a 'clFlush' or any blocking commands that perform an
+implicit flush of the command-queue where the commands that refer to these event
+objects are enqueued.
+-}
 clFlush :: CLCommandQueue -> IO Bool
 clFlush = wrapCheckSuccess . raw_clFlush
              
