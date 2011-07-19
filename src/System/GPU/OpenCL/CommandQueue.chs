@@ -280,9 +280,9 @@ for data store associated with buffer.
  * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
 by the OpenCL implementation on the host.
 -}
-clEnqueueReadBuffer :: CLCommandQueue -> CLMem -> Bool -> CSize -> CSize 
+clEnqueueReadBuffer :: Integral a => CLCommandQueue -> CLMem -> Bool -> a -> a
                        -> Ptr () -> [CLEvent] -> IO (Either CLError CLEvent)
-clEnqueueReadBuffer cq mem check off size dat = clEnqueue (raw_clEnqueueReadBuffer cq mem (fromBool check) off size dat)
+clEnqueueReadBuffer cq mem check off size dat = clEnqueue (raw_clEnqueueReadBuffer cq mem (fromBool check) (fromIntegral off) (fromIntegral size) dat)
 
 {-| Enqueue commands to write to a buffer object from host memory.Calling
 clEnqueueWriteBuffer to update the latest bits in a region of the buffer object
@@ -324,13 +324,78 @@ for data store associated with buffer.
  * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
 by the OpenCL implementation on the host.
 -}
-clEnqueueWriteBuffer :: CLCommandQueue -> CLMem -> Bool -> CSize -> CSize 
+clEnqueueWriteBuffer :: Integral a => CLCommandQueue -> CLMem -> Bool -> a -> a
                        -> Ptr () -> [CLEvent] -> IO (Either CLError CLEvent)
-clEnqueueWriteBuffer cq mem check off size dat = clEnqueue (raw_clEnqueueWriteBuffer cq mem (fromBool check) off size dat)
+clEnqueueWriteBuffer cq mem check off size dat = clEnqueue (raw_clEnqueueWriteBuffer cq mem (fromBool check) (fromIntegral off) (fromIntegral size) dat)
 
 -- -----------------------------------------------------------------------------
-clEnqueueNDRangeKernel :: CLCommandQueue -> CLKernel -> [CSize] -> [CSize] -> [CLEvent] -> IO (Either CLError CLEvent)
-clEnqueueNDRangeKernel cq krn gws lws events = withArray gws $ \pgws -> withArray lws $ \plws -> do
+{-| Enqueues a command to execute a kernel on a device. Each work-item is
+uniquely identified by a global identifier. The global ID, which can be read
+inside the kernel, is computed using the value given by global_work_size and
+global_work_offset. In OpenCL 1.0, the starting global ID is always (0, 0,
+... 0). In addition, a work-item is also identified within a work-group by a
+unique local ID. The local ID, which can also be read by the kernel, is computed
+using the value given by local_work_size. The starting local ID is always (0, 0,
+... 0).
+
+Returns the event if the kernel execution was successfully queued. Otherwise, it
+returns one of the following errors:
+
+ * 'CL_INVALID_PROGRAM_EXECUTABLE' if there is no successfully built program
+executable available for device associated with command_queue.
+
+ * 'CL_INVALID_COMMAND_QUEUE' if command_queue is not a valid command-queue.
+
+ * 'CL_INVALID_KERNEL' if kernel is not a valid kernel object.
+
+ * 'CL_INVALID_CONTEXT' if context associated with command_queue and kernel is
+not the same or if the context associated with command_queue and events in
+event_wait_list are not the same.
+
+ * 'CL_INVALID_KERNEL_ARGS' if the kernel argument values have not been
+specified.
+
+ * 'CL_INVALID_WORK_DIMENSION' if work_dim is not a valid value (i.e. a value
+between 1 and 3).
+
+ * 'CL_INVALID_WORK_GROUP_SIZE' if local_work_size is specified and number of
+work-items specified by global_work_size is not evenly divisable by size of
+work-group given by local_work_size or does not match the work-group size
+specified for kernel using the __attribute__((reqd_work_group_size(X, Y, Z)))
+qualifier in program source.
+
+ * 'CL_INVALID_WORK_GROUP_SIZE' if local_work_size is specified and the total
+number of work-items in the work-group computed as local_work_size[0]
+*... local_work_size[work_dim - 1] is greater than the value specified by
+'CL_DEVICE_MAX_WORK_GROUP_SIZE' in the table of OpenCL Device Queries for
+clGetDeviceInfo.
+
+ * 'CL_INVALID_WORK_GROUP_SIZE' if local_work_size is NULL and the
+__attribute__((reqd_work_group_size(X, Y, Z))) qualifier is used to declare the
+work-group size for kernel in the program source.
+
+ * 'CL_INVALID_WORK_ITEM_SIZE' if the number of work-items specified in any of
+local_work_size[0], ... local_work_size[work_dim - 1] is greater than the
+corresponding values specified by 'CL_DEVICE_MAX_WORK_ITEM_SIZES'[0],
+.... 'CL_DEVICE_MAX_WORK_ITEM_SIZES'[work_dim - 1].
+
+ * 'CL_OUT_OF_RESOURCES' if there is a failure to queue the execution instance
+of kernel on the command-queue because of insufficient resources needed to
+execute the kernel. For example, the explicitly specified local_work_size causes
+a failure to execute the kernel because of insufficient resources such as
+registers or local memory. Another example would be the number of read-only
+image args used in kernel exceed the 'CL_DEVICE_MAX_READ_IMAGE_ARGS' value for
+device or the number of write-only image args used in kernel exceed the
+'CL_DEVICE_MAX_WRITE_IMAGE_ARGS' value for device or the number of samplers used
+in kernel exceed 'CL_DEVICE_MAX_SAMPLERS' for device.
+
+ * 'CL_MEM_OBJECT_ALLOCATION_FAILURE' if there is a failure to allocate memory for data store associated with image or buffer objects specified as arguments to kernel.
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required by
+the OpenCL implementation on the host.
+-}
+clEnqueueNDRangeKernel :: Integral a => CLCommandQueue -> CLKernel -> [a] -> [a] -> [CLEvent] -> IO (Either CLError CLEvent)
+clEnqueueNDRangeKernel cq krn gws lws events = withArray (map fromIntegral gws) $ \pgws -> withArray (map fromIntegral lws) $ \plws -> do
   clEnqueue (raw_clEnqueueNDRangeKernel cq krn num nullPtr pgws plws) events
     where
       num = fromIntegral $ length gws

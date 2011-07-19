@@ -77,9 +77,9 @@ for buffer object.
  * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
 by the OpenCL implementation on the host.
 -}
-clCreateBuffer :: CLContext -> [CLMemFlag] -> (CSize, Ptr ()) -> IO (Either CLError CLMem)
+clCreateBuffer :: Integral a => CLContext -> [CLMemFlag] -> (a, Ptr ()) -> IO (Either CLError CLMem)
 clCreateBuffer ctx xs (sbuff,buff) = wrapPError $ \perr -> do
-  raw_clCreateBuffer ctx flags sbuff buff perr
+  raw_clCreateBuffer ctx flags (fromIntegral sbuff) buff perr
     where
       flags = bitmaskFromFlags xs
     
