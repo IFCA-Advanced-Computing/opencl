@@ -3,46 +3,46 @@ import Foreign( castPtr, nullPtr )
 import Foreign.C.Types( CFloat )
 import Foreign.Marshal.Array( newArray, peekArray )
 
+myTry :: IO (Either CLError b) -> IO b
 myTry f = do
   v <- f
   case v of
-    Left err -> do
-      print err
-      error ""
+    Left err -> error . show $ err
     Right res -> return res
 
 programSource :: String
-programSource = "__kernel void duparray(__global float *in, __global float *out ){\n  int id = get_global_id(0);\n  out[id] = 2*in[id];\n}\n __kernel void other(__global float *in1, __global float *in2, __global float *out ){\n  int id = get_global_id(0);\n  out[id] = 2*in1[id] + in2[id];\n}"
+programSource = "__kernel void duparray(__global float *in, __global float *out ){\n  int id = get_global_id(0);\n  out[id] = 2*in[id];\n}"
 
+main :: IO ()
 main = do
+  -- Initialize OpenCL
   (platform:_) <- clGetPlatformIDs
-  putStrLn $ "platform = " ++ show platform
   (dev:_) <- clGetDeviceIDs platform CL_DEVICE_TYPE_ALL
-  putStrLn $ "device = " ++ show dev
   Just context <- clCreateContext [dev] print
-  putStrLn $ "context = " ++ show context
-  
   q <- myTry $ clCreateCommandQueue context dev []
-  putStrLn $ "queue = " ++ show q
   
+  -- Initializa Kernel
   program <- myTry $ clCreateProgramWithSource context programSource
-  putStrLn $ "program = " ++ show program
-  
   myTry $ clBuildProgram program [dev] ""
+  kernel <- myTry $ clCreateKernel program "duparray"
   
-  let original = [0,1,2,3,4,5,6,7,8,9] :: [CFloat]
+  -- Execute Kernel
+  let original = [0 .. 20] :: [CFloat]
+  putStrLn $ "Original array = " ++ show original
   input  <- newArray original
 
-  mem_in <- myTry $ clCreateBuffer context [CL_MEM_READ_ONLY, CL_MEM_COPY_HOST_PTR] (fromIntegral $ 4*length original, castPtr input)
-  putStrLn $ "mem_in = " ++ show mem_in
-  
+  mem_in <- myTry $ clCreateBuffer context [CL_MEM_READ_ONLY, CL_MEM_COPY_HOST_PTR] (fromIntegral $ 4*length original, castPtr input)  
   mem_out <- myTry $ clCreateBuffer context [CL_MEM_WRITE_ONLY] (fromIntegral $ 4*length original, nullPtr)
-  putStrLn $ "mem_out = " ++ show mem_out
 
-  eventRead <- myTry $ clEnqueueReadBuffer q mem_out True 0 (fromIntegral $ 4*length original) (castPtr input) []
-  print eventRead
+  myTry $ clSetKernelArg kernel 0 mem_in
+  myTry $ clSetKernelArg kernel 1 mem_out
+  
+  eventExec <- myTry $ clEnqueueNDRangeKernel q kernel [fromIntegral $ length original] [1] []
+  
+  -- Get Result
+  eventRead <- myTry $ clEnqueueReadBuffer q mem_out True 0 (fromIntegral $ 4*length original) (castPtr input) [eventExec]
   
   result <- peekArray (length original) input
-  print result
+  putStrLn $ "Result array = " ++ show result
 
-  return (platform,dev,context,program)
+  return ()
