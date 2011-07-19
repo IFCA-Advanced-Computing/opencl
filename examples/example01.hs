@@ -18,7 +18,7 @@ main = do
   -- Initialize OpenCL
   (platform:_) <- clGetPlatformIDs
   (dev:_) <- clGetDeviceIDs platform CL_DEVICE_TYPE_ALL
-  Just context <- clCreateContext [dev] print
+  context <- myTry $ clCreateContext [dev] print
   q <- myTry $ clCreateCommandQueue context dev []
   
   -- Initializa Kernel

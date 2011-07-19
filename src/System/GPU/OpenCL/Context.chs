@@ -31,8 +31,9 @@ import Foreign.C.Types( CSize )
 import Foreign.C.String( CString, peekCString )
 import Foreign.Storable( sizeOf )
 import System.GPU.OpenCL.Types( 
-  CLuint, CLint, CLDeviceType_, CLContextInfo_, CLContextProperty_, ErrorCode(..),
-  CLDeviceID, CLContext, CLDeviceType, bitmaskFromFlags, clSuccess, getCLValue )
+  CLuint, CLint, CLDeviceType_, CLContextInfo_, CLContextProperty_, CLDeviceID, 
+  CLContext, CLDeviceType, CLError(..), bitmaskFromFlags, getCLValue, getEnumCL, 
+  wrapCheckSuccess, wrapPError, wrapGetInfo )
 
 #include <CL/cl.h>
 
@@ -62,30 +63,24 @@ mkContextCallback f msg _ _ _ = peekCString msg >>= f
 -- the OpenCL runtime for managing objects such as command-queues, memory, 
 -- program and kernel objects and for executing kernels on one or more devices 
 -- specified in the context.
-clCreateContext :: [CLDeviceID] -> (String -> IO ()) -> IO (Maybe CLContext)
+clCreateContext :: [CLDeviceID] -> (String -> IO ()) 
+                   -> IO (Either CLError CLContext)
 clCreateContext devs f = allocaArray ndevs $ \pdevs -> do
   pokeArray pdevs devs
-  alloca $ \perr -> do
+  wrapPError $ \perr -> do
     fptr <- wrapContextCallback $ mkContextCallback f
-    context <- raw_clCreateContext nullPtr cndevs pdevs fptr nullPtr perr
-    errcode <- peek perr >>= return . ErrorCode
-    if errcode == clSuccess
-      then return . Just $ context
-      else return Nothing
+    raw_clCreateContext nullPtr cndevs pdevs fptr nullPtr perr
     where
       ndevs = length devs
       cndevs = fromIntegral ndevs
 
 -- | Create an OpenCL context from a device type that identifies the specific 
 -- device(s) to use.
-clCreateContextFromType :: [CLDeviceType] -> (String -> IO ()) -> IO (Maybe CLContext)
-clCreateContextFromType xs f = alloca $ \perr -> do
+clCreateContextFromType :: [CLDeviceType] -> (String -> IO ()) 
+                           -> IO (Either CLError CLContext)
+clCreateContextFromType xs f = wrapPError $ \perr -> do
   fptr <- wrapContextCallback $ mkContextCallback f
-  context <- raw_clCreateContextFromType nullPtr types fptr nullPtr perr
-  errcode <- peek perr >>= return . ErrorCode
-  if errcode == clSuccess
-    then return . Just $ context
-    else return Nothing
+  raw_clCreateContextFromType nullPtr types fptr nullPtr perr
     where
       types = bitmaskFromFlags xs
 
@@ -99,8 +94,7 @@ clCreateContextFromType xs f = alloca $ \perr -> do
 -- Returns 'True' if the function is executed successfully, or 'False' if 
 -- context is not a valid OpenCL context.
 clRetainContext :: CLContext -> IO Bool
-clRetainContext ctx = raw_clRetainContext ctx 
-                      >>= return . (==clSuccess) . ErrorCode
+clRetainContext ctx = wrapCheckSuccess $ raw_clRetainContext ctx 
 
 -- | Decrement the context reference count.
 -- After the context reference count becomes zero and all the objects attached 
@@ -109,15 +103,14 @@ clRetainContext ctx = raw_clRetainContext ctx
 -- Returns 'True' if the function is executed successfully, or 'False' if 
 -- context is not a valid OpenCL context.
 clReleaseContext :: CLContext -> IO Bool
-clReleaseContext ctx = raw_clReleaseContext ctx 
-                       >>= return . (==clSuccess) . ErrorCode
+clReleaseContext ctx = wrapCheckSuccess $ raw_clReleaseContext ctx 
 
-getContextInfoSize :: CLContext -> CLContextInfo_ -> IO (Maybe CSize)
+getContextInfoSize :: CLContext -> CLContextInfo_ -> IO (Either CLError CSize)
 getContextInfoSize ctx infoid = alloca $ \(value_size :: Ptr CSize) -> do
-  errcode <- fmap ErrorCode $ raw_clGetContextInfo ctx infoid 0 nullPtr value_size
-  if errcode == clSuccess
-    then fmap Just $ peek value_size
-    else return Nothing
+  errcode <- raw_clGetContextInfo ctx infoid 0 nullPtr value_size
+  if errcode == getCLValue CL_SUCCESS
+    then fmap Right $ peek value_size
+    else return . Left . getEnumCL $ errcode
 
 #c
 enum CLContextInfo {
@@ -131,28 +124,27 @@ enum CLContextInfo {
 -- | Return the context reference count. The reference count returned should be 
 -- considered immediately stale. It is unsuitable for general use in 
 -- applications. This feature is provided for identifying memory leaks.
-clGetContextReferenceCount :: CLContext -> IO (Maybe CLuint)
-clGetContextReferenceCount ctx = alloca $ \(dat :: Ptr CLuint) -> do
-  errcode <- fmap ErrorCode $ raw_clGetContextInfo ctx (getCLValue CL_CONTEXT_REFERENCE_COUNT) size (castPtr dat) nullPtr
-  if errcode == clSuccess
-    then fmap Just $ peek dat
-    else return Nothing
+clGetContextReferenceCount :: CLContext -> IO (Either CLError CLuint)
+clGetContextReferenceCount ctx = wrapGetInfo (\(dat :: Ptr CLuint) 
+                                              -> raw_clGetContextInfo ctx infoid size (castPtr dat)) id
     where 
+      infoid = getCLValue CL_CONTEXT_REFERENCE_COUNT
       size = fromIntegral $ sizeOf (0::CLuint)
 
 -- | Return the list of devices in context.
-clGetContextDevices :: CLContext -> IO [CLDeviceID]
+clGetContextDevices :: CLContext -> IO (Either CLError [CLDeviceID])
 clGetContextDevices ctx = do
   val <- getContextInfoSize ctx infoid
   case val of
-    Nothing -> return []
-    Just size -> let n = (fromIntegral size) `div` (sizeOf (nullPtr :: CLDeviceID))
+    Left err -> return . Left $ err
+    Right size -> let n = (fromIntegral size) `div` elemSize
                  in allocaArray n $ \(buff :: Ptr CLDeviceID) -> do
-      errcode <- fmap ErrorCode $ raw_clGetContextInfo ctx infoid size (castPtr buff) nullPtr
-      if errcode == clSuccess
-        then peekArray n buff
-        else return []
+      errcode <- raw_clGetContextInfo ctx infoid size (castPtr buff) nullPtr
+      if errcode == getCLValue CL_SUCCESS
+        then fmap Right $ peekArray n buff
+        else return . Left . getEnumCL $ errcode
     where
       infoid = getCLValue CL_CONTEXT_DEVICES
+      elemSize = sizeOf (nullPtr :: CLDeviceID)
 
 -- -----------------------------------------------------------------------------
