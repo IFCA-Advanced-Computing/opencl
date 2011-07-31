@@ -18,7 +18,7 @@ Library
   Build-tools: c2hs
   hs-Source-Dirs: src
   ghc-options: -Wall
-  Build-Depends: base >=4.0, bytestring -any, mtl -any
+  Build-Depends: base >=4.0, bytestring -any, mtl==1.1.*
   Exposed-Modules: 
     System.GPU.OpenCL
     System.GPU.OpenCL.Query
