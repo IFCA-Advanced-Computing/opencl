@@ -1,5 +1,5 @@
 Name: OpenCL
-Version: 1.0.0.2
+Version: 1.0.1.0
 Cabal-Version: >=1.8
 License: GPL
 License-File: LICENSE
@@ -18,7 +18,7 @@ Library
   Build-tools: c2hs
   hs-Source-Dirs: src
   ghc-options: -Wall
-  Build-Depends: base >=4.0, bytestring -any, mtl==1.1.*
+  Build-Depends: base >=4.0, bytestring -any, mtl==2.0.*
   Exposed-Modules: 
     System.GPU.OpenCL
     System.GPU.OpenCL.Query
