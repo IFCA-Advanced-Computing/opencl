@@ -1,18 +1,30 @@
 Name: OpenCL
-Version: 1.0.1.0
-Cabal-Version: >=1.8
+Version: 1.0.1.1
 License: GPL
 License-File: LICENSE
 Author: Luis Cabellos
 Copyright: (c) 2011 Luis Cabellos
-Category: GPU
+Category: GPU, FFI, Graphics
 Build-Type: Simple
 Stability: Experimental
 Maintainer: Luis Cabellos
 Homepage: https://github.com/zhensydow/opencl
 Synopsis: Haskell high-level wrapper for OpenCL
+Description: Haskell FFI binding to OpenCL library. It includes high-level wrappers to help development. Based on OpenCLRaw package.
 bug-reports: https://github.com/zhensydow/opencl/issues
+Cabal-Version: >=1.8
 Tested-With: GHC
+
+source-repository this
+  type: git
+  location: https://zhensydow@github.com/zhensydow/opencl.git
+  tag: 1.0.1.1
+  branch: master
+
+source-repository head
+  type: git
+  location: https://zhensydow@github.com/zhensydow/opencl.git
+  branch: develop
 
 Library
   Build-tools: c2hs
