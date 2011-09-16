@@ -14,7 +14,7 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
-{-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
+{-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables, CPP #-}
 module System.GPU.OpenCL.Program(  
   -- * Types
   CLProgram, CLBuildStatus(..), CLKernel,
@@ -47,35 +47,35 @@ import System.GPU.OpenCL.Types(
 
 -- -----------------------------------------------------------------------------
 type BuildCallback = CLProgram -> Ptr () -> IO ()
-foreign import ccall "clCreateProgramWithSource" raw_clCreateProgramWithSource :: 
+foreign import CALLCONV "clCreateProgramWithSource" raw_clCreateProgramWithSource :: 
   CLContext -> CLuint -> Ptr CString -> Ptr CSize -> Ptr CLint -> IO CLProgram
---foreign import ccall "clCreateProgramWithBinary" raw_clCreateProgramWithBinary :: 
+--foreign import CALLCONV "clCreateProgramWithBinary" raw_clCreateProgramWithBinary :: 
 --  CLContext -> CLuint -> Ptr CLDeviceID -> Ptr CSize -> Ptr (Ptr Word8) -> Ptr CLint -> Ptr CLint -> IO CLProgram
-foreign import ccall "clRetainProgram" raw_clRetainProgram :: 
+foreign import CALLCONV "clRetainProgram" raw_clRetainProgram :: 
   CLProgram -> IO CLint
-foreign import ccall "clReleaseProgram" raw_clReleaseProgram :: 
+foreign import CALLCONV "clReleaseProgram" raw_clReleaseProgram :: 
   CLProgram -> IO CLint
-foreign import ccall "clBuildProgram" raw_clBuildProgram :: 
+foreign import CALLCONV "clBuildProgram" raw_clBuildProgram :: 
   CLProgram -> CLuint -> Ptr CLDeviceID -> CString -> FunPtr BuildCallback -> Ptr () -> IO CLint
-foreign import ccall "clUnloadCompiler" raw_clUnloadCompiler :: 
+foreign import CALLCONV "clUnloadCompiler" raw_clUnloadCompiler :: 
   IO CLint
-foreign import ccall "clGetProgramInfo" raw_clGetProgramInfo :: 
+foreign import CALLCONV "clGetProgramInfo" raw_clGetProgramInfo :: 
   CLProgram -> CLProgramInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
-foreign import ccall "clGetProgramBuildInfo"  raw_clGetProgramBuildInfo :: 
+foreign import CALLCONV "clGetProgramBuildInfo"  raw_clGetProgramBuildInfo :: 
   CLProgram -> CLDeviceID -> CLProgramBuildInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
-foreign import ccall "clCreateKernel" raw_clCreateKernel :: 
+foreign import CALLCONV "clCreateKernel" raw_clCreateKernel :: 
   CLProgram -> CString -> Ptr CLint -> IO CLKernel 
-foreign import ccall "clCreateKernelsInProgram" raw_clCreateKernelsInProgram :: 
+foreign import CALLCONV "clCreateKernelsInProgram" raw_clCreateKernelsInProgram :: 
   CLProgram -> CLuint -> Ptr CLKernel -> Ptr CLuint -> IO CLint 
-foreign import ccall "clRetainKernel" raw_clRetainKernel :: 
+foreign import CALLCONV "clRetainKernel" raw_clRetainKernel :: 
   CLKernel -> IO CLint 
-foreign import ccall "clReleaseKernel" raw_clReleaseKernel :: 
+foreign import CALLCONV "clReleaseKernel" raw_clReleaseKernel :: 
   CLKernel -> IO CLint 
-foreign import ccall "clSetKernelArg" raw_clSetKernelArg :: 
+foreign import CALLCONV "clSetKernelArg" raw_clSetKernelArg :: 
   CLKernel -> CLuint -> CSize -> Ptr () -> IO CLint
-foreign import ccall "clGetKernelInfo" raw_clGetKernelInfo :: 
+foreign import CALLCONV "clGetKernelInfo" raw_clGetKernelInfo :: 
   CLKernel -> CLKernelInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
-foreign import ccall "clGetKernelWorkGroupInfo" raw_clGetKernelWorkGroupInfo :: 
+foreign import CALLCONV "clGetKernelWorkGroupInfo" raw_clGetKernelWorkGroupInfo :: 
   CLKernel -> CLDeviceID -> CLKernelWorkGroupInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 
 -- -----------------------------------------------------------------------------
