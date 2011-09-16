@@ -41,3 +41,8 @@ Library
     System.GPU.OpenCL.Program
   Other-Modules: 
     System.GPU.OpenCL.Types
+
+  if os(windows)
+    cpp-options: "-DCALLCONV=stdcall"
+  else
+    cpp-options: "-DCALLCONV=ccall"
