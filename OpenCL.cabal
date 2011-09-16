@@ -46,3 +46,4 @@ Library
     cpp-options: "-DCALLCONV=stdcall"
   else
     cpp-options: "-DCALLCONV=ccall"
+    extra-libraries: OpenCL
