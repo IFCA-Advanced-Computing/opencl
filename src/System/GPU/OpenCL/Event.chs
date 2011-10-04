@@ -14,7 +14,7 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
-{-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
+{-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables, CPP #-}
 module System.GPU.OpenCL.Event(  
   -- * Types
   CLEvent, CLCommandType(..), CLProfilingInfo(..), CLCommandExecutionStatus(..),
@@ -36,15 +36,15 @@ import System.GPU.OpenCL.Types(
 #include <CL/cl.h>
 
 -- -----------------------------------------------------------------------------
-foreign import ccall "clWaitForEvents" raw_clWaitForEvents :: 
+foreign import CALLCONV "clWaitForEvents" raw_clWaitForEvents :: 
   CLuint -> Ptr CLEvent -> IO CLint
-foreign import ccall "clGetEventInfo" raw_clGetEventInfo :: 
+foreign import CALLCONV "clGetEventInfo" raw_clGetEventInfo :: 
   CLEvent -> CLEventInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
-foreign import ccall "clRetainEvent" raw_clRetainEvent :: 
+foreign import CALLCONV "clRetainEvent" raw_clRetainEvent :: 
   CLEvent -> IO CLint 
-foreign import ccall "clReleaseEvent" raw_clReleaseEvent :: 
+foreign import CALLCONV "clReleaseEvent" raw_clReleaseEvent :: 
   CLEvent -> IO CLint 
-foreign import ccall "clGetEventProfilingInfo" raw_clGetEventProfilingInfo :: 
+foreign import CALLCONV "clGetEventProfilingInfo" raw_clGetEventProfilingInfo :: 
   CLEvent -> CLProfilingInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 
 -- -----------------------------------------------------------------------------

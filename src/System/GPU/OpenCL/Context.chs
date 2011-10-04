@@ -14,7 +14,7 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
-{-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
+{-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables, CPP #-}
 module System.GPU.OpenCL.Context(
   -- * Types
   CLContext,
@@ -39,19 +39,19 @@ import System.GPU.OpenCL.Types(
 
 -- -----------------------------------------------------------------------------
 type ContextCallback = CString -> Ptr () -> CSize -> Ptr () -> IO ()
-foreign import ccall "wrapper" wrapContextCallback :: 
+foreign import CALLCONV "wrapper" wrapContextCallback :: 
   ContextCallback -> IO (FunPtr ContextCallback)
-foreign import ccall "clCreateContext" raw_clCreateContext ::
+foreign import CALLCONV "clCreateContext" raw_clCreateContext ::
   Ptr CLContextProperty_ -> CLuint -> Ptr CLDeviceID -> FunPtr ContextCallback -> 
   Ptr () -> Ptr CLint -> IO CLContext
-foreign import ccall "clCreateContextFromType" raw_clCreateContextFromType :: 
+foreign import CALLCONV "clCreateContextFromType" raw_clCreateContextFromType :: 
   Ptr CLContextProperty_ -> CLDeviceType_ -> FunPtr ContextCallback -> 
   Ptr () -> Ptr CLint -> IO CLContext
-foreign import ccall "clRetainContext" raw_clRetainContext :: 
+foreign import CALLCONV "clRetainContext" raw_clRetainContext :: 
   CLContext -> IO CLint
-foreign import ccall "clReleaseContext" raw_clReleaseContext :: 
+foreign import CALLCONV "clReleaseContext" raw_clReleaseContext :: 
   CLContext -> IO CLint
-foreign import ccall "clGetContextInfo" raw_clGetContextInfo :: 
+foreign import CALLCONV "clGetContextInfo" raw_clGetContextInfo :: 
   CLContext -> CLContextInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 
 -- -----------------------------------------------------------------------------
