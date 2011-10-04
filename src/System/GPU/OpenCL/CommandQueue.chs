@@ -14,7 +14,7 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
-{-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
+{-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables, CPP #-}
 module System.GPU.OpenCL.CommandQueue(
   -- * Types
   CLCommandQueue, CLCommandQueueProperty(..), 
@@ -45,33 +45,33 @@ import System.GPU.OpenCL.Types(
 #include <CL/cl.h>
 
 -- -----------------------------------------------------------------------------
-foreign import ccall "clCreateCommandQueue" raw_clCreateCommandQueue :: 
+foreign import CALLCONV "clCreateCommandQueue" raw_clCreateCommandQueue :: 
   CLContext -> CLDeviceID -> CLCommandQueueProperty_ -> Ptr CLint -> IO CLCommandQueue
-foreign import ccall "clRetainCommandQueue" raw_clRetainCommandQueue :: 
+foreign import CALLCONV "clRetainCommandQueue" raw_clRetainCommandQueue :: 
   CLCommandQueue -> IO CLint
-foreign import ccall "clReleaseCommandQueue" raw_clReleaseCommandQueue :: 
+foreign import CALLCONV "clReleaseCommandQueue" raw_clReleaseCommandQueue :: 
   CLCommandQueue -> IO CLint
-foreign import ccall "clGetCommandQueueInfo" raw_clGetCommandQueueInfo :: 
+foreign import CALLCONV "clGetCommandQueueInfo" raw_clGetCommandQueueInfo :: 
   CLCommandQueue -> CLCommandQueueInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
-foreign import ccall "clSetCommandQueueProperty" raw_clSetCommandQueueProperty :: 
+foreign import CALLCONV "clSetCommandQueueProperty" raw_clSetCommandQueueProperty :: 
   CLCommandQueue -> CLCommandQueueProperty_ -> CLbool -> Ptr CLCommandQueueProperty_ -> IO CLint
-foreign import ccall "clEnqueueReadBuffer" raw_clEnqueueReadBuffer ::
+foreign import CALLCONV "clEnqueueReadBuffer" raw_clEnqueueReadBuffer ::
   CLCommandQueue -> CLMem -> CLbool -> CSize -> CSize -> Ptr () -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
-foreign import ccall "clEnqueueWriteBuffer" raw_clEnqueueWriteBuffer ::
+foreign import CALLCONV "clEnqueueWriteBuffer" raw_clEnqueueWriteBuffer ::
   CLCommandQueue -> CLMem -> CLbool -> CSize -> CSize -> Ptr () -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
-foreign import ccall "clEnqueueNDRangeKernel" raw_clEnqueueNDRangeKernel :: 
+foreign import CALLCONV "clEnqueueNDRangeKernel" raw_clEnqueueNDRangeKernel :: 
   CLCommandQueue -> CLKernel -> CLuint -> Ptr CSize -> Ptr CSize -> Ptr CSize -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
-foreign import ccall "clEnqueueTask" raw_clEnqueueTask :: 
+foreign import CALLCONV "clEnqueueTask" raw_clEnqueueTask :: 
   CLCommandQueue -> CLKernel -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
-foreign import ccall "clEnqueueMarker" raw_clEnqueueMarker :: 
+foreign import CALLCONV "clEnqueueMarker" raw_clEnqueueMarker :: 
   CLCommandQueue -> Ptr CLEvent -> IO CLint 
-foreign import ccall "clEnqueueWaitForEvents" raw_clEnqueueWaitForEvents :: 
+foreign import CALLCONV "clEnqueueWaitForEvents" raw_clEnqueueWaitForEvents :: 
   CLCommandQueue -> CLuint -> Ptr CLEvent -> IO CLint
-foreign import ccall "clEnqueueBarrier" raw_clEnqueueBarrier :: 
+foreign import CALLCONV "clEnqueueBarrier" raw_clEnqueueBarrier :: 
   CLCommandQueue -> IO CLint 
-foreign import ccall "clFlush" raw_clFlush ::
+foreign import CALLCONV "clFlush" raw_clFlush ::
   CLCommandQueue -> IO CLint
-foreign import ccall "clFinish" raw_clFinish ::
+foreign import CALLCONV "clFinish" raw_clFinish ::
   CLCommandQueue -> IO CLint
 
 -- -----------------------------------------------------------------------------

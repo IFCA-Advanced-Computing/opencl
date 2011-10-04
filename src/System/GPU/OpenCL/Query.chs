@@ -14,7 +14,7 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
-{-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
+{-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables, CPP #-}
 module System.GPU.OpenCL.Query( 
   -- * Types
   CLPlatformInfo(..), CLPlatformID, CLDeviceID, CLDeviceType(..),
@@ -63,13 +63,13 @@ import System.GPU.OpenCL.Types(
   whenSuccess, bitmaskToFPConfig, bitmaskToExecCapability )
 
 -- -----------------------------------------------------------------------------
-foreign import ccall "clGetPlatformIDs" raw_clGetPlatformIDs :: 
+foreign import CALLCONV "clGetPlatformIDs" raw_clGetPlatformIDs :: 
   CLuint -> Ptr CLPlatformID -> Ptr CLuint -> IO CLint
-foreign import ccall "clGetPlatformInfo" raw_clGetPlatformInfo :: 
+foreign import CALLCONV "clGetPlatformInfo" raw_clGetPlatformInfo :: 
   CLPlatformID -> CLPlatformInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint 
-foreign import ccall "clGetDeviceIDs" raw_clGetDeviceIDs :: 
+foreign import CALLCONV "clGetDeviceIDs" raw_clGetDeviceIDs :: 
   CLPlatformID -> CLDeviceType_ -> CLuint -> Ptr CLDeviceID -> Ptr CLuint -> IO CLint
-foreign import ccall "clGetDeviceInfo" raw_clGetDeviceInfo :: 
+foreign import CALLCONV "clGetDeviceInfo" raw_clGetDeviceInfo :: 
   CLDeviceID -> CLDeviceInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 
 #include <CL/cl.h>

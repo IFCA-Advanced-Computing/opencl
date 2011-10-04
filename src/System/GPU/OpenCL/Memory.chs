@@ -14,7 +14,7 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Haskell-Opencl.  If not, see <http://www.gnu.org/licenses/>.
 -- -----------------------------------------------------------------------------
-{-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
+{-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables, CPP #-}
 module System.GPU.OpenCL.Memory(
   -- * Types
   CLMem, CLSampler, CLMemFlag(..), CLMemObjectType(..), CLAddressingMode(..), 
@@ -43,32 +43,32 @@ import System.GPU.OpenCL.Types(
 #include <CL/cl.h>
 
 -- -----------------------------------------------------------------------------
-foreign import ccall "clCreateBuffer" raw_clCreateBuffer :: 
+foreign import CALLCONV "clCreateBuffer" raw_clCreateBuffer :: 
   CLContext -> CLMemFlags_ -> CSize -> Ptr () -> Ptr CLint -> IO CLMem
---foreign import ccall "clCreateImage2D" raw_clCreateImage2D :: 
+--foreign import CALLCONV "clCreateImage2D" raw_clCreateImage2D :: 
 --  CLContext -> CLMemFlags_ -> CLImageFormat_p -> CSize -> CSize -> CSize 
 --  -> Ptr () -> Ptr CLint -> IO CLMem
---foreign import ccall "clCreateImage3D" raw_clCreateImage3D :: 
+--foreign import CALLCONV "clCreateImage3D" raw_clCreateImage3D :: 
 --  CLContext -> CLMemFlags_-> CLImageFormat_p -> CSize -> CSize -> CSize -> CSize 
 --  -> CSize -> Ptr () -> Ptr CLint -> IO CLMem
-foreign import ccall "clRetainMemObject" raw_clRetainMemObject :: 
+foreign import CALLCONV "clRetainMemObject" raw_clRetainMemObject :: 
   CLMem -> IO CLint
-foreign import ccall "clReleaseMemObject" raw_clReleaseMemObject :: 
+foreign import CALLCONV "clReleaseMemObject" raw_clReleaseMemObject :: 
   CLMem -> IO CLint
---foreign import ccall "clGetSupportedImageFormats" raw_clGetSupportedImageFormats :: 
+--foreign import CALLCONV "clGetSupportedImageFormats" raw_clGetSupportedImageFormats :: 
 --  CLContext -> CLMemFlags_ -> CLMemObjectType_ -> CLuint -> CLImageFormat_p 
 --  -> Ptr CLuint -> IO CLint
-foreign import ccall "clGetMemObjectInfo" raw_clGetMemObjectInfo :: 
+foreign import CALLCONV "clGetMemObjectInfo" raw_clGetMemObjectInfo :: 
   CLMem -> CLMemInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
---foreign import ccall "clGetImageInfo" raw_clGetImageInfo :: 
+--foreign import CALLCONV "clGetImageInfo" raw_clGetImageInfo :: 
 --  CLMem -> CLImageInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
-foreign import ccall "clCreateSampler" raw_clCreateSampler :: 
+foreign import CALLCONV "clCreateSampler" raw_clCreateSampler :: 
   CLContext -> CLbool -> CLAddressingMode_ -> CLFilterMode_ -> Ptr CLint -> IO CLSampler
-foreign import ccall "clRetainSampler" raw_clRetainSampler :: 
+foreign import CALLCONV "clRetainSampler" raw_clRetainSampler :: 
   CLSampler -> IO CLint
-foreign import ccall "clReleaseSampler" raw_clReleaseSampler :: 
+foreign import CALLCONV "clReleaseSampler" raw_clReleaseSampler :: 
   CLSampler -> IO CLint
-foreign import ccall "clGetSamplerInfo" raw_clGetSamplerInfo :: 
+foreign import CALLCONV "clGetSamplerInfo" raw_clGetSamplerInfo :: 
   CLSampler -> CLSamplerInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 
 -- -----------------------------------------------------------------------------
