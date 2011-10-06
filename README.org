@@ -37,12 +37,4 @@ Based on Jeff Heard OpenCLRaw.
 
 * Things To Do
  - [ ] better types
- - [ ] define Image Buffer functions 
-   clCreateImage2D, clCreateImage3D, clGetSupportedImageFormats,
-   clEnqueueReadImage, clEnqueueWriteImage, clEnqueueCopyImage,
-   clEnqueueCopyImageToBuffer, clEnqueueCopyBufferToImage, clEnqueueMapBuffer,
-   clEnqueueMapImage, clEnqueueUnmapMemObject, clGetImageInfo
- - [ ] define clCreateProgramWithBinary
- - [ ] define clEnqueueNativeKernel
- - [ ] define clGetContextProperties
  - [ ] better install proccess, configure
