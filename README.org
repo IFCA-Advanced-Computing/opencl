@@ -16,6 +16,11 @@ Based on Jeff Heard OpenCLRaw.
 
   The programs that use the library, need to link against OpenCL
 
+** Optional Requisites
+   Some OpenCL libraries required also numa libs. E.g, on Ubuntu 11.04:
+   
+   : install libnuma1 libnuma-dev
+
 ** Example
    
    There is an simple working example in the examples folder. You can create an
