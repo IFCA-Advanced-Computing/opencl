@@ -10,10 +10,15 @@ Stability: Experimental
 Maintainer: Luis Cabellos
 Homepage: https://github.com/zhensydow/opencl
 Synopsis: Haskell high-level wrapper for OpenCL
-Description: Haskell FFI binding to OpenCL library. It includes high-level wrappers to help development. Based on OpenCLRaw package.
 bug-reports: https://github.com/zhensydow/opencl/issues
 Cabal-Version: >=1.8
 Tested-With: GHC
+Description: 
+    Haskell FFI binding to OpenCL library. It includes high-level wrappers to
+    help development. Based on OpenCLRaw package.
+
+    Most of the functions can throw a 'CLError' Exception. Using the module
+    'Control.Exception' helps to work with Exceptions.
 
 source-repository this
   type: git
