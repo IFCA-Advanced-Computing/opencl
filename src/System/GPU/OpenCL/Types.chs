@@ -29,6 +29,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -}
+{-# LANGUAGE DeriveDataTypeable #-}
 module System.GPU.OpenCL.Types( 
   -- * Symple CL Types
   CLbool, CLint, CLuint, CLulong, CLProgram, CLEvent, CLMem, CLPlatformID, 
@@ -47,15 +48,17 @@ module System.GPU.OpenCL.Types(
   CLBuildStatus(..), CLAddressingMode(..), CLFilterMode(..),
   -- * Functions
   wrapPError, wrapCheckSuccess, wrapGetInfo, whenSuccess, getCLValue, 
-  getEnumCL, bitmaskToFlags, getCommandExecutionStatus, bitmaskToDeviceTypes, 
-  bitmaskFromFlags, bitmaskToCommandQueueProperties, bitmaskToFPConfig, 
-  bitmaskToExecCapability, bitmaskToMemFlags )
+  throwCLError, getEnumCL, bitmaskToFlags, getCommandExecutionStatus, 
+  bitmaskToDeviceTypes, bitmaskFromFlags, bitmaskToCommandQueueProperties, 
+  bitmaskToFPConfig, bitmaskToExecCapability, bitmaskToMemFlags )
        where
 
 -- -----------------------------------------------------------------------------
 import Foreign
 import Foreign.C.Types
 import Data.List( foldl' )
+import Data.Typeable( Typeable(..) )
+import Control.Exception( Exception(..), throw )
 
 #include <CL/cl.h>
 
@@ -314,33 +317,38 @@ not available (because the command identified by event has not completed).
 
  * 'CL_SUCCESS', Indicates that the function executed successfully.
 -}
-{#enum CLError {upcaseFirstLetter} deriving( Show, Eq ) #}
+{#enum CLError {upcaseFirstLetter} deriving( Show, Eq, Typeable ) #}
 
-wrapPError :: (Ptr CLint -> IO a) -> IO (Either CLError a)
+instance Exception CLError
+
+throwCLError :: CLint -> IO a
+throwCLError = throw . (getEnumCL :: CLint -> CLError)
+
+wrapPError :: (Ptr CLint -> IO a) -> IO a
 wrapPError f = alloca $ \perr -> do
   v <- f perr
-  errcode <- peek perr >>= return . toEnum . fromIntegral
+  errcode <- peek perr >>= return . getEnumCL
   if errcode == CL_SUCCESS
-    then return $ Right v
-    else return $ Left errcode
+    then return v
+    else throw errcode
   
 wrapCheckSuccess :: IO CLint -> IO Bool
-wrapCheckSuccess f = f >>= return . (==CL_SUCCESS) . toEnum . fromIntegral
+wrapCheckSuccess f = f >>= return . (==CL_SUCCESS) . getEnumCL
 
-wrapGetInfo :: Storable a => (Ptr a -> Ptr CSize -> IO CLint) -> (a -> b) 
-               -> IO (Either CLError b)
+wrapGetInfo :: Storable a 
+               => (Ptr a -> Ptr CSize -> IO CLint) -> (a -> b) -> IO b
 wrapGetInfo fget fconvert= alloca $ \dat -> do
   errcode <- fget dat nullPtr
-  if errcode == (fromIntegral . fromEnum $ CL_SUCCESS )
-    then fmap (Right . fconvert) $ peek dat
-    else return . Left . toEnum . fromIntegral $ errcode
+  if errcode == getCLValue CL_SUCCESS
+    then fmap fconvert $ peek dat
+    else throwCLError errcode
 
-whenSuccess :: IO CLint -> IO a -> IO (Either CLError a)
+whenSuccess :: IO CLint -> IO a -> IO a
 whenSuccess fcheck fval = do
   errcode <- fcheck
   if errcode == getCLValue CL_SUCCESS
-    then fval >>= return . Right
-    else return . Left . getEnumCL $ errcode
+    then fval
+    else throwCLError errcode
          
 -- -----------------------------------------------------------------------------
 #c

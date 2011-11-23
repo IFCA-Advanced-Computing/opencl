@@ -48,7 +48,7 @@ module System.GPU.OpenCL.Memory(
 import Foreign
 import Foreign.C.Types
 import System.GPU.OpenCL.Types( 
-  CLMem, CLContext, CLSampler, CLint, CLuint, CLbool, CLMemFlags_, CLError(..), 
+  CLMem, CLContext, CLSampler, CLint, CLuint, CLbool, CLMemFlags_,
   CLMemInfo_, CLAddressingMode_, CLFilterMode_, CLSamplerInfo_, 
   CLAddressingMode(..), CLFilterMode(..), CLMemFlag(..), CLMemObjectType_, 
   CLMemObjectType(..), 
@@ -107,7 +107,7 @@ for buffer object.
  * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
 by the OpenCL implementation on the host.
 -}
-clCreateBuffer :: Integral a => CLContext -> [CLMemFlag] -> (a, Ptr ()) -> IO (Either CLError CLMem)
+clCreateBuffer :: Integral a => CLContext -> [CLMemFlag] -> (a, Ptr ()) -> IO CLMem
 clCreateBuffer ctx xs (sbuff,buff) = wrapPError $ \perr -> do
   raw_clCreateBuffer ctx flags (fromIntegral sbuff) buff perr
     where
@@ -143,7 +143,7 @@ enum CLMemInfo {
 {#enum CLMemInfo {upcaseFirstLetter} #}
 
 -- | Returns the mem object type.
-clGetMemType :: CLMem -> IO (Either CLError CLMemObjectType)
+clGetMemType :: CLMem -> IO CLMemObjectType
 clGetMemType mem = wrapGetInfo (\(dat :: Ptr CLMemObjectType_) 
                                 -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) getEnumCL
     where 
@@ -151,7 +151,7 @@ clGetMemType mem = wrapGetInfo (\(dat :: Ptr CLMemObjectType_)
       size = fromIntegral $ sizeOf (0::CLMemObjectType_)
 
 -- | Return the flags argument value specified when memobj was created.
-clGetMemFlags :: CLMem -> IO (Either CLError [CLMemFlag])
+clGetMemFlags :: CLMem -> IO [CLMemFlag]
 clGetMemFlags mem = wrapGetInfo (\(dat :: Ptr CLMemFlags_)
                                   -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) bitmaskToMemFlags
     where 
@@ -159,7 +159,7 @@ clGetMemFlags mem = wrapGetInfo (\(dat :: Ptr CLMemFlags_)
       size = fromIntegral $ sizeOf (0::CLMemFlags_)
 
 -- | Return actual size of memobj in bytes.
-clGetMemSize :: CLMem -> IO (Either CLError CSize)
+clGetMemSize :: CLMem -> IO CSize
 clGetMemSize mem = wrapGetInfo (\(dat :: Ptr CSize)
                                  -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
     where 
@@ -167,7 +167,7 @@ clGetMemSize mem = wrapGetInfo (\(dat :: Ptr CSize)
       size = fromIntegral $ sizeOf (0::CSize)
 
 -- | Return the host_ptr argument value specified when memobj is created.
-clGetMemHostPtr :: CLMem -> IO (Either CLError (Ptr ()))
+clGetMemHostPtr :: CLMem -> IO (Ptr ())
 clGetMemHostPtr mem = wrapGetInfo (\(dat :: Ptr (Ptr ()))
                                    -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
     where 
@@ -177,7 +177,7 @@ clGetMemHostPtr mem = wrapGetInfo (\(dat :: Ptr (Ptr ()))
 -- | Map count. The map count returned should be considered immediately
 -- stale. It is unsuitable for general use in applications. This feature is
 -- provided for debugging.
-clGetMemMapCount :: CLMem -> IO (Either CLError CLuint)
+clGetMemMapCount :: CLMem -> IO CLuint
 clGetMemMapCount mem = wrapGetInfo (\(dat :: Ptr CLuint)
                                    -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
     where 
@@ -187,7 +187,7 @@ clGetMemMapCount mem = wrapGetInfo (\(dat :: Ptr CLuint)
 -- | Return memobj reference count. The reference count returned should be
 -- considered immediately stale. It is unsuitable for general use in
 -- applications. This feature is provided for identifying memory leaks.
-clGetMemReferenceCount :: CLMem -> IO (Either CLError CLuint)
+clGetMemReferenceCount :: CLMem -> IO CLuint
 clGetMemReferenceCount mem = wrapGetInfo (\(dat :: Ptr CLuint)
                                    -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
     where 
@@ -195,7 +195,7 @@ clGetMemReferenceCount mem = wrapGetInfo (\(dat :: Ptr CLuint)
       size = fromIntegral $ sizeOf (0 :: CLuint)
 
 -- | Return context specified when memory object is created.
-clGetMemContext :: CLMem -> IO (Either CLError CLContext)
+clGetMemContext :: CLMem -> IO CLContext
 clGetMemContext mem = wrapGetInfo (\(dat :: Ptr CLContext)
                                    -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
     where 
@@ -226,7 +226,8 @@ Device Queries for clGetDeviceInfo is 'False').
  * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
 by the OpenCL implementation on the host.
 -}
-clCreateSampler :: CLContext -> Bool -> CLAddressingMode -> CLFilterMode -> IO (Either CLError CLSampler)
+clCreateSampler :: CLContext -> Bool -> CLAddressingMode -> CLFilterMode 
+                   -> IO CLSampler
 clCreateSampler ctx norm am fm = wrapPError $ \perr -> do
   raw_clCreateSampler ctx (fromBool norm) (getCLValue am) (getCLValue fm) perr
 
@@ -258,7 +259,7 @@ enum CLSamplerInfo {
 -- | Return the sampler reference count. The reference count returned should be
 -- considered immediately stale. It is unsuitable for general use in
 -- applications. This feature is provided for identifying memory leaks.
-clGetSamplerReferenceCount :: CLSampler -> IO (Either CLError CLuint)
+clGetSamplerReferenceCount :: CLSampler -> IO CLuint
 clGetSamplerReferenceCount sam = wrapGetInfo (\(dat :: Ptr CLuint)
                                    -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) id
     where 
@@ -266,7 +267,7 @@ clGetSamplerReferenceCount sam = wrapGetInfo (\(dat :: Ptr CLuint)
       size = fromIntegral $ sizeOf (0 :: CLuint)
 
 -- | Return the context specified when the sampler is created.
-clGetSamplerContext :: CLSampler -> IO (Either CLError CLContext)
+clGetSamplerContext :: CLSampler -> IO CLContext
 clGetSamplerContext sam = wrapGetInfo (\(dat :: Ptr CLContext)
                                        -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) id
     where 
@@ -274,7 +275,7 @@ clGetSamplerContext sam = wrapGetInfo (\(dat :: Ptr CLContext)
       size = fromIntegral $ sizeOf (nullPtr :: CLContext)
 
 -- | Return the value specified by addressing_mode argument to clCreateSampler.
-clGetSamplerAddressingMode :: CLSampler -> IO (Either CLError CLAddressingMode)
+clGetSamplerAddressingMode :: CLSampler -> IO CLAddressingMode
 clGetSamplerAddressingMode sam = wrapGetInfo (\(dat :: Ptr CLAddressingMode_)
                                               -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) getEnumCL
     where 
@@ -282,7 +283,7 @@ clGetSamplerAddressingMode sam = wrapGetInfo (\(dat :: Ptr CLAddressingMode_)
       size = fromIntegral $ sizeOf (0 :: CLAddressingMode_)
 
 -- | Return the value specified by filter_mode argument to clCreateSampler.
-clGetSamplerFilterMode :: CLSampler -> IO (Either CLError CLFilterMode)
+clGetSamplerFilterMode :: CLSampler -> IO CLFilterMode
 clGetSamplerFilterMode sam = wrapGetInfo (\(dat :: Ptr CLFilterMode_)
                                           -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) getEnumCL
     where 
@@ -291,7 +292,7 @@ clGetSamplerFilterMode sam = wrapGetInfo (\(dat :: Ptr CLFilterMode_)
 
 -- | Return the value specified by normalized_coords argument to
 -- clCreateSampler.
-clGetSamplerNormalizedCoords :: CLSampler -> IO (Either CLError Bool)
+clGetSamplerNormalizedCoords :: CLSampler -> IO Bool
 clGetSamplerNormalizedCoords sam = wrapGetInfo (\(dat :: Ptr CLbool)
                                                 -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) (/=0)
     where 

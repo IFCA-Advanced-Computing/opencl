@@ -52,9 +52,9 @@ import Foreign
 import Foreign.C.Types
 import System.GPU.OpenCL.Types( 
   CLint, CLbool, CLuint, CLCommandQueueProperty_, CLCommandQueueInfo_, 
-  CLError(..), CLCommandQueue, CLDeviceID, CLContext, CLCommandQueueProperty(..), 
+  CLCommandQueue, CLDeviceID, CLContext, CLCommandQueueProperty(..), 
   CLEvent, CLMem, CLKernel,
-  wrapCheckSuccess, wrapPError, wrapGetInfo, getCLValue, getEnumCL,
+  whenSuccess, wrapCheckSuccess, wrapPError, wrapGetInfo, getCLValue, 
   bitmaskToCommandQueueProperties, bitmaskFromFlags )
 
 #include <CL/cl.h>
@@ -139,7 +139,7 @@ used to enqueue a wait for event or a barrier command can be enqueued that must
 complete before reads or writes to the memory object(s) occur.
 -}
 clCreateCommandQueue :: CLContext -> CLDeviceID -> [CLCommandQueueProperty] 
-                     -> IO (Either CLError CLCommandQueue)
+                     -> IO CLCommandQueue
 clCreateCommandQueue ctx did xs = wrapPError $ \perr -> do
   raw_clCreateCommandQueue ctx did props perr
     where
@@ -177,7 +177,7 @@ enum CLCommandQueueInfo {
 {#enum CLCommandQueueInfo {upcaseFirstLetter} #}
 
 -- | Return the context specified when the command-queue is created.
-clGetCommandQueueContext :: CLCommandQueue -> IO (Either CLError CLContext)
+clGetCommandQueueContext :: CLCommandQueue -> IO CLContext
 clGetCommandQueueContext cq = wrapGetInfo (\(dat :: Ptr CLContext) 
                                            -> raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) id
     where 
@@ -185,7 +185,7 @@ clGetCommandQueueContext cq = wrapGetInfo (\(dat :: Ptr CLContext)
       size = fromIntegral $ sizeOf (nullPtr::CLContext)
 
 -- | Return the device specified when the command-queue is created.
-clGetCommandQueueDevice :: CLCommandQueue -> IO (Either CLError CLDeviceID)
+clGetCommandQueueDevice :: CLCommandQueue -> IO CLDeviceID
 clGetCommandQueueDevice cq = wrapGetInfo (\(dat :: Ptr CLDeviceID) 
                                            -> raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) id
     where 
@@ -196,7 +196,7 @@ clGetCommandQueueDevice cq = wrapGetInfo (\(dat :: Ptr CLDeviceID)
 -- The reference count returned should be considered immediately stale. It is 
 -- unsuitable for general use in applications. This feature is provided for 
 -- identifying memory leaks.
-clGetCommandQueueReferenceCount :: CLCommandQueue -> IO (Either CLError CLuint)
+clGetCommandQueueReferenceCount :: CLCommandQueue -> IO CLuint
 clGetCommandQueueReferenceCount cq = wrapGetInfo (\(dat :: Ptr CLuint) 
                                            -> raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) id
     where 
@@ -207,7 +207,7 @@ clGetCommandQueueReferenceCount cq = wrapGetInfo (\(dat :: Ptr CLuint)
 -- | Return the currently specified properties for the command-queue. These 
 -- properties are specified by the properties argument in 'clCreateCommandQueue'
 -- , and can be changed by 'clSetCommandQueueProperty'.
-clGetCommandQueueProperties :: CLCommandQueue -> IO (Either CLError [CLCommandQueueProperty])
+clGetCommandQueueProperties :: CLCommandQueue -> IO [CLCommandQueueProperty]
 clGetCommandQueueProperties cq = wrapGetInfo (\(dat :: Ptr CLCommandQueueProperty_) 
                                            -> raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) bitmaskToCommandQueueProperties
     where 
@@ -234,30 +234,24 @@ context is created, can be used to record appropriate information when the
 device becomes unavailable.
 -}
 clSetCommandQueueProperty :: CLCommandQueue -> [CLCommandQueueProperty] -> Bool 
-                          -> IO (Either CLError [CLCommandQueueProperty])
-clSetCommandQueueProperty cq xs val = alloca $ \(dat :: Ptr CLCommandQueueProperty_) -> do
-  errcode <- raw_clSetCommandQueueProperty cq props (fromBool val) dat
-  if errcode == getCLValue CL_SUCCESS
-    then fmap (Right . bitmaskToCommandQueueProperties) $ peek dat
-    else return . Left . getEnumCL $ errcode
+                          -> IO [CLCommandQueueProperty]
+clSetCommandQueueProperty cq xs val = alloca 
+                                      $ \(dat :: Ptr CLCommandQueueProperty_) 
+                                        -> whenSuccess (f dat)
+                                           $ fmap bitmaskToCommandQueueProperties $ peek dat
     where
+      f = raw_clSetCommandQueueProperty cq props (fromBool val)
       props = bitmaskFromFlags xs
 
 -- -----------------------------------------------------------------------------
 clEnqueue :: (CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint) -> [CLEvent] 
-             -> IO (Either CLError CLEvent)
-clEnqueue f [] = alloca $ \event -> do
-  errcode <- f 0 nullPtr event
-  if errcode == getCLValue CL_SUCCESS
-    then fmap Right $ peek event
-    else return . Left . getEnumCL $ errcode
+             -> IO CLEvent
+clEnqueue f [] = alloca $ \event -> whenSuccess (f 0 nullPtr event)
+                                    $ peek event
 clEnqueue f events = allocaArray nevents $ \pevents -> do
   pokeArray pevents events
-  alloca $ \event -> do
-    errcode <- f cnevents pevents event
-    if errcode == getCLValue CL_SUCCESS
-      then fmap Right $ peek event
-      else return . Left . getEnumCL $ errcode
+  alloca $ \event -> whenSuccess (f cnevents pevents event)
+                     $ peek event
     where
       nevents = length events
       cnevents = fromIntegral nevents
@@ -304,7 +298,7 @@ for data store associated with buffer.
 by the OpenCL implementation on the host.
 -}
 clEnqueueReadBuffer :: Integral a => CLCommandQueue -> CLMem -> Bool -> a -> a
-                       -> Ptr () -> [CLEvent] -> IO (Either CLError CLEvent)
+                       -> Ptr () -> [CLEvent] -> IO CLEvent
 clEnqueueReadBuffer cq mem check off size dat = clEnqueue (raw_clEnqueueReadBuffer cq mem (fromBool check) (fromIntegral off) (fromIntegral size) dat)
 
 {-| Enqueue commands to write to a buffer object from host memory.Calling
@@ -348,7 +342,7 @@ for data store associated with buffer.
 by the OpenCL implementation on the host.
 -}
 clEnqueueWriteBuffer :: Integral a => CLCommandQueue -> CLMem -> Bool -> a -> a
-                       -> Ptr () -> [CLEvent] -> IO (Either CLError CLEvent)
+                       -> Ptr () -> [CLEvent] -> IO CLEvent
 clEnqueueWriteBuffer cq mem check off size dat = clEnqueue (raw_clEnqueueWriteBuffer cq mem (fromBool check) (fromIntegral off) (fromIntegral size) dat)
 
 -- -----------------------------------------------------------------------------
@@ -417,7 +411,8 @@ in kernel exceed 'CL_DEVICE_MAX_SAMPLERS' for device.
  * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required by
 the OpenCL implementation on the host.
 -}
-clEnqueueNDRangeKernel :: Integral a => CLCommandQueue -> CLKernel -> [a] -> [a] -> [CLEvent] -> IO (Either CLError CLEvent)
+clEnqueueNDRangeKernel :: Integral a => CLCommandQueue -> CLKernel -> [a] -> [a] 
+                          -> [CLEvent] -> IO CLEvent
 clEnqueueNDRangeKernel cq krn gws lws events = withArray (map fromIntegral gws) $ \pgws -> withArray (map fromIntegral lws) $ \plws -> do
   clEnqueue (raw_clEnqueueNDRangeKernel cq krn num nullPtr pgws plws) events
     where
@@ -461,8 +456,7 @@ kernel.
  * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
 by the OpenCL implementation on the host.
 -}
-clEnqueueTask :: CLCommandQueue -> CLKernel -> [CLEvent] 
-                 -> IO (Either CLError CLEvent)
+clEnqueueTask :: CLCommandQueue -> CLKernel -> [CLEvent] -> IO CLEvent
 clEnqueueTask cq krn = clEnqueue (raw_clEnqueueTask cq krn)
   
 -- -----------------------------------------------------------------------------
@@ -473,12 +467,10 @@ clEnqueueTask cq krn = clEnqueue (raw_clEnqueueTask cq krn)
 -- 'CL_INVALID_COMMAND_QUEUE' if command_queue is not a valid command-queue and
 -- returns 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources
 -- required by the OpenCL implementation on the host.
-clEnqueueMarker :: CLCommandQueue -> IO (Either CLError CLEvent)
-clEnqueueMarker cq = alloca $ \event -> do
-  errcode <- raw_clEnqueueMarker cq event
-  if errcode == getCLValue CL_SUCCESS
-    then fmap Right $ peek event
-    else return . Left . getEnumCL $ errcode
+clEnqueueMarker :: CLCommandQueue -> IO CLEvent
+clEnqueueMarker cq = alloca $ \event 
+                              -> whenSuccess (raw_clEnqueueMarker cq event)
+                                 $ peek event
          
 {-| Enqueues a wait for a specific event or a list of events to complete before
 any future commands queued in the command-queue are executed. The context
@@ -499,18 +491,14 @@ events.
  * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
 by the OpenCL implementation on the host.
 -}
-clEnqueueWaitForEvents :: CLCommandQueue -> [CLEvent] -> IO (Either CLError ())
-clEnqueueWaitForEvents cq [] = do
-  errcode <- raw_clEnqueueWaitForEvents cq 0 nullPtr
-  if errcode == getCLValue CL_SUCCESS
-    then return $ Right ()
-    else return . Left . getEnumCL $ errcode
+clEnqueueWaitForEvents :: CLCommandQueue -> [CLEvent] -> IO ()
+clEnqueueWaitForEvents cq [] = whenSuccess 
+                               (raw_clEnqueueWaitForEvents cq 0 nullPtr)
+                               $ return ()
 clEnqueueWaitForEvents cq events = allocaArray nevents $ \pevents -> do
   pokeArray pevents events
-  errcode <- raw_clEnqueueWaitForEvents cq cnevents pevents
-  if errcode == getCLValue CL_SUCCESS
-    then return $ Right ()
-    else return . Left . getEnumCL $ errcode
+  whenSuccess (raw_clEnqueueWaitForEvents cq cnevents pevents)
+    $ return ()
     where
       nevents = length events
       cnevents = fromIntegral nevents
@@ -521,12 +509,8 @@ clEnqueueWaitForEvents cq events = allocaArray nevents $ \pevents -> do
 -- command_queue is not a valid command-queue and returns
 -- 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
 -- by the OpenCL implementation on the host.
-clEnqueueBarrier :: CLCommandQueue -> IO (Either CLError ())
-clEnqueueBarrier cq = do
-  errcode <- raw_clEnqueueBarrier cq
-  if errcode == getCLValue CL_SUCCESS
-    then return $ Right ()
-    else return . Left . getEnumCL $ errcode
+clEnqueueBarrier :: CLCommandQueue -> IO ()
+clEnqueueBarrier cq = whenSuccess (raw_clEnqueueBarrier cq) $ return ()
   
 -- -----------------------------------------------------------------------------
 {-| Issues all previously queued OpenCL commands in a command-queue to the
