@@ -43,7 +43,7 @@ module System.GPU.OpenCL.Event(
 import Foreign
 import Foreign.C.Types
 import System.GPU.OpenCL.Types( 
-  CLEvent, CLint, CLuint, CLulong, CLEventInfo_, CLProfilingInfo_, CLError(..),
+  CLEvent, CLint, CLuint, CLulong, CLEventInfo_, CLProfilingInfo_,
   CLCommandQueue, CLCommandType(..), CLCommandType_, 
   CLCommandExecutionStatus(..), CLProfilingInfo(..), getCommandExecutionStatus, 
   getCLValue, getEnumCL, wrapCheckSuccess, wrapGetInfo )
@@ -107,7 +107,7 @@ enum CLEventInfo {
 
 
 -- | Return the command-queue associated with event.
-clGetEventCommandQueue :: CLEvent -> IO (Either CLError CLCommandQueue)
+clGetEventCommandQueue :: CLEvent -> IO CLCommandQueue
 clGetEventCommandQueue ev = wrapGetInfo (\(dat :: Ptr CLCommandQueue) 
                                          -> raw_clGetEventInfo ev infoid size (castPtr dat)) id
     where 
@@ -115,7 +115,7 @@ clGetEventCommandQueue ev = wrapGetInfo (\(dat :: Ptr CLCommandQueue)
       size = fromIntegral $ sizeOf (nullPtr::CLCommandQueue)
       
 -- | Return the command associated with event.
-clGetEventCommandType :: CLEvent -> IO (Either CLError CLCommandType)
+clGetEventCommandType :: CLEvent -> IO CLCommandType
 clGetEventCommandType ev = wrapGetInfo (\(dat :: Ptr CLCommandType_) 
                                         -> raw_clGetEventInfo ev infoid size (castPtr dat)) getEnumCL
     where 
@@ -125,7 +125,7 @@ clGetEventCommandType ev = wrapGetInfo (\(dat :: Ptr CLCommandType_)
 -- | Return the event reference count. The reference count returned should be 
 -- considered immediately stale. It is unsuitable for general use in applications. 
 -- This feature is provided for identifying memory leaks.
-clGetEventReferenceCount :: CLEvent -> IO (Either CLError CLint)
+clGetEventReferenceCount :: CLEvent -> IO CLint
 clGetEventReferenceCount ev = wrapGetInfo (\(dat :: Ptr CLint) 
                                            -> raw_clGetEventInfo ev infoid size (castPtr dat)) id
     where 
@@ -133,7 +133,7 @@ clGetEventReferenceCount ev = wrapGetInfo (\(dat :: Ptr CLint)
       size = fromIntegral $ sizeOf (0::CLint)
 
 -- | Return the execution status of the command identified by event.
-clGetEventCommandExecutionStatus :: CLEvent -> IO (Either CLError CLCommandExecutionStatus)
+clGetEventCommandExecutionStatus :: CLEvent -> IO CLCommandExecutionStatus
 clGetEventCommandExecutionStatus ev = wrapGetInfo (\(dat :: Ptr CLint) 
                                                    -> raw_clGetEventInfo ev infoid size (castPtr dat)) getCommandExecutionStatus
     where 
@@ -163,7 +163,7 @@ command-queue and if the profiling information is currently not available
 (because the command identified by event has not completed), or if event is a 
 not a valid event object.
 -} 
-clGetEventProfilingInfo :: CLEvent -> CLProfilingInfo -> IO (Either CLError CLulong)
+clGetEventProfilingInfo :: CLEvent -> CLProfilingInfo -> IO CLulong
 clGetEventProfilingInfo ev prof = wrapGetInfo (\(dat :: Ptr CLulong) 
                                                -> raw_clGetEventProfilingInfo ev infoid size (castPtr dat)) id
     where 

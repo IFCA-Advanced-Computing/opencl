@@ -54,9 +54,9 @@ import Foreign.C.Types
 import Foreign.C.String( CString, withCString, newCString, peekCString )
 import System.GPU.OpenCL.Types( 
   CLint, CLuint, CLulong, CLProgram, CLContext, CLKernel, CLDeviceID, 
-  CLError(..), CLProgramInfo_, CLBuildStatus(..), CLBuildStatus_, 
-  CLProgramBuildInfo_, CLKernelInfo_, CLKernelWorkGroupInfo_, wrapCheckSuccess, 
-  wrapPError, wrapGetInfo, getCLValue, getEnumCL )
+  CLProgramInfo_, CLBuildStatus(..), CLBuildStatus_, CLProgramBuildInfo_, 
+  CLKernelInfo_, CLKernelWorkGroupInfo_, wrapCheckSuccess, 
+  whenSuccess, wrapPError, wrapGetInfo, getCLValue, getEnumCL )
 
 #include <CL/cl.h>
 
@@ -125,7 +125,7 @@ following error values:
  * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
 by the OpenCL implementation on the host.  
 -}
-clCreateProgramWithSource :: CLContext -> String -> IO (Either CLError CLProgram)
+clCreateProgramWithSource :: CLContext -> String -> IO CLProgram
 clCreateProgramWithSource ctx source = wrapPError $ \perr -> do
   let strings = lines source
       count = fromIntegral $ length strings
@@ -301,14 +301,12 @@ until the build has completed.
  * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
 by the OpenCL implementation on the host.  
 -}
-clBuildProgram :: CLProgram -> [CLDeviceID] -> String -> IO (Either CLError ())
+clBuildProgram :: CLProgram -> [CLDeviceID] -> String -> IO ()
 clBuildProgram prg devs opts = allocaArray ndevs $ \pdevs -> do
   pokeArray pdevs devs
   withCString opts $ \copts -> do
-    errcode <- raw_clBuildProgram prg cndevs pdevs copts nullFunPtr nullPtr
-    if errcode == (fromIntegral . fromEnum $ CL_SUCCESS)
-      then return $ Right ()
-      else return . Left . toEnum . fromIntegral $ errcode
+    whenSuccess (raw_clBuildProgram prg cndevs pdevs copts nullFunPtr nullPtr)
+      $ return ()
     where
       ndevs = length devs
       cndevs = fromIntegral ndevs
@@ -326,17 +324,15 @@ enum CLProgramInfo {
 #endc
 {#enum CLProgramInfo {upcaseFirstLetter} #}
 
-getProgramInfoSize :: CLProgram -> CLProgramInfo_ -> IO (Either CLError CSize)
+getProgramInfoSize :: CLProgram -> CLProgramInfo_ -> IO CSize
 getProgramInfoSize prg infoid = alloca $ \(value_size :: Ptr CSize) -> do
-  errcode <- raw_clGetProgramInfo prg infoid 0 nullPtr value_size
-  if errcode == (fromIntegral . fromEnum $ CL_SUCCESS)
-    then fmap Right $ peek value_size
-    else return . Left . toEnum . fromIntegral $ errcode
+  whenSuccess (raw_clGetProgramInfo prg infoid 0 nullPtr value_size)
+    $ peek value_size
   
 -- | Return the program reference count. The reference count returned should be
 -- considered immediately stale. It is unsuitable for general use in
 -- applications. This feature is provided for identifying memory leaks.
-clGetProgramReferenceCount :: CLProgram -> IO (Either CLError CLuint)
+clGetProgramReferenceCount :: CLProgram -> IO CLuint
 clGetProgramReferenceCount prg = wrapGetInfo (\(dat :: Ptr CLuint) 
                                               -> raw_clGetProgramInfo prg infoid size (castPtr dat)) id
     where 
@@ -344,7 +340,7 @@ clGetProgramReferenceCount prg = wrapGetInfo (\(dat :: Ptr CLuint)
       size = fromIntegral $ sizeOf (0::CLuint)
 
 -- | Return the context specified when the program object is created.
-clGetProgramContext :: CLProgram -> IO (Either CLError CLContext)
+clGetProgramContext :: CLProgram -> IO CLContext
 clGetProgramContext prg = wrapGetInfo (\(dat :: Ptr CLContext) 
                                        -> raw_clGetProgramInfo prg infoid size (castPtr dat)) id
     where 
@@ -352,7 +348,7 @@ clGetProgramContext prg = wrapGetInfo (\(dat :: Ptr CLContext)
       size = fromIntegral $ sizeOf (nullPtr::CLContext)
 
 -- | Return the number of devices associated with program.
-clGetProgramNumDevices :: CLProgram -> IO (Either CLError CLuint)
+clGetProgramNumDevices :: CLProgram -> IO CLuint
 clGetProgramNumDevices prg = wrapGetInfo (\(dat :: Ptr CLuint) 
                                        -> raw_clGetProgramInfo prg infoid size (castPtr dat)) id
     where 
@@ -363,16 +359,12 @@ clGetProgramNumDevices prg = wrapGetInfo (\(dat :: Ptr CLuint)
 -- the devices associated with context on which the program object has been
 -- created or can be a subset of devices that are specified when a progam object
 -- is created using 'clCreateProgramWithBinary'.
-clGetProgramDevices :: CLProgram -> IO (Either CLError [CLDeviceID])
+clGetProgramDevices :: CLProgram -> IO [CLDeviceID]
 clGetProgramDevices prg = do
-  sval <- getProgramInfoSize prg infoid
-  case sval of
-    Left err -> return . Left $ err
-    Right size -> allocaArray (numElems size) $ \(buff :: Ptr CLDeviceID) -> do
-      errcode <- raw_clGetProgramInfo prg infoid size (castPtr buff) nullPtr
-      if errcode == (fromIntegral . fromEnum $ CL_SUCCESS)
-        then fmap Right $ peekArray (numElems size) buff
-        else return . Left . toEnum . fromIntegral $ errcode
+  size <- getProgramInfoSize prg infoid
+  allocaArray (numElems size) $ \(buff :: Ptr CLDeviceID) -> do
+    whenSuccess (raw_clGetProgramInfo prg infoid size (castPtr buff) nullPtr)
+      $ peekArray (numElems size) buff
     where 
       infoid = getCLValue CL_PROGRAM_DEVICES
       numElems s = (fromIntegral s) `div` elemSize
@@ -384,16 +376,12 @@ clGetProgramDevices prg = do
 -- terminator. The concatenation strips any nulls in the original source
 -- strings. The actual number of characters that represents the program source
 -- code including the null terminator is returned in param_value_size_ret.
-clGetProgramSource :: CLProgram -> IO (Either CLError String)
+clGetProgramSource :: CLProgram -> IO String
 clGetProgramSource prg = do
-  sval <- getProgramInfoSize prg infoid
-  case sval of
-    Left err -> return . Left $ err
-    Right n -> allocaArray (fromIntegral n) $ \(buff :: CString) -> do
-      errcode <- raw_clGetProgramInfo prg infoid n (castPtr buff) nullPtr
-      if errcode == (fromIntegral . fromEnum $ CL_SUCCESS)
-        then fmap Right $ peekCString buff
-        else return . Left . toEnum . fromIntegral $ errcode
+  n <- getProgramInfoSize prg infoid
+  allocaArray (fromIntegral n) $ \(buff :: CString) -> do
+    whenSuccess (raw_clGetProgramInfo prg infoid n (castPtr buff) nullPtr)
+      $ peekCString buff
     where 
       infoid = getCLValue CL_PROGRAM_SOURCE
   
@@ -401,16 +389,12 @@ clGetProgramSource prg = do
 -- each device associated with program. The size of the array is the number of
 -- devices associated with program. If a binary is not available for a
 -- device(s), a size of zero is returned.
-clGetProgramBinarySizes :: CLProgram -> IO (Either CLError [CSize])
+clGetProgramBinarySizes :: CLProgram -> IO [CSize]
 clGetProgramBinarySizes prg = do
-  sval <- getProgramInfoSize prg infoid
-  case sval of
-    Left err -> return . Left $ err
-    Right size -> allocaArray (numElems size) $ \(buff :: Ptr CSize) -> do
-      errcode <- raw_clGetProgramInfo prg infoid size (castPtr buff) nullPtr
-      if errcode == (fromIntegral . fromEnum $ CL_SUCCESS)
-        then fmap Right $ peekArray (numElems size) buff
-        else return . Left . toEnum . fromIntegral $ errcode
+  size <- getProgramInfoSize prg infoid
+  allocaArray (numElems size) $ \(buff :: Ptr CSize) -> do
+    whenSuccess (raw_clGetProgramInfo prg infoid size (castPtr buff) nullPtr)
+      $ peekArray (numElems size) buff
     where 
       infoid = getCLValue CL_PROGRAM_BINARY_SIZES
       numElems s = (fromIntegral s) `div` elemSize
@@ -431,24 +415,17 @@ To find out which device the program binary in the array refers to, use the
 correspondence between the array of data returned by 'clGetProgramBinaries' and
 array of devices returned by 'clGetProgramDevices'.  
 -}
-clGetProgramBinaries :: CLProgram -> IO (Either CLError [[Word8]])
+clGetProgramBinaries :: CLProgram -> IO [[Word8]]
 clGetProgramBinaries prg = do
-  sval <- clGetProgramBinarySizes prg
-  case sval of
-    Left err -> return . Left $ err
-    Right sizes -> do
-      let numElems = length sizes
-          size = fromIntegral $ numElems * elemSize
-      buffers <- (mapM (mallocArray.fromIntegral) sizes) :: IO [Ptr Word8]
-      ret <- withArray buffers $ \(parray :: Ptr (Ptr Word8)) -> do
-        errcode <- raw_clGetProgramInfo prg infoid size (castPtr parray) nullPtr
-        if errcode == (fromIntegral . fromEnum $ CL_SUCCESS)
-          then do
-            vals <- zipWithM peekArray (map fromIntegral sizes) buffers
-            return . Right $ vals
-          else return . Left . toEnum . fromIntegral $ errcode
-      mapM_ free buffers
-      return ret
+  sizes <- clGetProgramBinarySizes prg
+  let numElems = length sizes
+      size = fromIntegral $ numElems * elemSize
+  buffers <- (mapM (mallocArray.fromIntegral) sizes) :: IO [Ptr Word8]
+  ret <- withArray buffers $ \(parray :: Ptr (Ptr Word8)) -> do
+    whenSuccess (raw_clGetProgramInfo prg infoid size (castPtr parray) nullPtr)
+      $ zipWithM peekArray (map fromIntegral sizes) buffers
+  mapM_ free buffers
+  return ret
     where 
       infoid = getCLValue CL_PROGRAM_BINARIES
       elemSize = sizeOf (nullPtr::Ptr Word8)
@@ -463,16 +440,14 @@ enum CLProgramBuildInfo {
 #endc
 {#enum CLProgramBuildInfo {upcaseFirstLetter} #}
 
-getProgramBuildInfoSize :: CLProgram -> CLDeviceID -> CLProgramInfo_ -> IO (Either CLError CSize)
-getProgramBuildInfoSize prg device infoid = alloca $ \(value_size :: Ptr CSize) -> do
-  errcode <- raw_clGetProgramBuildInfo prg device infoid 0 nullPtr value_size
-  if errcode == (fromIntegral . fromEnum $ CL_SUCCESS)
-    then fmap Right $ peek value_size
-    else return . Left . toEnum . fromIntegral $ errcode
+getProgramBuildInfoSize :: CLProgram -> CLDeviceID -> CLProgramInfo_ -> IO CSize
+getProgramBuildInfoSize prg device infoid = alloca $ \(val :: Ptr CSize) -> do
+  whenSuccess (raw_clGetProgramBuildInfo prg device infoid 0 nullPtr val)
+    $ peek val
   
 -- | Returns the build status of program for a specific device as given by
 -- device.
-clGetProgramBuildStatus :: CLProgram -> CLDeviceID -> IO (Either CLError CLBuildStatus)
+clGetProgramBuildStatus :: CLProgram -> CLDeviceID -> IO CLBuildStatus
 clGetProgramBuildStatus prg device = wrapGetInfo (\(dat :: Ptr CLBuildStatus_) 
                                            -> raw_clGetProgramBuildInfo prg device infoid size (castPtr dat)) getEnumCL
     where 
@@ -482,31 +457,23 @@ clGetProgramBuildStatus prg device = wrapGetInfo (\(dat :: Ptr CLBuildStatus_)
 -- | Return the build options specified by the options argument in
 -- clBuildProgram for device. If build status of program for device is
 -- 'CL_BUILD_NONE', an empty string is returned.
-clGetProgramBuildOptions :: CLProgram -> CLDeviceID -> IO (Either CLError String)
+clGetProgramBuildOptions :: CLProgram -> CLDeviceID -> IO String
 clGetProgramBuildOptions prg device = do
-  sval <- getProgramBuildInfoSize prg device infoid
-  case sval of
-    Left err -> return . Left $ err
-    Right n -> allocaArray (fromIntegral n) $ \(buff :: CString) -> do
-      errcode <- raw_clGetProgramBuildInfo prg device infoid n (castPtr buff) nullPtr
-      if errcode == (fromIntegral . fromEnum $ CL_SUCCESS)
-        then fmap Right $ peekCString buff
-        else return . Left . toEnum . fromIntegral $ errcode
+  n <- getProgramBuildInfoSize prg device infoid
+  allocaArray (fromIntegral n) $ \(buff :: CString) -> do
+    whenSuccess (raw_clGetProgramBuildInfo prg device infoid n (castPtr buff) nullPtr)
+      $ peekCString buff
     where 
       infoid = getCLValue CL_PROGRAM_BUILD_OPTIONS
   
 -- | Return the build log when 'clBuildProgram' was called for device. If build
 -- status of program for device is 'CL_BUILD_NONE', an empty string is returned.
-clGetProgramBuildLog :: CLProgram -> CLDeviceID -> IO (Either CLError String)
+clGetProgramBuildLog :: CLProgram -> CLDeviceID -> IO String
 clGetProgramBuildLog prg device = do
-  sval <- getProgramBuildInfoSize prg device infoid
-  case sval of
-    Left err -> return . Left $ err
-    Right n -> allocaArray (fromIntegral n) $ \(buff :: CString) -> do
-      errcode <- raw_clGetProgramBuildInfo prg device infoid n (castPtr buff) nullPtr
-      if errcode == (fromIntegral . fromEnum $ CL_SUCCESS)
-        then fmap Right $ peekCString buff
-        else return . Left . toEnum . fromIntegral $ errcode
+  n <- getProgramBuildInfoSize prg device infoid
+  allocaArray (fromIntegral n) $ \(buff :: CString) -> do
+    whenSuccess (raw_clGetProgramBuildInfo prg device infoid n (castPtr buff) nullPtr)
+      $ peekCString buff
     where 
       infoid = getCLValue CL_PROGRAM_BUILD_LOG
   
@@ -535,7 +502,7 @@ built.
  * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
 by the OpenCL implementation on the host.  
 -}
-clCreateKernel :: CLProgram -> String -> IO (Either CLError CLKernel)
+clCreateKernel :: CLProgram -> String -> IO CLKernel
 clCreateKernel prg name = withCString name $ \cname -> wrapPError $ \perr -> do
   raw_clCreateKernel prg cname perr
 
@@ -563,21 +530,14 @@ successfully built executable for any device in program and returns
 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required by
 the OpenCL implementation on the host.
 -}
-clCreateKernelsInProgram :: CLProgram -> IO (Either CLError [CLKernel])
+clCreateKernelsInProgram :: CLProgram -> IO [CLKernel]
 clCreateKernelsInProgram prg = do
-  nks <- alloca $ \pn -> do
-    errcode <- raw_clCreateKernelsInProgram prg 0 nullPtr pn
-    if errcode == (getCLValue CL_SUCCESS)
-      then peek pn >>= (return . Right)
-      else return $ Left errcode
-  
-  case nks of
-    Left err -> return . Left . getEnumCL $ err
-    Right n -> allocaArray (fromIntegral n) $ \pks -> do
-      errcode <- raw_clCreateKernelsInProgram prg n pks nullPtr
-      if errcode == (getCLValue CL_SUCCESS)
-        then peekArray (fromIntegral n) pks >>= (return . Right)
-        else return . Left .getEnumCL $ errcode
+  n <- alloca $ \pn -> do
+    whenSuccess (raw_clCreateKernelsInProgram prg 0 nullPtr pn)
+      $ peek pn  
+  allocaArray (fromIntegral n) $ \pks -> do
+    whenSuccess (raw_clCreateKernelsInProgram prg n pks nullPtr)
+      $ peekArray (fromIntegral n) pks
 
 -- | Increments the program program reference count. 'clRetainKernel' returns
 -- 'True' if the function is executed successfully. 'clCreateKernel' or
@@ -628,12 +588,10 @@ object and arg_size != sizeof(cl_mem) or if arg_size is zero and the argument is
 declared with the __local qualifier or if the argument is a sampler and arg_size
 != sizeof(cl_sampler).  
 -}
-clSetKernelArg :: Storable a => CLKernel -> CLuint -> a -> IO (Either CLError ())
+clSetKernelArg :: Storable a => CLKernel -> CLuint -> a -> IO ()
 clSetKernelArg krn idx val = with val $ \pval -> do
-  errcode <- raw_clSetKernelArg krn idx (fromIntegral . sizeOf $ val) (castPtr pval)
-  if errcode == (fromIntegral . fromEnum $ CL_SUCCESS)
-    then return $ Right ()
-    else return . Left . toEnum . fromIntegral $ errcode
+  whenSuccess (raw_clSetKernelArg krn idx (fromIntegral . sizeOf $ val) (castPtr pval))
+    $ return ()
 
 #c
 enum CLKernelInfo {
@@ -646,29 +604,23 @@ enum CLKernelInfo {
 #endc
 {#enum CLKernelInfo {upcaseFirstLetter} #}
 
-getKernelInfoSize :: CLKernel -> CLKernelInfo_ -> IO (Either CLError CSize)
-getKernelInfoSize krn infoid = alloca $ \(value_size :: Ptr CSize) -> do
-  errcode <- raw_clGetKernelInfo krn infoid 0 nullPtr value_size
-  if errcode == (fromIntegral . fromEnum $ CL_SUCCESS)
-    then fmap Right $ peek value_size
-    else return . Left . toEnum . fromIntegral $ errcode
+getKernelInfoSize :: CLKernel -> CLKernelInfo_ -> IO CSize
+getKernelInfoSize krn infoid = alloca $ \(val :: Ptr CSize) -> do
+  whenSuccess (raw_clGetKernelInfo krn infoid 0 nullPtr val)
+    $ peek val
   
 -- | Return the kernel function name.
-clGetKernelFunctionName :: CLKernel -> IO (Either CLError String)
+clGetKernelFunctionName :: CLKernel -> IO String
 clGetKernelFunctionName krn = do
-  sval <- getKernelInfoSize krn infoid
-  case sval of
-    Left err -> return . Left $ err
-    Right n -> allocaArray (fromIntegral n) $ \(buff :: CString) -> do
-      errcode <- raw_clGetKernelInfo krn infoid n (castPtr buff) nullPtr
-      if errcode == (fromIntegral . fromEnum $ CL_SUCCESS)
-        then fmap Right $ peekCString buff
-        else return . Left . toEnum . fromIntegral $ errcode
+  n <- getKernelInfoSize krn infoid
+  allocaArray (fromIntegral n) $ \(buff :: CString) -> do
+    whenSuccess (raw_clGetKernelInfo krn infoid n (castPtr buff) nullPtr)
+      $ peekCString buff
     where 
       infoid = getCLValue CL_KERNEL_FUNCTION_NAME
 
 -- | Return the number of arguments to kernel.
-clGetKernelNumArgs :: CLKernel -> IO (Either CLError CLuint)
+clGetKernelNumArgs :: CLKernel -> IO CLuint
 clGetKernelNumArgs krn = wrapGetInfo (\(dat :: Ptr CLuint) 
                                       -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
     where 
@@ -678,7 +630,7 @@ clGetKernelNumArgs krn = wrapGetInfo (\(dat :: Ptr CLuint)
 -- | Return the kernel reference count. The reference count returned should be
 -- considered immediately stale. It is unsuitable for general use in
 -- applications. This feature is provided for identifying memory leaks.
-clGetKernelReferenceCount :: CLKernel -> IO (Either CLError CLuint)
+clGetKernelReferenceCount :: CLKernel -> IO CLuint
 clGetKernelReferenceCount krn = wrapGetInfo (\(dat :: Ptr CLuint) 
                                              -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
     where 
@@ -686,7 +638,7 @@ clGetKernelReferenceCount krn = wrapGetInfo (\(dat :: Ptr CLuint)
       size = fromIntegral $ sizeOf (0::CLuint)
 
 -- | Return the context associated with kernel.
-clGetKernelContext :: CLKernel -> IO (Either CLError CLContext)
+clGetKernelContext :: CLKernel -> IO CLContext
 clGetKernelContext krn = wrapGetInfo (\(dat :: Ptr CLContext) 
                                       -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
     where 
@@ -694,7 +646,7 @@ clGetKernelContext krn = wrapGetInfo (\(dat :: Ptr CLContext)
       size = fromIntegral $ sizeOf (nullPtr::CLContext)
 
 -- | Return the program object associated with kernel.
-clGetKernelProgram :: CLKernel -> IO (Either CLError CLProgram)
+clGetKernelProgram :: CLKernel -> IO CLProgram
 clGetKernelProgram krn = wrapGetInfo (\(dat :: Ptr CLProgram) 
                                       -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
     where 
@@ -716,7 +668,7 @@ enum CLKernelGroupInfo {
 -- device. The OpenCL implementation uses the resource requirements of the
 -- kernel (register usage etc.) to determine what this work-group size should
 -- be.
-clGetKernelWorkGroupSize :: CLKernel -> CLDeviceID -> IO (Either CLError CSize)
+clGetKernelWorkGroupSize :: CLKernel -> CLDeviceID -> IO CSize
 clGetKernelWorkGroupSize krn device = wrapGetInfo (\(dat :: Ptr CSize)
                                                    -> raw_clGetKernelWorkGroupInfo krn device infoid size (castPtr dat)) id
     where
@@ -727,13 +679,11 @@ clGetKernelWorkGroupSize krn device = wrapGetInfo (\(dat :: Ptr CSize)
 -- oup_size(X, Y, Z))) qualifier. See Function Qualifiers. If the work-group
 -- size is not specified using the above attribute qualifier (0, 0, 0) is
 -- returned.
-clGetKernelCompileWorkGroupSize :: CLKernel -> CLDeviceID -> IO (Either CLError [CSize])
+clGetKernelCompileWorkGroupSize :: CLKernel -> CLDeviceID -> IO [CSize]
 clGetKernelCompileWorkGroupSize krn device = do
   allocaArray num $ \(buff :: Ptr CSize) -> do
-    errcode <- raw_clGetKernelWorkGroupInfo krn device infoid size (castPtr buff) nullPtr
-    if errcode == (fromIntegral . fromEnum $ CL_SUCCESS)
-      then fmap Right $ peekArray num buff
-      else return . Left . toEnum . fromIntegral $ errcode
+    whenSuccess (raw_clGetKernelWorkGroupInfo krn device infoid size (castPtr buff) nullPtr)
+      $ peekArray num buff
     where 
       infoid = getCLValue CL_KERNEL_COMPILE_WORK_GROUP_SIZE
       num = 3
@@ -751,7 +701,7 @@ clGetKernelCompileWorkGroupSize krn device = do
 -- If the local memory size, for any pointer argument to the kernel declared
 -- with the __local address qualifier, is not specified, its size is assumed to
 -- be 0.
-clGetKernelLocalMemSize :: CLKernel -> CLDeviceID -> IO (Either CLError CLulong)
+clGetKernelLocalMemSize :: CLKernel -> CLDeviceID -> IO CLulong
 clGetKernelLocalMemSize krn device = wrapGetInfo (\(dat :: Ptr CLulong)
                                                   -> raw_clGetKernelWorkGroupInfo krn device infoid size (castPtr dat)) id
     where

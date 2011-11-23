@@ -38,7 +38,8 @@ module System.GPU.OpenCL(
   module System.GPU.OpenCL.CommandQueue, 
   module System.GPU.OpenCL.Memory,
   module System.GPU.OpenCL.Event,
-  module System.GPU.OpenCL.Program )
+  module System.GPU.OpenCL.Program
+  )
        where
 
 -- -----------------------------------------------------------------------------
