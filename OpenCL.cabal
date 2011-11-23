@@ -16,9 +16,9 @@ Tested-With: GHC
 Description: 
     Haskell FFI binding to OpenCL library. It includes high-level wrappers to
     help development. Based on OpenCLRaw package.
-
+    .
     Most of the functions can throw a 'CLError' Exception. Using the module
-    'Control.Exception' helps to work with Exceptions.
+    'Control.Exception' helps to work with this package Exceptions.
 
 Extra-source-files: README.org 
                     examples/example01.hs
