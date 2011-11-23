@@ -34,11 +34,12 @@ module System.GPU.OpenCL.Program(
   -- * Types
   CLProgram, CLBuildStatus(..), CLKernel,
   -- * Program Functions
-  clCreateProgramWithSource, clRetainProgram, clReleaseProgram, 
-  clUnloadCompiler, clBuildProgram, clGetProgramReferenceCount, 
-  clGetProgramContext, clGetProgramNumDevices, clGetProgramDevices,
-  clGetProgramSource, clGetProgramBinarySizes, clGetProgramBinaries, 
-  clGetProgramBuildStatus, clGetProgramBuildOptions, clGetProgramBuildLog,
+  clCreateProgramWithSource, clCreateProgramWithBinary, clRetainProgram, 
+  clReleaseProgram, clUnloadCompiler, clBuildProgram, 
+  clGetProgramReferenceCount, clGetProgramContext, clGetProgramNumDevices, 
+  clGetProgramDevices, clGetProgramSource, clGetProgramBinarySizes, 
+  clGetProgramBinaries, clGetProgramBuildStatus, clGetProgramBuildOptions, 
+  clGetProgramBuildLog,
   -- * Kernel Functions
   clCreateKernel, clCreateKernelsInProgram, clRetainKernel, clReleaseKernel, 
   clSetKernelArg, clGetKernelFunctionName, clGetKernelNumArgs, 
@@ -48,12 +49,12 @@ module System.GPU.OpenCL.Program(
   ) where
 
 -- -----------------------------------------------------------------------------
-import Control.Monad( zipWithM )
+import Control.Monad( zipWithM, forM )
 import Foreign
 import Foreign.C.Types
 import Foreign.C.String( CString, withCString, newCString, peekCString )
 import System.GPU.OpenCL.Types( 
-  CLint, CLuint, CLulong, CLProgram, CLContext, CLKernel, CLDeviceID, 
+  CLint, CLuint, CLulong, CLProgram, CLContext, CLKernel, CLDeviceID, CLError,
   CLProgramInfo_, CLBuildStatus(..), CLBuildStatus_, CLProgramBuildInfo_, 
   CLKernelInfo_, CLKernelWorkGroupInfo_, wrapCheckSuccess, 
   whenSuccess, wrapPError, wrapGetInfo, getCLValue, getEnumCL )
@@ -64,8 +65,8 @@ import System.GPU.OpenCL.Types(
 type BuildCallback = CLProgram -> Ptr () -> IO ()
 foreign import CALLCONV "clCreateProgramWithSource" raw_clCreateProgramWithSource :: 
   CLContext -> CLuint -> Ptr CString -> Ptr CSize -> Ptr CLint -> IO CLProgram
---foreign import CALLCONV "clCreateProgramWithBinary" raw_clCreateProgramWithBinary :: 
---  CLContext -> CLuint -> Ptr CLDeviceID -> Ptr CSize -> Ptr (Ptr Word8) -> Ptr CLint -> Ptr CLint -> IO CLProgram
+foreign import CALLCONV "clCreateProgramWithBinary" raw_clCreateProgramWithBinary :: 
+  CLContext -> CLuint -> Ptr CLDeviceID -> Ptr CSize -> Ptr (Ptr Word8) -> Ptr CLint -> Ptr CLint -> IO CLProgram
 foreign import CALLCONV "clRetainProgram" raw_clRetainProgram :: 
   CLProgram -> IO CLint
 foreign import CALLCONV "clReleaseProgram" raw_clReleaseProgram :: 
@@ -117,8 +118,8 @@ functions. The program executable can be generated online or offline by the
 OpenCL compiler for the appropriate target device(s).
 
 'clCreateProgramWithSource' returns a valid non-zero program object if the
-program object is created successfully. Otherwise, it returns one of the
-following error values:
+program object is created successfully. Otherwise, it throws one of the
+following 'CLError' exceptions:
 
  * 'CL_INVALID_CONTEXT' if context is not a valid context.
 
@@ -135,6 +136,71 @@ clCreateProgramWithSource ctx source = wrapPError $ \perr -> do
   mapM_ free cstrings
   return prog
   
+{-| Creates a program object for a context, and loads specified binary data into
+the program object.
+
+The program binaries specified by binaries contain the bits that describe the
+program executable that will be run on the device(s) associated with
+context. The program binary can consist of either or both of device-specific
+executable(s), and/or implementation-specific intermediate representation (IR)
+which will be converted to the device-specific executable.
+
+OpenCL allows applications to create a program object using the program
+source or binary and build appropriate program executables. This allows
+applications to determine whether they want to use the pre-built offline binary
+or load and compile the program source and use the executable compiled/linked
+online as the program executable. This can be very useful as it allows
+applications to load and build program executables online on its first instance
+for appropriate OpenCL devices in the system. These executables can now be
+queried and cached by the application. Future instances of the application
+launching will no longer need to compile and build the program executables. The
+cached executables can be read and loaded by the application, which can help
+significantly reduce the application initialization time.
+
+Returns a valid non-zero program object and a list of 'CLError' values whether
+the program binary for each device specified in device_list was loaded
+successfully or not. It is list of the same length the list of devices with
+'CL_SUCCESS' if binary was successfully loaded for device specified by same
+position; otherwise returns 'CL_INVALID_VALUE' if length of binary is zero or
+'CL_INVALID_BINARY' if program binary is not a valid binary
+for the specified device.
+
+The function can throw on of the following 'CLError' exceptions:
+
+ * 'CL_INVALID_CONTEXT' if context is not a valid context.  
+
+ * 'CL_INVALID_VALUE' if the device list is empty; or if lengths or binaries are
+empty.
+
+ * 'CL_INVALID_DEVICE' if OpenCL devices listed in the device list are not in
+the list of devices associated with context.
+
+ * 'CL_INVALID_BINARY' if an invalid program binary was encountered for any
+device.
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.  
+-} 
+clCreateProgramWithBinary :: CLContext -> [CLDeviceID] -> [[Word8]] 
+                             -> IO (CLProgram, [CLError])
+clCreateProgramWithBinary ctx devs bins = wrapPError $ \perr -> do withArray
+devs $ \pdevs -> do withArray lbins $ \plbins -> do buffs <- forM bins $ \bs ->
+do buff <- mallocArray (length bs) :: IO (Ptr Word8) pokeArray buff bs return
+buff
+
+      ret <- withArray buffs $ \(pbuffs :: Ptr (Ptr Word8)) -> do
+        allocaArray ndevs $ \(perrs :: Ptr CLint) -> do
+          prog <- raw_clCreateProgramWithBinary ctx (fromIntegral ndevs) pdevs plbins pbuffs perrs perr
+          errs <- peekArray ndevs perrs
+          return (prog, map getEnumCL errs)
+          
+      mapM_ free buffs
+      return ret
+    
+    where
+      lbins = map (fromIntegral . length) bins :: [CSize]
+      ndevs = length devs
+
 -- | Increments the program reference count. 'clRetainProgram' returns 'True' if 
 -- the function is executed successfully. It returns 'False' if program is not a 
 -- valid program object.
@@ -270,7 +336,7 @@ but control the kinds of diagnostics produced by the OpenCL compiler.
  
  [-Werror] Make all warnings into errors.
 
-clBuildProgram returns the following errors when fails:
+clBuildProgram can throw the following 'CLError' exceptions when fails:
 
  * 'CL_INVALID_PROGRAM' if program is not a valid program object.
 
@@ -332,6 +398,9 @@ getProgramInfoSize prg infoid = alloca $ \(value_size :: Ptr CSize) -> do
 -- | Return the program reference count. The reference count returned should be
 -- considered immediately stale. It is unsuitable for general use in
 -- applications. This feature is provided for identifying memory leaks.
+--
+-- This function execute OpenCL clGetProgramInfo with
+-- 'CL_PROGRAM_REFERENCE_COUNT'.
 clGetProgramReferenceCount :: CLProgram -> IO CLuint
 clGetProgramReferenceCount prg = wrapGetInfo (\(dat :: Ptr CLuint) 
                                               -> raw_clGetProgramInfo prg infoid size (castPtr dat)) id
@@ -340,6 +409,8 @@ clGetProgramReferenceCount prg = wrapGetInfo (\(dat :: Ptr CLuint)
       size = fromIntegral $ sizeOf (0::CLuint)
 
 -- | Return the context specified when the program object is created.
+--
+-- This function execute OpenCL clGetProgramInfo with 'CL_PROGRAM_CONTEXT'.
 clGetProgramContext :: CLProgram -> IO CLContext
 clGetProgramContext prg = wrapGetInfo (\(dat :: Ptr CLContext) 
                                        -> raw_clGetProgramInfo prg infoid size (castPtr dat)) id
@@ -348,6 +419,8 @@ clGetProgramContext prg = wrapGetInfo (\(dat :: Ptr CLContext)
       size = fromIntegral $ sizeOf (nullPtr::CLContext)
 
 -- | Return the number of devices associated with program.
+--
+-- This function execute OpenCL clGetProgramInfo with 'CL_PROGRAM_NUM_DEVICES'.
 clGetProgramNumDevices :: CLProgram -> IO CLuint
 clGetProgramNumDevices prg = wrapGetInfo (\(dat :: Ptr CLuint) 
                                        -> raw_clGetProgramInfo prg infoid size (castPtr dat)) id
@@ -359,6 +432,8 @@ clGetProgramNumDevices prg = wrapGetInfo (\(dat :: Ptr CLuint)
 -- the devices associated with context on which the program object has been
 -- created or can be a subset of devices that are specified when a progam object
 -- is created using 'clCreateProgramWithBinary'.
+--
+-- This function execute OpenCL clGetProgramInfo with 'CL_PROGRAM_DEVICES'.
 clGetProgramDevices :: CLProgram -> IO [CLDeviceID]
 clGetProgramDevices prg = do
   size <- getProgramInfoSize prg infoid
@@ -376,6 +451,8 @@ clGetProgramDevices prg = do
 -- terminator. The concatenation strips any nulls in the original source
 -- strings. The actual number of characters that represents the program source
 -- code including the null terminator is returned in param_value_size_ret.
+--
+-- This function execute OpenCL clGetProgramInfo with 'CL_PROGRAM_SOURCE'.
 clGetProgramSource :: CLProgram -> IO String
 clGetProgramSource prg = do
   n <- getProgramInfoSize prg infoid
@@ -389,6 +466,8 @@ clGetProgramSource prg = do
 -- each device associated with program. The size of the array is the number of
 -- devices associated with program. If a binary is not available for a
 -- device(s), a size of zero is returned.
+--
+-- This function execute OpenCL clGetProgramInfo with 'CL_PROGRAM_BINARY_SIZES'.
 clGetProgramBinarySizes :: CLProgram -> IO [CSize]
 clGetProgramBinarySizes prg = do
   size <- getProgramInfoSize prg infoid
@@ -414,6 +493,8 @@ To find out which device the program binary in the array refers to, use the
 'clGetProgramDevices' query to get the list of devices. There is a one-to-one
 correspondence between the array of data returned by 'clGetProgramBinaries' and
 array of devices returned by 'clGetProgramDevices'.  
+
+This function execute OpenCL clGetProgramInfo with 'CL_PROGRAM_BINARIES'.
 -}
 clGetProgramBinaries :: CLProgram -> IO [[Word8]]
 clGetProgramBinaries prg = do
@@ -447,6 +528,9 @@ getProgramBuildInfoSize prg device infoid = alloca $ \(val :: Ptr CSize) -> do
   
 -- | Returns the build status of program for a specific device as given by
 -- device.
+--
+-- This function execute OpenCL clGetProgramBuildInfo with
+-- 'CL_PROGRAM_BUILD_STATUS'.
 clGetProgramBuildStatus :: CLProgram -> CLDeviceID -> IO CLBuildStatus
 clGetProgramBuildStatus prg device = wrapGetInfo (\(dat :: Ptr CLBuildStatus_) 
                                            -> raw_clGetProgramBuildInfo prg device infoid size (castPtr dat)) getEnumCL
@@ -457,6 +541,9 @@ clGetProgramBuildStatus prg device = wrapGetInfo (\(dat :: Ptr CLBuildStatus_)
 -- | Return the build options specified by the options argument in
 -- clBuildProgram for device. If build status of program for device is
 -- 'CL_BUILD_NONE', an empty string is returned.
+--
+-- This function execute OpenCL clGetProgramBuildInfo with
+-- 'CL_PROGRAM_BUILD_OPTIONS'.
 clGetProgramBuildOptions :: CLProgram -> CLDeviceID -> IO String
 clGetProgramBuildOptions prg device = do
   n <- getProgramBuildInfoSize prg device infoid
@@ -468,6 +555,9 @@ clGetProgramBuildOptions prg device = do
   
 -- | Return the build log when 'clBuildProgram' was called for device. If build
 -- status of program for device is 'CL_BUILD_NONE', an empty string is returned.
+--
+-- This function execute OpenCL clGetProgramBuildInfo with
+-- 'CL_PROGRAM_BUILD_LOG'.
 clGetProgramBuildLog :: CLProgram -> CLDeviceID -> IO String
 clGetProgramBuildLog prg device = do
   n <- getProgramBuildInfoSize prg device infoid
@@ -485,7 +575,8 @@ a program and the argument values to be used when executing this __kernel
 function.
 
 'clCreateKernel' returns a valid non-zero kernel object if the kernel object is
-created successfully. Otherwise, it returns one of the following error values:
+created successfully. Otherwise, it throws one of the following 'CLError'
+exceptions:
 
  * 'CL_INVALID_PROGRAM' if program is not a valid program object.
 
@@ -524,9 +615,9 @@ for which a valid program executable has been built can be used to execute
 kernels declared in the program object.
 
 'clCreateKernelsInProgram' will return the kernel objects if the kernel objects
-were successfully allocated, returns 'CL_INVALID_PROGRAM' if program is not a
-valid program object, returns 'CL_INVALID_PROGRAM_EXECUTABLE' if there is no
-successfully built executable for any device in program and returns
+were successfully allocated, throws 'CL_INVALID_PROGRAM' if program is not a
+valid program object, throws 'CL_INVALID_PROGRAM_EXECUTABLE' if there is no
+successfully built executable for any device in program and throws
 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required by
 the OpenCL implementation on the host.
 -}
@@ -567,7 +658,7 @@ kernel args, that would make it impossible for the user to tell with certainty
 when he may safely release user allocated resources associated with OpenCL
 objects such as the CLMem backing store used with 'CL_MEM_USE_HOST_PTR'.
 
-'clSetKernelArg' returns returns one of the following errors when fails:
+'clSetKernelArg' throws one of the following 'CLError' exceptions when fails:
 
  * 'CL_INVALID_KERNEL' if kernel is not a valid kernel object.
  
@@ -610,6 +701,8 @@ getKernelInfoSize krn infoid = alloca $ \(val :: Ptr CSize) -> do
     $ peek val
   
 -- | Return the kernel function name.
+--
+-- This function execute OpenCL clGetKernelInfo with 'CL_KERNEL_FUNCTION_NAME'.
 clGetKernelFunctionName :: CLKernel -> IO String
 clGetKernelFunctionName krn = do
   n <- getKernelInfoSize krn infoid
@@ -620,6 +713,8 @@ clGetKernelFunctionName krn = do
       infoid = getCLValue CL_KERNEL_FUNCTION_NAME
 
 -- | Return the number of arguments to kernel.
+--
+-- This function execute OpenCL clGetKernelInfo with 'CL_KERNEL_NUM_ARGS'.
 clGetKernelNumArgs :: CLKernel -> IO CLuint
 clGetKernelNumArgs krn = wrapGetInfo (\(dat :: Ptr CLuint) 
                                       -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
@@ -630,6 +725,9 @@ clGetKernelNumArgs krn = wrapGetInfo (\(dat :: Ptr CLuint)
 -- | Return the kernel reference count. The reference count returned should be
 -- considered immediately stale. It is unsuitable for general use in
 -- applications. This feature is provided for identifying memory leaks.
+--
+-- This function execute OpenCL clGetKernelInfo with
+-- 'CL_KERNEL_REFERENCE_COUNT'.
 clGetKernelReferenceCount :: CLKernel -> IO CLuint
 clGetKernelReferenceCount krn = wrapGetInfo (\(dat :: Ptr CLuint) 
                                              -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
@@ -638,6 +736,8 @@ clGetKernelReferenceCount krn = wrapGetInfo (\(dat :: Ptr CLuint)
       size = fromIntegral $ sizeOf (0::CLuint)
 
 -- | Return the context associated with kernel.
+--
+-- This function execute OpenCL clGetKernelInfo with 'CL_KERNEL_CONTEXT'.
 clGetKernelContext :: CLKernel -> IO CLContext
 clGetKernelContext krn = wrapGetInfo (\(dat :: Ptr CLContext) 
                                       -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
@@ -646,6 +746,8 @@ clGetKernelContext krn = wrapGetInfo (\(dat :: Ptr CLContext)
       size = fromIntegral $ sizeOf (nullPtr::CLContext)
 
 -- | Return the program object associated with kernel.
+--
+-- This function execute OpenCL clGetKernelInfo with 'CL_KERNEL_PROGRAM'.
 clGetKernelProgram :: CLKernel -> IO CLProgram
 clGetKernelProgram krn = wrapGetInfo (\(dat :: Ptr CLProgram) 
                                       -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
@@ -668,6 +770,9 @@ enum CLKernelGroupInfo {
 -- device. The OpenCL implementation uses the resource requirements of the
 -- kernel (register usage etc.) to determine what this work-group size should
 -- be.
+--
+-- This function execute OpenCL clGetKernelWorkGroupInfo with
+-- 'CL_KERNEL_WORK_GROUP_SIZE'.
 clGetKernelWorkGroupSize :: CLKernel -> CLDeviceID -> IO CSize
 clGetKernelWorkGroupSize krn device = wrapGetInfo (\(dat :: Ptr CSize)
                                                    -> raw_clGetKernelWorkGroupInfo krn device infoid size (castPtr dat)) id
@@ -679,6 +784,9 @@ clGetKernelWorkGroupSize krn device = wrapGetInfo (\(dat :: Ptr CSize)
 -- oup_size(X, Y, Z))) qualifier. See Function Qualifiers. If the work-group
 -- size is not specified using the above attribute qualifier (0, 0, 0) is
 -- returned.
+--
+-- This function execute OpenCL clGetKernelWorkGroupInfo with
+-- 'CL_KERNEL_COMPILE_WORK_GROUP_SIZE'.
 clGetKernelCompileWorkGroupSize :: CLKernel -> CLDeviceID -> IO [CSize]
 clGetKernelCompileWorkGroupSize krn device = do
   allocaArray num $ \(buff :: Ptr CSize) -> do
@@ -701,6 +809,9 @@ clGetKernelCompileWorkGroupSize krn device = do
 -- If the local memory size, for any pointer argument to the kernel declared
 -- with the __local address qualifier, is not specified, its size is assumed to
 -- be 0.
+--
+-- This function execute OpenCL clGetKernelWorkGroupInfo with
+-- 'CL_KERNEL_LOCAL_MEM_SIZE'.
 clGetKernelLocalMemSize :: CLKernel -> CLDeviceID -> IO CLulong
 clGetKernelLocalMemSize krn device = wrapGetInfo (\(dat :: Ptr CLulong)
                                                   -> raw_clGetKernelWorkGroupInfo krn device infoid size (castPtr dat)) id

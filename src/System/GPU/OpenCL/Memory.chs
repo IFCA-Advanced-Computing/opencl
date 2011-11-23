@@ -88,7 +88,7 @@ foreign import CALLCONV "clGetSamplerInfo" raw_clGetSamplerInfo ::
 
 -- -----------------------------------------------------------------------------
 {-| Creates a buffer object. Returns a valid non-zero buffer object if the
-buffer object is created successfully. Otherwise, it returns: 
+buffer object is created successfully. Otherwise, it throws the 'CLError': 
 
  * 'CL_INVALID_CONTEXT' if context is not a valid context.
 
@@ -143,6 +143,8 @@ enum CLMemInfo {
 {#enum CLMemInfo {upcaseFirstLetter} #}
 
 -- | Returns the mem object type.
+--
+-- This function execute OpenCL clGetMemObjectInfo with 'CL_MEM_TYPE'.
 clGetMemType :: CLMem -> IO CLMemObjectType
 clGetMemType mem = wrapGetInfo (\(dat :: Ptr CLMemObjectType_) 
                                 -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) getEnumCL
@@ -151,6 +153,8 @@ clGetMemType mem = wrapGetInfo (\(dat :: Ptr CLMemObjectType_)
       size = fromIntegral $ sizeOf (0::CLMemObjectType_)
 
 -- | Return the flags argument value specified when memobj was created.
+--
+-- This function execute OpenCL clGetMemObjectInfo with 'CL_MEM_FLAGS'.
 clGetMemFlags :: CLMem -> IO [CLMemFlag]
 clGetMemFlags mem = wrapGetInfo (\(dat :: Ptr CLMemFlags_)
                                   -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) bitmaskToMemFlags
@@ -159,6 +163,8 @@ clGetMemFlags mem = wrapGetInfo (\(dat :: Ptr CLMemFlags_)
       size = fromIntegral $ sizeOf (0::CLMemFlags_)
 
 -- | Return actual size of memobj in bytes.
+--
+-- This function execute OpenCL clGetMemObjectInfo with 'CL_MEM_SIZE'.
 clGetMemSize :: CLMem -> IO CSize
 clGetMemSize mem = wrapGetInfo (\(dat :: Ptr CSize)
                                  -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
@@ -167,6 +173,8 @@ clGetMemSize mem = wrapGetInfo (\(dat :: Ptr CSize)
       size = fromIntegral $ sizeOf (0::CSize)
 
 -- | Return the host_ptr argument value specified when memobj is created.
+--
+-- This function execute OpenCL clGetMemObjectInfo with 'CL_MEM_HOST_PTR'.
 clGetMemHostPtr :: CLMem -> IO (Ptr ())
 clGetMemHostPtr mem = wrapGetInfo (\(dat :: Ptr (Ptr ()))
                                    -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
@@ -177,6 +185,8 @@ clGetMemHostPtr mem = wrapGetInfo (\(dat :: Ptr (Ptr ()))
 -- | Map count. The map count returned should be considered immediately
 -- stale. It is unsuitable for general use in applications. This feature is
 -- provided for debugging.
+--
+-- This function execute OpenCL clGetMemObjectInfo with 'CL_MEM_MAP_COUNT'.
 clGetMemMapCount :: CLMem -> IO CLuint
 clGetMemMapCount mem = wrapGetInfo (\(dat :: Ptr CLuint)
                                    -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
@@ -187,6 +197,8 @@ clGetMemMapCount mem = wrapGetInfo (\(dat :: Ptr CLuint)
 -- | Return memobj reference count. The reference count returned should be
 -- considered immediately stale. It is unsuitable for general use in
 -- applications. This feature is provided for identifying memory leaks.
+--
+-- This function execute OpenCL clGetMemObjectInfo with 'CL_MEM_REFERENCE_COUNT'.
 clGetMemReferenceCount :: CLMem -> IO CLuint
 clGetMemReferenceCount mem = wrapGetInfo (\(dat :: Ptr CLuint)
                                    -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
@@ -195,6 +207,8 @@ clGetMemReferenceCount mem = wrapGetInfo (\(dat :: Ptr CLuint)
       size = fromIntegral $ sizeOf (0 :: CLuint)
 
 -- | Return context specified when memory object is created.
+--
+-- This function execute OpenCL clGetMemObjectInfo with 'CL_MEM_CONTEXT'.
 clGetMemContext :: CLMem -> IO CLContext
 clGetMemContext mem = wrapGetInfo (\(dat :: Ptr CLContext)
                                    -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
@@ -212,7 +226,7 @@ kernel. In this section we discuss how sampler objects are created using OpenCL
 functions.
 
 Returns a valid non-zero sampler object if the sampler object is created
-successfully. Otherwise, it returns one of the following error values:
+successfully. Otherwise, it throws one of the following 'CLError' exceptions:
 
  * 'CL_INVALID_CONTEXT' if context is not a valid context.
 
@@ -259,6 +273,9 @@ enum CLSamplerInfo {
 -- | Return the sampler reference count. The reference count returned should be
 -- considered immediately stale. It is unsuitable for general use in
 -- applications. This feature is provided for identifying memory leaks.
+--
+-- This function execute OpenCL clGetSamplerInfo with
+-- 'CL_SAMPLER_REFERENCE_COUNT'.
 clGetSamplerReferenceCount :: CLSampler -> IO CLuint
 clGetSamplerReferenceCount sam = wrapGetInfo (\(dat :: Ptr CLuint)
                                    -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) id
@@ -267,6 +284,8 @@ clGetSamplerReferenceCount sam = wrapGetInfo (\(dat :: Ptr CLuint)
       size = fromIntegral $ sizeOf (0 :: CLuint)
 
 -- | Return the context specified when the sampler is created.
+--
+-- This function execute OpenCL clGetSamplerInfo with 'CL_SAMPLER_CONTEXT'.
 clGetSamplerContext :: CLSampler -> IO CLContext
 clGetSamplerContext sam = wrapGetInfo (\(dat :: Ptr CLContext)
                                        -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) id
@@ -275,6 +294,9 @@ clGetSamplerContext sam = wrapGetInfo (\(dat :: Ptr CLContext)
       size = fromIntegral $ sizeOf (nullPtr :: CLContext)
 
 -- | Return the value specified by addressing_mode argument to clCreateSampler.
+--
+-- This function execute OpenCL clGetSamplerInfo with
+-- 'CL_SAMPLER_ADDRESSING_MODE'.
 clGetSamplerAddressingMode :: CLSampler -> IO CLAddressingMode
 clGetSamplerAddressingMode sam = wrapGetInfo (\(dat :: Ptr CLAddressingMode_)
                                               -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) getEnumCL
@@ -283,6 +305,8 @@ clGetSamplerAddressingMode sam = wrapGetInfo (\(dat :: Ptr CLAddressingMode_)
       size = fromIntegral $ sizeOf (0 :: CLAddressingMode_)
 
 -- | Return the value specified by filter_mode argument to clCreateSampler.
+--
+-- This function execute OpenCL clGetSamplerInfo with 'CL_SAMPLER_FILTER_MODE'.
 clGetSamplerFilterMode :: CLSampler -> IO CLFilterMode
 clGetSamplerFilterMode sam = wrapGetInfo (\(dat :: Ptr CLFilterMode_)
                                           -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) getEnumCL
@@ -292,6 +316,9 @@ clGetSamplerFilterMode sam = wrapGetInfo (\(dat :: Ptr CLFilterMode_)
 
 -- | Return the value specified by normalized_coords argument to
 -- clCreateSampler.
+--
+-- This function execute OpenCL clGetSamplerInfo with
+-- 'CL_SAMPLER_NORMALIZED_COORDS'.
 clGetSamplerNormalizedCoords :: CLSampler -> IO Bool
 clGetSamplerNormalizedCoords sam = wrapGetInfo (\(dat :: Ptr CLbool)
                                                 -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) (/=0)

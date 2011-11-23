@@ -10,21 +10,21 @@ Stability: Experimental
 Maintainer: Luis Cabellos
 Homepage: https://github.com/zhensydow/opencl
 Synopsis: Haskell high-level wrapper for OpenCL
-Description: Haskell FFI binding to OpenCL library. It includes high-level wrappers to help development. Based on OpenCLRaw package.
 bug-reports: https://github.com/zhensydow/opencl/issues
 Cabal-Version: >=1.8
 Tested-With: GHC
+Description: 
+    Haskell FFI binding to OpenCL library. It includes high-level wrappers to
+    help development. Based on OpenCLRaw package.
 
-source-repository this
-  type: git
-  location: https://zhensydow@github.com/zhensydow/opencl.git
-  tag: 1.0.2.0
-  branch: master
+    Most of the functions can throw a 'CLError' Exception. Using the module
+    'Control.Exception' helps to work with Exceptions.
 
-source-repository head
-  type: git
-  location: https://zhensydow@github.com/zhensydow/opencl.git
-  branch: develop
+Extra-source-files: README.org 
+                    examples/example01.hs
+                    examples/example02.hs
+                    examples/example03.hs
+                    examples/example04.hs
 
 Library
   Build-tools: c2hs
@@ -47,3 +47,14 @@ Library
   else
     cpp-options: "-DCALLCONV=ccall"
     extra-libraries: OpenCL
+
+source-repository this
+  type: git
+  location: https://zhensydow@github.com/zhensydow/opencl.git
+  tag: 1.0.2.0
+  branch: master
+
+source-repository head
+  type: git
+  location: https://zhensydow@github.com/zhensydow/opencl.git
+  branch: develop

@@ -136,6 +136,8 @@ enum CLContextInfo {
 -- | Return the context reference count. The reference count returned should be 
 -- considered immediately stale. It is unsuitable for general use in 
 -- applications. This feature is provided for identifying memory leaks.
+--
+-- This function execute OpenCL clGetContextInfo with 'CL_CONTEXT_REFERENCE_COUNT'.
 clGetContextReferenceCount :: CLContext -> IO CLuint
 clGetContextReferenceCount ctx = wrapGetInfo (\(dat :: Ptr CLuint) 
                                               -> raw_clGetContextInfo ctx infoid size (castPtr dat)) id
@@ -144,6 +146,8 @@ clGetContextReferenceCount ctx = wrapGetInfo (\(dat :: Ptr CLuint)
       size = fromIntegral $ sizeOf (0::CLuint)
 
 -- | Return the list of devices in context.
+--
+-- This function execute OpenCL clGetContextInfo with 'CL_CONTEXT_DEVICES'.
 clGetContextDevices :: CLContext -> IO [CLDeviceID]
 clGetContextDevices ctx = do
   size <- getContextInfoSize ctx infoid
