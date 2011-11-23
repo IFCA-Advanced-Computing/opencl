@@ -117,8 +117,8 @@ functions. The program executable can be generated online or offline by the
 OpenCL compiler for the appropriate target device(s).
 
 'clCreateProgramWithSource' returns a valid non-zero program object if the
-program object is created successfully. Otherwise, it returns one of the
-following error values:
+program object is created successfully. Otherwise, it throws one of the
+following 'CLError' exceptions:
 
  * 'CL_INVALID_CONTEXT' if context is not a valid context.
 
@@ -270,7 +270,7 @@ but control the kinds of diagnostics produced by the OpenCL compiler.
  
  [-Werror] Make all warnings into errors.
 
-clBuildProgram returns the following errors when fails:
+clBuildProgram can throw the following 'CLError' exceptions when fails:
 
  * 'CL_INVALID_PROGRAM' if program is not a valid program object.
 
@@ -485,7 +485,8 @@ a program and the argument values to be used when executing this __kernel
 function.
 
 'clCreateKernel' returns a valid non-zero kernel object if the kernel object is
-created successfully. Otherwise, it returns one of the following error values:
+created successfully. Otherwise, it throws one of the following 'CLError'
+exceptions:
 
  * 'CL_INVALID_PROGRAM' if program is not a valid program object.
 
@@ -524,9 +525,9 @@ for which a valid program executable has been built can be used to execute
 kernels declared in the program object.
 
 'clCreateKernelsInProgram' will return the kernel objects if the kernel objects
-were successfully allocated, returns 'CL_INVALID_PROGRAM' if program is not a
-valid program object, returns 'CL_INVALID_PROGRAM_EXECUTABLE' if there is no
-successfully built executable for any device in program and returns
+were successfully allocated, throws 'CL_INVALID_PROGRAM' if program is not a
+valid program object, throws 'CL_INVALID_PROGRAM_EXECUTABLE' if there is no
+successfully built executable for any device in program and throws
 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required by
 the OpenCL implementation on the host.
 -}
@@ -567,7 +568,7 @@ kernel args, that would make it impossible for the user to tell with certainty
 when he may safely release user allocated resources associated with OpenCL
 objects such as the CLMem backing store used with 'CL_MEM_USE_HOST_PTR'.
 
-'clSetKernelArg' returns returns one of the following errors when fails:
+'clSetKernelArg' throws one of the following 'CLError' exceptions when fails:
 
  * 'CL_INVALID_KERNEL' if kernel is not a valid kernel object.
  

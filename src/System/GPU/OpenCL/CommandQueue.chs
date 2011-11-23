@@ -273,7 +273,7 @@ read command begins execution
 finished execution Errors
 
 'clEnqueueReadBuffer' returns the event if the function is executed
-successfully. Otherwise, it returns one of the following errors:
+successfully. It can throw the following 'CLError' exceptions:
 
  * 'CL_INVALID_COMMAND_QUEUE' if command_queue is not a valid command-queue.
 
@@ -317,7 +317,7 @@ bits when the enqueued write command begins execution.
 has finished execution.
 
 'clEnqueueWriteBuffer' returns the Event if the function is executed
-successfully. Otherwise, it returns one of the following errors:
+successfully. It can throw the following 'CLError' exceptions:
 
  * 'CL_INVALID_COMMAND_QUEUE' if command_queue is not a valid command-queue.
 
@@ -355,8 +355,8 @@ unique local ID. The local ID, which can also be read by the kernel, is computed
 using the value given by local_work_size. The starting local ID is always (0, 0,
 ... 0).
 
-Returns the event if the kernel execution was successfully queued. Otherwise, it
-returns one of the following errors:
+Returns the event if the kernel execution was successfully queued. It can throw
+the following 'CLError' exceptions:
 
  * 'CL_INVALID_PROGRAM_EXECUTABLE' if there is no successfully built program
 executable available for device associated with command_queue.
@@ -425,8 +425,8 @@ using a single work-item.
 = 1, global_work_offset = [], global_work_size[0] set to 1, and
 local_work_size[0] set to 1.
 
-Returns the evens if the kernel execution was successfully queued, or one of the
-errors below:
+Returns the evens if the kernel execution was successfully queued. It can throw
+the following 'CLError' exceptions:
 
  * 'CL_INVALID_PROGRAM_EXECUTABLE' if there is no successfully built program
 executable available for device associated with command_queue.
@@ -463,9 +463,9 @@ clEnqueueTask cq krn = clEnqueue (raw_clEnqueueTask cq krn)
 -- | Enqueues a marker command to command_queue. The marker command returns an
 -- event which can be used to queue a wait on this marker event i.e. wait for
 -- all commands queued before the marker command to complete. Returns the event
--- if the function is successfully executed. It returns
+-- if the function is successfully executed. It throw the 'CLError' exception
 -- 'CL_INVALID_COMMAND_QUEUE' if command_queue is not a valid command-queue and
--- returns 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources
+-- throw 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources
 -- required by the OpenCL implementation on the host.
 clEnqueueMarker :: CLCommandQueue -> IO CLEvent
 clEnqueueMarker cq = alloca $ \event 
@@ -476,7 +476,7 @@ clEnqueueMarker cq = alloca $ \event
 any future commands queued in the command-queue are executed. The context
 associated with events in event_list and command_queue must be the same.
 
-Returns one of the errors below when fails:
+It can throw the following 'CLError' exceptions:
 
  * 'CL_INVALID_COMMAND_QUEUE' if command_queue is not a valid command-queue.
 
@@ -505,8 +505,8 @@ clEnqueueWaitForEvents cq events = allocaArray nevents $ \pevents -> do
 
 -- | 'clEnqueueBarrier' is a synchronization point that ensures that all queued
 -- commands in command_queue have finished execution before the next batch of
--- commands can begin execution. It returns 'CL_INVALID_COMMAND_QUEUE' if
--- command_queue is not a valid command-queue and returns
+-- commands can begin execution. It throws 'CL_INVALID_COMMAND_QUEUE' if
+-- command_queue is not a valid command-queue and throws
 -- 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
 -- by the OpenCL implementation on the host.
 clEnqueueBarrier :: CLCommandQueue -> IO ()

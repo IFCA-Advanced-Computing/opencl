@@ -88,7 +88,7 @@ foreign import CALLCONV "clGetSamplerInfo" raw_clGetSamplerInfo ::
 
 -- -----------------------------------------------------------------------------
 {-| Creates a buffer object. Returns a valid non-zero buffer object if the
-buffer object is created successfully. Otherwise, it returns: 
+buffer object is created successfully. Otherwise, it throws the 'CLError': 
 
  * 'CL_INVALID_CONTEXT' if context is not a valid context.
 
@@ -212,7 +212,7 @@ kernel. In this section we discuss how sampler objects are created using OpenCL
 functions.
 
 Returns a valid non-zero sampler object if the sampler object is created
-successfully. Otherwise, it returns one of the following error values:
+successfully. Otherwise, it throws one of the following 'CLError' exceptions:
 
  * 'CL_INVALID_CONTEXT' if context is not a valid context.
 
