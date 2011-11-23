@@ -177,6 +177,8 @@ enum CLCommandQueueInfo {
 {#enum CLCommandQueueInfo {upcaseFirstLetter} #}
 
 -- | Return the context specified when the command-queue is created.
+--
+-- This function execute OpenCL clGetCommandQueueInfo with 'CL_QUEUE_CONTEXT'.
 clGetCommandQueueContext :: CLCommandQueue -> IO CLContext
 clGetCommandQueueContext cq = wrapGetInfo (\(dat :: Ptr CLContext) 
                                            -> raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) id
@@ -185,6 +187,8 @@ clGetCommandQueueContext cq = wrapGetInfo (\(dat :: Ptr CLContext)
       size = fromIntegral $ sizeOf (nullPtr::CLContext)
 
 -- | Return the device specified when the command-queue is created.
+--
+-- This function execute OpenCL clGetCommandQueueInfo with 'CL_QUEUE_DEVICE'.
 clGetCommandQueueDevice :: CLCommandQueue -> IO CLDeviceID
 clGetCommandQueueDevice cq = wrapGetInfo (\(dat :: Ptr CLDeviceID) 
                                            -> raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) id
@@ -196,6 +200,9 @@ clGetCommandQueueDevice cq = wrapGetInfo (\(dat :: Ptr CLDeviceID)
 -- The reference count returned should be considered immediately stale. It is 
 -- unsuitable for general use in applications. This feature is provided for 
 -- identifying memory leaks.
+--
+-- This function execute OpenCL clGetCommandQueueInfo with
+-- 'CL_QUEUE_REFERENCE_COUNT'.
 clGetCommandQueueReferenceCount :: CLCommandQueue -> IO CLuint
 clGetCommandQueueReferenceCount cq = wrapGetInfo (\(dat :: Ptr CLuint) 
                                            -> raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) id
@@ -207,6 +214,9 @@ clGetCommandQueueReferenceCount cq = wrapGetInfo (\(dat :: Ptr CLuint)
 -- | Return the currently specified properties for the command-queue. These 
 -- properties are specified by the properties argument in 'clCreateCommandQueue'
 -- , and can be changed by 'clSetCommandQueueProperty'.
+--
+-- This function execute OpenCL clGetCommandQueueInfo with
+-- 'CL_QUEUE_PROPERTIES'.
 clGetCommandQueueProperties :: CLCommandQueue -> IO [CLCommandQueueProperty]
 clGetCommandQueueProperties cq = wrapGetInfo (\(dat :: Ptr CLCommandQueueProperty_) 
                                            -> raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) bitmaskToCommandQueueProperties

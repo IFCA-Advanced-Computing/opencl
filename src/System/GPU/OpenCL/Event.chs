@@ -107,6 +107,8 @@ enum CLEventInfo {
 
 
 -- | Return the command-queue associated with event.
+--
+-- This function execute OpenCL clGetEventInfo with 'CL_EVENT_COMMAND_QUEUE'.
 clGetEventCommandQueue :: CLEvent -> IO CLCommandQueue
 clGetEventCommandQueue ev = wrapGetInfo (\(dat :: Ptr CLCommandQueue) 
                                          -> raw_clGetEventInfo ev infoid size (castPtr dat)) id
@@ -115,6 +117,8 @@ clGetEventCommandQueue ev = wrapGetInfo (\(dat :: Ptr CLCommandQueue)
       size = fromIntegral $ sizeOf (nullPtr::CLCommandQueue)
       
 -- | Return the command associated with event.
+--
+-- This function execute OpenCL clGetEventInfo with 'CL_EVENT_COMMAND_TYPE'.
 clGetEventCommandType :: CLEvent -> IO CLCommandType
 clGetEventCommandType ev = wrapGetInfo (\(dat :: Ptr CLCommandType_) 
                                         -> raw_clGetEventInfo ev infoid size (castPtr dat)) getEnumCL
@@ -125,6 +129,8 @@ clGetEventCommandType ev = wrapGetInfo (\(dat :: Ptr CLCommandType_)
 -- | Return the event reference count. The reference count returned should be 
 -- considered immediately stale. It is unsuitable for general use in applications. 
 -- This feature is provided for identifying memory leaks.
+--
+-- This function execute OpenCL clGetEventInfo with 'CL_EVENT_REFERENCE_COUNT'.
 clGetEventReferenceCount :: CLEvent -> IO CLint
 clGetEventReferenceCount ev = wrapGetInfo (\(dat :: Ptr CLint) 
                                            -> raw_clGetEventInfo ev infoid size (castPtr dat)) id
@@ -133,6 +139,9 @@ clGetEventReferenceCount ev = wrapGetInfo (\(dat :: Ptr CLint)
       size = fromIntegral $ sizeOf (0::CLint)
 
 -- | Return the execution status of the command identified by event.
+--
+-- This function execute OpenCL clGetEventInfo with
+-- 'CL_EVENT_COMMAND_EXECUTION_STATUS'.
 clGetEventCommandExecutionStatus :: CLEvent -> IO CLCommandExecutionStatus
 clGetEventCommandExecutionStatus ev = wrapGetInfo (\(dat :: Ptr CLint) 
                                                    -> raw_clGetEventInfo ev infoid size (castPtr dat)) getCommandExecutionStatus

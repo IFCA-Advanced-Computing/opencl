@@ -332,6 +332,9 @@ getProgramInfoSize prg infoid = alloca $ \(value_size :: Ptr CSize) -> do
 -- | Return the program reference count. The reference count returned should be
 -- considered immediately stale. It is unsuitable for general use in
 -- applications. This feature is provided for identifying memory leaks.
+--
+-- This function execute OpenCL clGetProgramInfo with
+-- 'CL_PROGRAM_REFERENCE_COUNT'.
 clGetProgramReferenceCount :: CLProgram -> IO CLuint
 clGetProgramReferenceCount prg = wrapGetInfo (\(dat :: Ptr CLuint) 
                                               -> raw_clGetProgramInfo prg infoid size (castPtr dat)) id
@@ -340,6 +343,8 @@ clGetProgramReferenceCount prg = wrapGetInfo (\(dat :: Ptr CLuint)
       size = fromIntegral $ sizeOf (0::CLuint)
 
 -- | Return the context specified when the program object is created.
+--
+-- This function execute OpenCL clGetProgramInfo with 'CL_PROGRAM_CONTEXT'.
 clGetProgramContext :: CLProgram -> IO CLContext
 clGetProgramContext prg = wrapGetInfo (\(dat :: Ptr CLContext) 
                                        -> raw_clGetProgramInfo prg infoid size (castPtr dat)) id
@@ -348,6 +353,8 @@ clGetProgramContext prg = wrapGetInfo (\(dat :: Ptr CLContext)
       size = fromIntegral $ sizeOf (nullPtr::CLContext)
 
 -- | Return the number of devices associated with program.
+--
+-- This function execute OpenCL clGetProgramInfo with 'CL_PROGRAM_NUM_DEVICES'.
 clGetProgramNumDevices :: CLProgram -> IO CLuint
 clGetProgramNumDevices prg = wrapGetInfo (\(dat :: Ptr CLuint) 
                                        -> raw_clGetProgramInfo prg infoid size (castPtr dat)) id
@@ -359,6 +366,8 @@ clGetProgramNumDevices prg = wrapGetInfo (\(dat :: Ptr CLuint)
 -- the devices associated with context on which the program object has been
 -- created or can be a subset of devices that are specified when a progam object
 -- is created using 'clCreateProgramWithBinary'.
+--
+-- This function execute OpenCL clGetProgramInfo with 'CL_PROGRAM_DEVICES'.
 clGetProgramDevices :: CLProgram -> IO [CLDeviceID]
 clGetProgramDevices prg = do
   size <- getProgramInfoSize prg infoid
@@ -376,6 +385,8 @@ clGetProgramDevices prg = do
 -- terminator. The concatenation strips any nulls in the original source
 -- strings. The actual number of characters that represents the program source
 -- code including the null terminator is returned in param_value_size_ret.
+--
+-- This function execute OpenCL clGetProgramInfo with 'CL_PROGRAM_SOURCE'.
 clGetProgramSource :: CLProgram -> IO String
 clGetProgramSource prg = do
   n <- getProgramInfoSize prg infoid
@@ -389,6 +400,8 @@ clGetProgramSource prg = do
 -- each device associated with program. The size of the array is the number of
 -- devices associated with program. If a binary is not available for a
 -- device(s), a size of zero is returned.
+--
+-- This function execute OpenCL clGetProgramInfo with 'CL_PROGRAM_BINARY_SIZES'.
 clGetProgramBinarySizes :: CLProgram -> IO [CSize]
 clGetProgramBinarySizes prg = do
   size <- getProgramInfoSize prg infoid
@@ -414,6 +427,8 @@ To find out which device the program binary in the array refers to, use the
 'clGetProgramDevices' query to get the list of devices. There is a one-to-one
 correspondence between the array of data returned by 'clGetProgramBinaries' and
 array of devices returned by 'clGetProgramDevices'.  
+
+This function execute OpenCL clGetProgramInfo with 'CL_PROGRAM_BINARIES'.
 -}
 clGetProgramBinaries :: CLProgram -> IO [[Word8]]
 clGetProgramBinaries prg = do
@@ -447,6 +462,9 @@ getProgramBuildInfoSize prg device infoid = alloca $ \(val :: Ptr CSize) -> do
   
 -- | Returns the build status of program for a specific device as given by
 -- device.
+--
+-- This function execute OpenCL clGetProgramBuildInfo with
+-- 'CL_PROGRAM_BUILD_STATUS'.
 clGetProgramBuildStatus :: CLProgram -> CLDeviceID -> IO CLBuildStatus
 clGetProgramBuildStatus prg device = wrapGetInfo (\(dat :: Ptr CLBuildStatus_) 
                                            -> raw_clGetProgramBuildInfo prg device infoid size (castPtr dat)) getEnumCL
@@ -457,6 +475,9 @@ clGetProgramBuildStatus prg device = wrapGetInfo (\(dat :: Ptr CLBuildStatus_)
 -- | Return the build options specified by the options argument in
 -- clBuildProgram for device. If build status of program for device is
 -- 'CL_BUILD_NONE', an empty string is returned.
+--
+-- This function execute OpenCL clGetProgramBuildInfo with
+-- 'CL_PROGRAM_BUILD_OPTIONS'.
 clGetProgramBuildOptions :: CLProgram -> CLDeviceID -> IO String
 clGetProgramBuildOptions prg device = do
   n <- getProgramBuildInfoSize prg device infoid
@@ -468,6 +489,9 @@ clGetProgramBuildOptions prg device = do
   
 -- | Return the build log when 'clBuildProgram' was called for device. If build
 -- status of program for device is 'CL_BUILD_NONE', an empty string is returned.
+--
+-- This function execute OpenCL clGetProgramBuildInfo with
+-- 'CL_PROGRAM_BUILD_LOG'.
 clGetProgramBuildLog :: CLProgram -> CLDeviceID -> IO String
 clGetProgramBuildLog prg device = do
   n <- getProgramBuildInfoSize prg device infoid
@@ -611,6 +635,8 @@ getKernelInfoSize krn infoid = alloca $ \(val :: Ptr CSize) -> do
     $ peek val
   
 -- | Return the kernel function name.
+--
+-- This function execute OpenCL clGetKernelInfo with 'CL_KERNEL_FUNCTION_NAME'.
 clGetKernelFunctionName :: CLKernel -> IO String
 clGetKernelFunctionName krn = do
   n <- getKernelInfoSize krn infoid
@@ -621,6 +647,8 @@ clGetKernelFunctionName krn = do
       infoid = getCLValue CL_KERNEL_FUNCTION_NAME
 
 -- | Return the number of arguments to kernel.
+--
+-- This function execute OpenCL clGetKernelInfo with 'CL_KERNEL_NUM_ARGS'.
 clGetKernelNumArgs :: CLKernel -> IO CLuint
 clGetKernelNumArgs krn = wrapGetInfo (\(dat :: Ptr CLuint) 
                                       -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
@@ -631,6 +659,9 @@ clGetKernelNumArgs krn = wrapGetInfo (\(dat :: Ptr CLuint)
 -- | Return the kernel reference count. The reference count returned should be
 -- considered immediately stale. It is unsuitable for general use in
 -- applications. This feature is provided for identifying memory leaks.
+--
+-- This function execute OpenCL clGetKernelInfo with
+-- 'CL_KERNEL_REFERENCE_COUNT'.
 clGetKernelReferenceCount :: CLKernel -> IO CLuint
 clGetKernelReferenceCount krn = wrapGetInfo (\(dat :: Ptr CLuint) 
                                              -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
@@ -639,6 +670,8 @@ clGetKernelReferenceCount krn = wrapGetInfo (\(dat :: Ptr CLuint)
       size = fromIntegral $ sizeOf (0::CLuint)
 
 -- | Return the context associated with kernel.
+--
+-- This function execute OpenCL clGetKernelInfo with 'CL_KERNEL_CONTEXT'.
 clGetKernelContext :: CLKernel -> IO CLContext
 clGetKernelContext krn = wrapGetInfo (\(dat :: Ptr CLContext) 
                                       -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
@@ -647,6 +680,8 @@ clGetKernelContext krn = wrapGetInfo (\(dat :: Ptr CLContext)
       size = fromIntegral $ sizeOf (nullPtr::CLContext)
 
 -- | Return the program object associated with kernel.
+--
+-- This function execute OpenCL clGetKernelInfo with 'CL_KERNEL_PROGRAM'.
 clGetKernelProgram :: CLKernel -> IO CLProgram
 clGetKernelProgram krn = wrapGetInfo (\(dat :: Ptr CLProgram) 
                                       -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
@@ -669,6 +704,9 @@ enum CLKernelGroupInfo {
 -- device. The OpenCL implementation uses the resource requirements of the
 -- kernel (register usage etc.) to determine what this work-group size should
 -- be.
+--
+-- This function execute OpenCL clGetKernelWorkGroupInfo with
+-- 'CL_KERNEL_WORK_GROUP_SIZE'.
 clGetKernelWorkGroupSize :: CLKernel -> CLDeviceID -> IO CSize
 clGetKernelWorkGroupSize krn device = wrapGetInfo (\(dat :: Ptr CSize)
                                                    -> raw_clGetKernelWorkGroupInfo krn device infoid size (castPtr dat)) id
@@ -680,6 +718,9 @@ clGetKernelWorkGroupSize krn device = wrapGetInfo (\(dat :: Ptr CSize)
 -- oup_size(X, Y, Z))) qualifier. See Function Qualifiers. If the work-group
 -- size is not specified using the above attribute qualifier (0, 0, 0) is
 -- returned.
+--
+-- This function execute OpenCL clGetKernelWorkGroupInfo with
+-- 'CL_KERNEL_COMPILE_WORK_GROUP_SIZE'.
 clGetKernelCompileWorkGroupSize :: CLKernel -> CLDeviceID -> IO [CSize]
 clGetKernelCompileWorkGroupSize krn device = do
   allocaArray num $ \(buff :: Ptr CSize) -> do
@@ -702,6 +743,9 @@ clGetKernelCompileWorkGroupSize krn device = do
 -- If the local memory size, for any pointer argument to the kernel declared
 -- with the __local address qualifier, is not specified, its size is assumed to
 -- be 0.
+--
+-- This function execute OpenCL clGetKernelWorkGroupInfo with
+-- 'CL_KERNEL_LOCAL_MEM_SIZE'.
 clGetKernelLocalMemSize :: CLKernel -> CLDeviceID -> IO CLulong
 clGetKernelLocalMemSize krn device = wrapGetInfo (\(dat :: Ptr CLulong)
                                                   -> raw_clGetKernelWorkGroupInfo krn device infoid size (castPtr dat)) id
