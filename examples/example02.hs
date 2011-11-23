@@ -36,13 +36,6 @@ import Foreign.Marshal.Array( peekArray, withArray )
 import Data.List( foldl' )
 import Control.Monad( forM_, forM )
 
-myTry :: IO (Either CLError b) -> IO b
-myTry f = do
-  v <- f
-  case v of
-    Left err -> error . show $ err
-    Right res -> return res
-
 programSource :: String
 programSource = "__kernel void duparray(__global float *in, __global float *out ){\n  int id = get_global_id(0);\n  out[id] = 2*in[id] + id;\n}"
 
@@ -52,15 +45,15 @@ sumres (t1,t2,t3) (u1,u2,u3) = (t1+u1,t2+u2,t3+u3)
 main :: IO ()
 main = do
   -- Initialize OpenCL
-  (platform:_) <- myTry $ clGetPlatformIDs
-  (dev:_) <- myTry $ clGetDeviceIDs platform CL_DEVICE_TYPE_ALL
-  context <- myTry $ clCreateContext [dev] print
-  q <- myTry $ clCreateCommandQueue context dev [CL_QUEUE_PROFILING_ENABLE]
+  (platform:_) <- clGetPlatformIDs
+  (dev:_) <- clGetDeviceIDs platform CL_DEVICE_TYPE_ALL
+  context <- clCreateContext [dev] print
+  q <- clCreateCommandQueue context dev [CL_QUEUE_PROFILING_ENABLE]
   
   -- Initialize Kernel
-  program <- myTry $ clCreateProgramWithSource context programSource
-  myTry $ clBuildProgram program [dev] ""
-  kernel <- myTry $ clCreateKernel program "duparray"
+  program <- clCreateProgramWithSource context programSource
+  clBuildProgram program [dev] ""
+  kernel <- clCreateKernel program "duparray"
   
   -- run tests
   forM_ [100,200..30000] $ \s -> do
@@ -78,33 +71,33 @@ main = do
 
 executeArray :: [CFloat] -> CLContext -> CLCommandQueue -> CLKernel -> IO (CLulong, CLulong, CLulong, [CFloat])
 executeArray original ctx q krn = withArray original $ \input -> do
-  mem_in <- myTry $ clCreateBuffer ctx [CL_MEM_READ_ONLY] (vecSize, nullPtr)  
-  mem_out <- myTry $ clCreateBuffer ctx [CL_MEM_WRITE_ONLY] (vecSize, nullPtr)
+  mem_in <- clCreateBuffer ctx [CL_MEM_READ_ONLY] (vecSize, nullPtr)  
+  mem_out <- clCreateBuffer ctx [CL_MEM_WRITE_ONLY] (vecSize, nullPtr)
 
-  myTry $ clSetKernelArg krn 0 mem_in
-  myTry $ clSetKernelArg krn 1 mem_out
+  clSetKernelArg krn 0 mem_in
+  clSetKernelArg krn 1 mem_out
   
   -- Put Input
-  eventWrite <- myTry $ clEnqueueWriteBuffer q mem_in True 0 vecSize (castPtr input) []
+  eventWrite <- clEnqueueWriteBuffer q mem_in True 0 vecSize (castPtr input) []
   
   -- Execute Kernel
-  eventExec <- myTry $ clEnqueueNDRangeKernel q krn [length original] [1] [eventWrite]
+  eventExec <- clEnqueueNDRangeKernel q krn [length original] [1] [eventWrite]
   
   -- Get Result
-  eventRead <- myTry $ clEnqueueReadBuffer q mem_out True 0 vecSize (castPtr input) [eventExec]
+  eventRead <- clEnqueueReadBuffer q mem_out True 0 vecSize (castPtr input) [eventExec]
     
   _ <- clWaitForEvents [eventRead]
   
-  t_start0 <- myTry $ clGetEventProfilingInfo eventWrite CL_PROFILING_COMMAND_START
-  t_end0 <- myTry $ clGetEventProfilingInfo eventWrite CL_PROFILING_COMMAND_END
+  t_start0 <- clGetEventProfilingInfo eventWrite CL_PROFILING_COMMAND_START
+  t_end0 <- clGetEventProfilingInfo eventWrite CL_PROFILING_COMMAND_END
   let t_write = t_end0 - t_start0
       
-  t_start1 <- myTry $ clGetEventProfilingInfo eventExec CL_PROFILING_COMMAND_START
-  t_end1 <- myTry $ clGetEventProfilingInfo eventExec CL_PROFILING_COMMAND_END
+  t_start1 <- clGetEventProfilingInfo eventExec CL_PROFILING_COMMAND_START
+  t_end1 <- clGetEventProfilingInfo eventExec CL_PROFILING_COMMAND_END
   let t_exec = t_end1 - t_start1
   
-  t_start2 <- myTry $ clGetEventProfilingInfo eventRead CL_PROFILING_COMMAND_START
-  t_end2 <- myTry $ clGetEventProfilingInfo eventRead CL_PROFILING_COMMAND_END
+  t_start2 <- clGetEventProfilingInfo eventRead CL_PROFILING_COMMAND_START
+  t_end2 <- clGetEventProfilingInfo eventRead CL_PROFILING_COMMAND_END
   let t_read = t_end2 - t_start2
   
   result <- peekArray (length original) input
