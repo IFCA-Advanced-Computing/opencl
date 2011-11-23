@@ -34,11 +34,12 @@ module System.GPU.OpenCL.Program(
   -- * Types
   CLProgram, CLBuildStatus(..), CLKernel,
   -- * Program Functions
-  clCreateProgramWithSource, clRetainProgram, clReleaseProgram, 
-  clUnloadCompiler, clBuildProgram, clGetProgramReferenceCount, 
-  clGetProgramContext, clGetProgramNumDevices, clGetProgramDevices,
-  clGetProgramSource, clGetProgramBinarySizes, clGetProgramBinaries, 
-  clGetProgramBuildStatus, clGetProgramBuildOptions, clGetProgramBuildLog,
+  clCreateProgramWithSource, clCreateProgramWithBinary, clRetainProgram, 
+  clReleaseProgram, clUnloadCompiler, clBuildProgram, 
+  clGetProgramReferenceCount, clGetProgramContext, clGetProgramNumDevices, 
+  clGetProgramDevices, clGetProgramSource, clGetProgramBinarySizes, 
+  clGetProgramBinaries, clGetProgramBuildStatus, clGetProgramBuildOptions, 
+  clGetProgramBuildLog,
   -- * Kernel Functions
   clCreateKernel, clCreateKernelsInProgram, clRetainKernel, clReleaseKernel, 
   clSetKernelArg, clGetKernelFunctionName, clGetKernelNumArgs, 
@@ -48,12 +49,12 @@ module System.GPU.OpenCL.Program(
   ) where
 
 -- -----------------------------------------------------------------------------
-import Control.Monad( zipWithM )
+import Control.Monad( zipWithM, forM )
 import Foreign
 import Foreign.C.Types
 import Foreign.C.String( CString, withCString, newCString, peekCString )
 import System.GPU.OpenCL.Types( 
-  CLint, CLuint, CLulong, CLProgram, CLContext, CLKernel, CLDeviceID, 
+  CLint, CLuint, CLulong, CLProgram, CLContext, CLKernel, CLDeviceID, CLError,
   CLProgramInfo_, CLBuildStatus(..), CLBuildStatus_, CLProgramBuildInfo_, 
   CLKernelInfo_, CLKernelWorkGroupInfo_, wrapCheckSuccess, 
   whenSuccess, wrapPError, wrapGetInfo, getCLValue, getEnumCL )
@@ -64,8 +65,8 @@ import System.GPU.OpenCL.Types(
 type BuildCallback = CLProgram -> Ptr () -> IO ()
 foreign import CALLCONV "clCreateProgramWithSource" raw_clCreateProgramWithSource :: 
   CLContext -> CLuint -> Ptr CString -> Ptr CSize -> Ptr CLint -> IO CLProgram
---foreign import CALLCONV "clCreateProgramWithBinary" raw_clCreateProgramWithBinary :: 
---  CLContext -> CLuint -> Ptr CLDeviceID -> Ptr CSize -> Ptr (Ptr Word8) -> Ptr CLint -> Ptr CLint -> IO CLProgram
+foreign import CALLCONV "clCreateProgramWithBinary" raw_clCreateProgramWithBinary :: 
+  CLContext -> CLuint -> Ptr CLDeviceID -> Ptr CSize -> Ptr (Ptr Word8) -> Ptr CLint -> Ptr CLint -> IO CLProgram
 foreign import CALLCONV "clRetainProgram" raw_clRetainProgram :: 
   CLProgram -> IO CLint
 foreign import CALLCONV "clReleaseProgram" raw_clReleaseProgram :: 
@@ -135,6 +136,71 @@ clCreateProgramWithSource ctx source = wrapPError $ \perr -> do
   mapM_ free cstrings
   return prog
   
+{-| Creates a program object for a context, and loads specified binary data into
+the program object.
+
+The program binaries specified by binaries contain the bits that describe the
+program executable that will be run on the device(s) associated with
+context. The program binary can consist of either or both of device-specific
+executable(s), and/or implementation-specific intermediate representation (IR)
+which will be converted to the device-specific executable.
+
+OpenCL allows applications to create a program object using the program
+source or binary and build appropriate program executables. This allows
+applications to determine whether they want to use the pre-built offline binary
+or load and compile the program source and use the executable compiled/linked
+online as the program executable. This can be very useful as it allows
+applications to load and build program executables online on its first instance
+for appropriate OpenCL devices in the system. These executables can now be
+queried and cached by the application. Future instances of the application
+launching will no longer need to compile and build the program executables. The
+cached executables can be read and loaded by the application, which can help
+significantly reduce the application initialization time.
+
+Returns a valid non-zero program object and a list of 'CLError' values whether
+the program binary for each device specified in device_list was loaded
+successfully or not. It is list of the same length the list of devices with
+'CL_SUCCESS' if binary was successfully loaded for device specified by same
+position; otherwise returns 'CL_INVALID_VALUE' if length of binary is zero or
+'CL_INVALID_BINARY' if program binary is not a valid binary
+for the specified device.
+
+The function can throw on of the following 'CLError' exceptions:
+
+ * 'CL_INVALID_CONTEXT' if context is not a valid context.  
+
+ * 'CL_INVALID_VALUE' if the device list is empty; or if lengths or binaries are
+empty.
+
+ * 'CL_INVALID_DEVICE' if OpenCL devices listed in the device list are not in
+the list of devices associated with context.
+
+ * 'CL_INVALID_BINARY' if an invalid program binary was encountered for any
+device.
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.  
+-} 
+clCreateProgramWithBinary :: CLContext -> [CLDeviceID] -> [[Word8]] 
+                             -> IO (CLProgram, [CLError])
+clCreateProgramWithBinary ctx devs bins = wrapPError $ \perr -> do withArray
+devs $ \pdevs -> do withArray lbins $ \plbins -> do buffs <- forM bins $ \bs ->
+do buff <- mallocArray (length bs) :: IO (Ptr Word8) pokeArray buff bs return
+buff
+
+      ret <- withArray buffs $ \(pbuffs :: Ptr (Ptr Word8)) -> do
+        allocaArray ndevs $ \(perrs :: Ptr CLint) -> do
+          prog <- raw_clCreateProgramWithBinary ctx (fromIntegral ndevs) pdevs plbins pbuffs perrs perr
+          errs <- peekArray ndevs perrs
+          return (prog, map getEnumCL errs)
+          
+      mapM_ free buffs
+      return ret
+    
+    where
+      lbins = map (fromIntegral . length) bins :: [CSize]
+      ndevs = length devs
+
 -- | Increments the program reference count. 'clRetainProgram' returns 'True' if 
 -- the function is executed successfully. It returns 'False' if program is not a 
 -- valid program object.
