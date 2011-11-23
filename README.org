@@ -35,6 +35,3 @@ Based on Jeff Heard OpenCLRaw.
 
    : ghci -lOpenCL examples/example01.hs
 
-* Things To Do
- - [ ] better types
- - [ ] better install proccess, configure
