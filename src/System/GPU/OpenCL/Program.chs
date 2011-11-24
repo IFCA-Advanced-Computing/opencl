@@ -183,17 +183,20 @@ by the OpenCL implementation on the host.
 -} 
 clCreateProgramWithBinary :: CLContext -> [CLDeviceID] -> [[Word8]] 
                              -> IO (CLProgram, [CLError])
-clCreateProgramWithBinary ctx devs bins = wrapPError $ \perr -> do withArray
-devs $ \pdevs -> do withArray lbins $ \plbins -> do buffs <- forM bins $ \bs ->
-do buff <- mallocArray (length bs) :: IO (Ptr Word8) pokeArray buff bs return
-buff
+clCreateProgramWithBinary ctx devs bins = wrapPError $ \perr ->
+  withArray devs $ \pdevs ->
+    withArray lbins $ \plbins -> do
+      buffs <- forM bins $ \bs -> do
+        buff <- mallocArray (length bs) :: IO (Ptr Word8)
+        pokeArray buff bs
+        return buff
 
       ret <- withArray buffs $ \(pbuffs :: Ptr (Ptr Word8)) -> do
         allocaArray ndevs $ \(perrs :: Ptr CLint) -> do
           prog <- raw_clCreateProgramWithBinary ctx (fromIntegral ndevs) pdevs plbins pbuffs perrs perr
           errs <- peekArray ndevs perrs
           return (prog, map getEnumCL errs)
-          
+
       mapM_ free buffs
       return ret
     

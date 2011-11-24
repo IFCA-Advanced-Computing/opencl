@@ -15,10 +15,10 @@ Cabal-Version: >=1.8
 Tested-With: GHC
 Description: 
     Haskell FFI binding to OpenCL library. It includes high-level wrappers to
-    help development. Based on OpenCLRaw package.
+    help development. Based on the OpenCLRaw package.
     .
-    Most of the functions can throw a 'CLError' Exception. Using the module
-    'Control.Exception' helps to work with this package Exceptions.
+    Most of the functions can throw a 'CLError' exception. Using the module
+    'Control.Exception' helps to work with this package's exceptions.
 
 Extra-source-files: README.org 
                     examples/example01.hs
@@ -46,7 +46,8 @@ Library
     cpp-options: "-DCALLCONV=stdcall"
   else
     cpp-options: "-DCALLCONV=ccall"
-    extra-libraries: OpenCL
+
+  cpp-options: -I include
 
 source-repository this
   type: git
