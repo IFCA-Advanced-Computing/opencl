@@ -12,7 +12,7 @@
   : cabal install --user
 
   Programs using the library must link against OpenCL; for example, by
-  passing `-lOpenCL` to GHC.
+  passing ~-lOpenCL~ to GHC.
 
 ** Optional Requisites
    Some OpenCL libraries require additional NUMA libraries. For instance,
