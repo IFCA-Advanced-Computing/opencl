@@ -7,8 +7,7 @@ Based on Jeff Heard OpenCLRaw.
 
   Requisite: c2hs installed.
 
-  In order to install the package. You need the CL/cl.h include file in a knowed
-  path. With the usual commands to install as a user library:
+  With the usual commands to install as a user library:
   
   : runhaskell Setup configure --user
   : runhaskell Setup build
