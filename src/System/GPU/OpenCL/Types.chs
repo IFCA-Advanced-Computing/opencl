@@ -58,6 +58,7 @@ import Foreign
 import Foreign.C.Types
 import Data.List( foldl' )
 import Data.Typeable( Typeable(..) )
+import Control.Applicative( (<$>) )
 import Control.Exception( Exception(..), throwIO )
 
 #include <CL/cl.h>
@@ -327,7 +328,7 @@ throwCLError = throwIO . (getEnumCL :: CLint -> CLError)
 wrapPError :: (Ptr CLint -> IO a) -> IO a
 wrapPError f = alloca $ \perr -> do
   v <- f perr
-  errcode <- liftM getEnumCL $ peek perr
+  errcode <- getEnumCL <$> peek perr
   if errcode == CL_SUCCESS
     then return v
     else throwIO errcode
