@@ -1,9 +1,9 @@
 Name: OpenCL
-Version: 1.0.2.2
+Version: 1.0.2.3
 License: BSD3
 License-File: LICENSE
 Author: Luis Cabellos
-Copyright: (c) 2011 Luis Cabellos
+Copyright: (c) 2011 Luis Cabellos, at The Institute of Physics of Cantabria (IFCA)
 Category: GPU, FFI, Graphics
 Build-Type: Simple
 Stability: Experimental
@@ -15,10 +15,10 @@ Cabal-Version: >=1.8
 Tested-With: GHC
 Description: 
     Haskell FFI binding to OpenCL library. It includes high-level wrappers to
-    help development. Based on OpenCLRaw package.
+    help development. Based on the OpenCLRaw package.
     .
-    Most of the functions can throw a 'CLError' Exception. Using the module
-    'Control.Exception' helps to work with this package Exceptions.
+    Most of the functions can throw a 'CLError' exception. Using the module
+    'Control.Exception' helps to work with this package's exceptions.
 
 Extra-source-files: README.org 
                     examples/example01.hs
@@ -46,12 +46,13 @@ Library
     cpp-options: "-DCALLCONV=stdcall"
   else
     cpp-options: "-DCALLCONV=ccall"
-    extra-libraries: OpenCL
+
+  cpp-options: -I include
 
 source-repository this
   type: git
   location: https://zhensydow@github.com/zhensydow/opencl.git
-  tag: 1.0.2.2
+  tag: 1.0.2.3
   branch: master
 
 source-repository head

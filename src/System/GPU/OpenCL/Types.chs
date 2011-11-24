@@ -58,7 +58,8 @@ import Foreign
 import Foreign.C.Types
 import Data.List( foldl' )
 import Data.Typeable( Typeable(..) )
-import Control.Exception( Exception(..), throw )
+import Control.Applicative( (<$>) )
+import Control.Exception( Exception(..), throwIO )
 
 #include <CL/cl.h>
 
@@ -322,15 +323,15 @@ not available (because the command identified by event has not completed).
 instance Exception CLError
 
 throwCLError :: CLint -> IO a
-throwCLError = throw . (getEnumCL :: CLint -> CLError)
+throwCLError = throwIO . (getEnumCL :: CLint -> CLError)
 
 wrapPError :: (Ptr CLint -> IO a) -> IO a
 wrapPError f = alloca $ \perr -> do
   v <- f perr
-  errcode <- peek perr >>= return . getEnumCL
+  errcode <- getEnumCL <$> peek perr
   if errcode == CL_SUCCESS
     then return v
-    else throw errcode
+    else throwIO errcode
   
 wrapCheckSuccess :: IO CLint -> IO Bool
 wrapCheckSuccess f = f >>= return . (==CL_SUCCESS) . getEnumCL
