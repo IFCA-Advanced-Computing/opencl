@@ -1,36 +1,33 @@
-* Introduction
-OpenCL highlevel wrapper for Haskell.
+#+STARTUP: showall
+* OpenCL
+  A high-level OpenCL library for Haskell.
 
-Based on Jeff Heard OpenCLRaw.
+  Based on the [[http://hackage.haskell.org/package/OpenCLRaw][OpenCLRaw]] package by J.R. Heard.
 
-* Install the package
-
-  Requisite: c2hs installed.
+** Installation
+   *Requirements:* [[http://hackage.haskell.org/package/c2hs][c2hs]] must be installed. (Try ~cabal install c2hs~.)
 
   With the usual commands to install as a user library:
   
-  : runhaskell Setup configure --user
-  : runhaskell Setup build
-  : runhaskell Setup install
+  : cabal install --user
 
-  The programs that use the library, need to link against OpenCL
+  Programs using the library must link against OpenCL; for example, by
+  passing `-lOpenCL` to GHC.
 
 ** Optional Requisites
-   Some OpenCL libraries required also numa libs. E.g, on Ubuntu 11.04:
-   
-   : install libnuma1 libnuma-dev
+   Some OpenCL libraries require additional NUMA libraries. For instance,
+   on Ubuntu 11.04:
+
+   : sudo apt-get install libnuma1 libnuma-dev
 
 ** Example
-   
    There is an simple working example in the examples folder. You can create an
    executable using:
 
    : ghc --make -lOpenCL examples/example01.hs
 
-** Executing on ghci
+** Using ghci
 
-   It's possible to execute the command line interface of ghc linking with
-   OpenCL, e.g:
+   It's possible to use GHCi with OpenCL, e.g.:
 
    : ghci -lOpenCL examples/example01.hs
-
