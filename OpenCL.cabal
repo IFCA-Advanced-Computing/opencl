@@ -3,7 +3,7 @@ Version: 1.0.2.2
 License: BSD3
 License-File: LICENSE
 Author: Luis Cabellos
-Copyright: (c) 2011 Luis Cabellos
+Copyright: (c) 2011 Luis Cabellos, at The Institute of Physics of Cantabria (IFCA)
 Category: GPU, FFI, Graphics
 Build-Type: Simple
 Stability: Experimental
