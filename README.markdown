@@ -1,36 +1,45 @@
-* Introduction
-OpenCL highlevel wrapper for Haskell.
+OpenCL
+======
 
-Based on Jeff Heard OpenCLRaw.
+A high-level OpenCL wrapper for Haskell.
 
-* Install the package
+Based on the [OpenCLRaw][] package by J.R. Heard.
 
-  Requisite: c2hs installed.
+  [OpenCLRaw]: http://hackage.haskell.org/package/OpenCLRaw
 
-  With the usual commands to install as a user library:
-  
-  : runhaskell Setup configure --user
-  : runhaskell Setup build
-  : runhaskell Setup install
+Install the package
+-------------------
 
-  The programs that use the library, need to link against OpenCL
+**Requirements:** [c2hs][] must be installed. (Try `cabal install c2hs`.)
 
-** Optional Requisites
-   Some OpenCL libraries required also numa libs. E.g, on Ubuntu 11.04:
-   
-   : install libnuma1 libnuma-dev
+With the usual command to install as a user library:
 
-** Example
-   
-   There is an simple working example in the examples folder. You can create an
-   executable using:
+    cabal install
 
-   : ghc --make -lOpenCL examples/example01.hs
+Programs using the library must link against OpenCL; for example, by
+passing `-lOpenCL` to GHC.
 
-** Executing on ghci
+  [c2hs]: http://hackage.haskell.org/package/c2hs
 
-   It's possible to execute the command line interface of ghc linking with
-   OpenCL, e.g:
+Optional requirements
+---------------------
 
-   : ghci -lOpenCL examples/example01.hs
+Some OpenCL libraries require additional NUMA libraries. For instance,
+on Ubuntu 11.04:
 
+    sudo apt-get install libnuma1 libnuma-dev
+
+Example
+-------
+
+There is an simple working example in the examples folder. You can create an
+executable using:
+
+    ghc --make -lOpenCL examples/example01.hs
+
+Using GHCi
+----------
+
+It's possible to use GHCi with OpenCL, e.g.:
+
+    ghci -lOpenCL examples/example01.hs
