@@ -7,8 +7,8 @@ Based on the [OpenCLRaw][] package by J.R. Heard.
 
   [OpenCLRaw]: http://hackage.haskell.org/package/OpenCLRaw
 
-Install the package
--------------------
+Installation
+------------
 
 **Requirements:** [c2hs][] must be installed. (Try `cabal install c2hs`.)
 
