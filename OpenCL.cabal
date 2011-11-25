@@ -57,7 +57,8 @@ Test-suite tests
   main-is:      test-opencl.hs
   hs-Source-Dirs: src/test
   ghc-options:    -Wall
-  build-depends: base >=4.0 && < 5
+  extra-libraries: OpenCL
+  build-depends: base >=4.0 && < 5, QuickCheck==2.4.0.*, OpenCL
 
 source-repository this
   type: git

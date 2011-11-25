@@ -31,12 +31,83 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -}
 
 -- -----------------------------------------------------------------------------
-import System.Exit( exitSuccess )
+import Foreign( castPtr, nullPtr, sizeOf )
+import Foreign.C.Types( CInt )
+import Foreign.Marshal.Array( newArray, peekArray )
+import Test.QuickCheck( Property, Testable, quickCheckWithResult, (==>) )
+import Test.QuickCheck.Monadic( monadicIO, assert, run )
+import Test.QuickCheck.Test( Result, Args(..), isSuccess, stdArgs )
+import Text.Printf( printf )
+import System.Exit( exitSuccess, exitFailure )
+import System.GPU.OpenCL
+
+-- -----------------------------------------------------------------------------
+clDupSource :: String
+clDupSource = "__kernel void duparray(__global int *in, __global int *out ){\n  int id = get_global_id(0);\n  out[id] = 2*in[id];\n}"
+
+dupOpencl :: [Int] -> IO [Int]
+dupOpencl xs = do
+  -- Initialize OpenCL
+  (platform:_) <- clGetPlatformIDs
+  (dev:_) <- clGetDeviceIDs platform CL_DEVICE_TYPE_ALL
+  context <- clCreateContext [dev] print
+  q <- clCreateCommandQueue context dev []
+  
+  -- Initialize Kernel
+  program <- clCreateProgramWithSource context clDupSource
+  clBuildProgram program [dev] ""
+  kernel <- clCreateKernel program "duparray"
+  
+  -- Initialize parameters
+  let original = map fromIntegral xs :: [CInt]
+      elemSize = sizeOf (0 :: CInt)
+      vecSize = elemSize * length original
+
+  input  <- newArray original
+
+  mem_in <- clCreateBuffer context [CL_MEM_READ_ONLY, CL_MEM_COPY_HOST_PTR] (vecSize, castPtr input)  
+  mem_out <- clCreateBuffer context [CL_MEM_WRITE_ONLY] (vecSize, nullPtr)
+
+  clSetKernelArg kernel 0 mem_in
+  clSetKernelArg kernel 1 mem_out
+  
+  -- Execute Kernel
+  eventExec <- clEnqueueNDRangeKernel q kernel [length original] [1] []
+  
+  -- Get Result
+  _ <- clEnqueueReadBuffer q mem_out True 0 vecSize (castPtr input) [eventExec]
+  
+  _ <- clReleaseMemObject mem_in
+  _ <- clReleaseMemObject mem_out
+  
+  result <- peekArray (length original) input
+
+  return $ map fromIntegral result
+
+dupHaskell :: [Int] -> [Int]
+dupHaskell = map (*2)
+
+prop_dup :: [Int] -> Property
+prop_dup xs = not (null xs) ==> monadicIO test
+  where
+    test = do
+      ys <- run $ dupOpencl xs
+      assert (dupHaskell xs == ys)
+
+-- -----------------------------------------------------------------------------
+fastCheck :: Testable prop => prop -> IO Result
+fastCheck = quickCheckWithResult stdArgs{ maxSuccess = 20, maxSize = 50 }
+
+tests :: [(String, IO Result)]
+tests = 
+  [ ("Opencl: duplicate int array", fastCheck prop_dup) ]
 
 -- -----------------------------------------------------------------------------
 main :: IO ()
 main = do
-    putStrLn "Test skel!"
-    exitSuccess
+  results <- mapM (\(s,a) -> printf "%-25s: " s >> a) tests
+  if all isSuccess results
+    then exitSuccess 
+    else exitFailure
 
 -- -----------------------------------------------------------------------------
