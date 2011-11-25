@@ -1,5 +1,5 @@
 Name: OpenCL
-Version: 1.0.2.3
+Version: 1.0.2.4
 License: BSD3
 License-File: LICENSE
 Author: Luis Cabellos
@@ -20,11 +20,14 @@ Description:
     Most of the functions can throw a 'CLError' exception. Using the module
     'Control.Exception' helps to work with this package's exceptions.
 
-Extra-source-files: README.org 
-                    examples/example01.hs
-                    examples/example02.hs
-                    examples/example03.hs
-                    examples/example04.hs
+Extra-source-files:
+  README.org
+  examples/example01.hs
+  examples/example02.hs
+  examples/example03.hs
+  examples/example04.hs
+  include/CL/*.h
+  include/CL/*.hpp
 
 Library
   Build-tools: c2hs
@@ -47,12 +50,20 @@ Library
   else
     cpp-options: "-DCALLCONV=ccall"
 
-  cpp-options: -I include
+  cpp-options: -Iinclude
+
+Test-suite tests
+  type:         exitcode-stdio-1.0
+  main-is:      test-opencl.hs
+  hs-Source-Dirs: src/test
+  ghc-options:    -Wall
+  extra-libraries: OpenCL
+  build-depends: base >=4.0 && < 5, QuickCheck==2.4.0.*, OpenCL
 
 source-repository this
   type: git
   location: https://zhensydow@github.com/zhensydow/opencl.git
-  tag: 1.0.2.3
+  tag: 1.0.2.4
   branch: master
 
 source-repository head
