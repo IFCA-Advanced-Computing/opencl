@@ -52,6 +52,13 @@ Library
 
   cpp-options: -Iinclude
 
+Test-suite tests
+  type:         exitcode-stdio-1.0
+  main-is:      test-opencl.hs
+  hs-Source-Dirs: src/test
+  ghc-options:    -Wall
+  build-depends: base >=4.0 && < 5
+
 source-repository this
   type: git
   location: https://zhensydow@github.com/zhensydow/opencl.git
