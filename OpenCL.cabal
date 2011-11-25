@@ -27,6 +27,7 @@ Extra-source-files:
   examples/example03.hs
   examples/example04.hs
   include/CL/*.h
+  include/CL/*.hpp
 
 Library
   Build-tools: c2hs
