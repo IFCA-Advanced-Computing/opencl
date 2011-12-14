@@ -57,7 +57,11 @@ import System.GPU.OpenCL.Types(
   whenSuccess, wrapCheckSuccess, wrapPError, wrapGetInfo, getCLValue, 
   bitmaskToCommandQueueProperties, bitmaskFromFlags )
 
+#ifdef MACOSX
+#include <OpenCL/opencl.h>
+#else
 #include <CL/cl.h>
+#endif
 
 -- -----------------------------------------------------------------------------
 foreign import CALLCONV "clCreateCommandQueue" raw_clCreateCommandQueue :: 
@@ -427,7 +431,7 @@ clEnqueueNDRangeKernel cq krn gws lws events = withArray (map fromIntegral gws) 
   clEnqueue (raw_clEnqueueNDRangeKernel cq krn num nullPtr pgws plws) events
     where
       num = fromIntegral $ length gws
-      
+
 {-| Enqueues a command to execute a kernel on a device. The kernel is executed
 using a single work-item.
 

@@ -55,7 +55,11 @@ import System.GPU.OpenCL.Types(
   wrapPError, wrapCheckSuccess, wrapGetInfo, getEnumCL, bitmaskFromFlags, 
   bitmaskToMemFlags, getCLValue )
 
+#ifdef MACOSX
+#include <OpenCL/opencl.h>
+#else
 #include <CL/cl.h>
+#endif
 
 -- -----------------------------------------------------------------------------
 foreign import CALLCONV "clCreateBuffer" raw_clCreateBuffer :: 

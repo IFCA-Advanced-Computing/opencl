@@ -59,7 +59,12 @@ import System.GPU.OpenCL.Types(
   CLKernelInfo_, CLKernelWorkGroupInfo_, wrapCheckSuccess, 
   whenSuccess, wrapPError, wrapGetInfo, getCLValue, getEnumCL )
 
+#ifdef MACOSX
+#include <OpenCL/opencl.h>
+#else
 #include <CL/cl.h>
+#endif
+
 
 -- -----------------------------------------------------------------------------
 type BuildCallback = CLProgram -> Ptr () -> IO ()

@@ -1,5 +1,5 @@
 Name: OpenCL
-Version: 1.0.2.4
+Version: 1.0.3
 License: BSD3
 License-File: LICENSE
 Author: Luis Cabellos
@@ -49,17 +49,24 @@ Library
   if os(windows)
     cpp-options: "-DCALLCONV=stdcall"
   else
+    if os(darwin)
+      cc-options: "-U__BLOCKS__"
+      cc-options: "-DMACOSX"
     cpp-options: "-DCALLCONV=ccall"
-
-  cpp-options: -Iinclude
+  if !os(darwin)
+    cpp-options: -Iinclude
+  Frameworks:  OpenCL
 
 Test-suite tests
   type:         exitcode-stdio-1.0
   main-is:      test-opencl.hs
   hs-Source-Dirs: src/test
   ghc-options:    -Wall
-  extra-libraries: OpenCL
-  build-depends: base >=4.0 && < 5, QuickCheck==2.4.0.*, OpenCL
+  -- if !os(darwin)
+  --   extra-libraries: OpenCL
+  Frameworks: OpenCL
+  build-depends: base >=4.0 && < 5, QuickCheck==2.4.*, OpenCL
+
 
 source-repository this
   type: git

@@ -50,7 +50,11 @@ import System.GPU.OpenCL.Types(
   CLContext, CLDeviceType, bitmaskFromFlags, getCLValue,
   whenSuccess, wrapCheckSuccess, wrapPError, wrapGetInfo )
 
+#ifdef MACOSX
+#include <OpenCL/opencl.h>
+#else
 #include <CL/cl.h>
+#endif
 
 -- -----------------------------------------------------------------------------
 type ContextCallback = CString -> Ptr () -> CSize -> Ptr () -> IO ()
