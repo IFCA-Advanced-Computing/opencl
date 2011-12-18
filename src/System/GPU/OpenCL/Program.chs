@@ -127,14 +127,15 @@ following 'CLError' exceptions:
 by the OpenCL implementation on the host.  
 -}
 clCreateProgramWithSource :: CLContext -> String -> IO CLProgram
-clCreateProgramWithSource ctx source = wrapPError $ \perr -> do
-  let strings = lines source
-      count = fromIntegral $ length strings
-  cstrings <- mapM newCString strings
-  prog <- withArray cstrings $ \srcArray -> do
-    raw_clCreateProgramWithSource ctx count srcArray nullPtr perr
-  mapM_ free cstrings
-  return prog
+clCreateProgramWithSource ctx source =
+    wrapPError $ \perr -> do
+        let strings = lines source
+            count   = fromIntegral $ length strings
+        cstrings <- mapM newCString strings
+        prog <- withArray cstrings $ \srcArray -> do
+          raw_clCreateProgramWithSource ctx count srcArray nullPtr perr
+        mapM_ free cstrings
+        return prog
   
 {-| Creates a program object for a context, and loads specified binary data into
 the program object.
@@ -405,8 +406,9 @@ getProgramInfoSize prg infoid = alloca $ \(value_size :: Ptr CSize) -> do
 -- This function execute OpenCL clGetProgramInfo with
 -- 'CL_PROGRAM_REFERENCE_COUNT'.
 clGetProgramReferenceCount :: CLProgram -> IO CLuint
-clGetProgramReferenceCount prg = wrapGetInfo (\(dat :: Ptr CLuint) 
-                                              -> raw_clGetProgramInfo prg infoid size (castPtr dat)) id
+clGetProgramReferenceCount prg =
+    wrapGetInfo (\(dat :: Ptr CLuint) ->
+        raw_clGetProgramInfo prg infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_PROGRAM_REFERENCE_COUNT
       size = fromIntegral $ sizeOf (0::CLuint)
@@ -415,8 +417,9 @@ clGetProgramReferenceCount prg = wrapGetInfo (\(dat :: Ptr CLuint)
 --
 -- This function execute OpenCL clGetProgramInfo with 'CL_PROGRAM_CONTEXT'.
 clGetProgramContext :: CLProgram -> IO CLContext
-clGetProgramContext prg = wrapGetInfo (\(dat :: Ptr CLContext) 
-                                       -> raw_clGetProgramInfo prg infoid size (castPtr dat)) id
+clGetProgramContext prg =
+    wrapGetInfo (\(dat :: Ptr CLContext) ->
+        raw_clGetProgramInfo prg infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_PROGRAM_CONTEXT
       size = fromIntegral $ sizeOf (nullPtr::CLContext)
@@ -425,8 +428,9 @@ clGetProgramContext prg = wrapGetInfo (\(dat :: Ptr CLContext)
 --
 -- This function execute OpenCL clGetProgramInfo with 'CL_PROGRAM_NUM_DEVICES'.
 clGetProgramNumDevices :: CLProgram -> IO CLuint
-clGetProgramNumDevices prg = wrapGetInfo (\(dat :: Ptr CLuint) 
-                                       -> raw_clGetProgramInfo prg infoid size (castPtr dat)) id
+clGetProgramNumDevices prg =
+    wrapGetInfo (\(dat :: Ptr CLuint) ->
+        raw_clGetProgramInfo prg infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_PROGRAM_NUM_DEVICES
       size = fromIntegral $ sizeOf (0::CLuint)
@@ -535,8 +539,9 @@ getProgramBuildInfoSize prg device infoid = alloca $ \(val :: Ptr CSize) -> do
 -- This function execute OpenCL clGetProgramBuildInfo with
 -- 'CL_PROGRAM_BUILD_STATUS'.
 clGetProgramBuildStatus :: CLProgram -> CLDeviceID -> IO CLBuildStatus
-clGetProgramBuildStatus prg device = wrapGetInfo (\(dat :: Ptr CLBuildStatus_) 
-                                           -> raw_clGetProgramBuildInfo prg device infoid size (castPtr dat)) getEnumCL
+clGetProgramBuildStatus prg device =
+    wrapGetInfo (\(dat :: Ptr CLBuildStatus_) ->
+        raw_clGetProgramBuildInfo prg device infoid size (castPtr dat)) getEnumCL
     where 
       infoid = getCLValue CL_PROGRAM_BUILD_STATUS
       size = fromIntegral $ sizeOf (0::CLBuildStatus_)
@@ -719,8 +724,9 @@ clGetKernelFunctionName krn = do
 --
 -- This function execute OpenCL clGetKernelInfo with 'CL_KERNEL_NUM_ARGS'.
 clGetKernelNumArgs :: CLKernel -> IO CLuint
-clGetKernelNumArgs krn = wrapGetInfo (\(dat :: Ptr CLuint) 
-                                      -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
+clGetKernelNumArgs krn =
+    wrapGetInfo (\(dat :: Ptr CLuint) ->
+        raw_clGetKernelInfo krn infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_KERNEL_NUM_ARGS
       size = fromIntegral $ sizeOf (0::CLuint)
@@ -732,8 +738,9 @@ clGetKernelNumArgs krn = wrapGetInfo (\(dat :: Ptr CLuint)
 -- This function execute OpenCL clGetKernelInfo with
 -- 'CL_KERNEL_REFERENCE_COUNT'.
 clGetKernelReferenceCount :: CLKernel -> IO CLuint
-clGetKernelReferenceCount krn = wrapGetInfo (\(dat :: Ptr CLuint) 
-                                             -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
+clGetKernelReferenceCount krn =
+    wrapGetInfo (\(dat :: Ptr CLuint) ->
+        raw_clGetKernelInfo krn infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_KERNEL_REFERENCE_COUNT
       size = fromIntegral $ sizeOf (0::CLuint)
@@ -742,8 +749,9 @@ clGetKernelReferenceCount krn = wrapGetInfo (\(dat :: Ptr CLuint)
 --
 -- This function execute OpenCL clGetKernelInfo with 'CL_KERNEL_CONTEXT'.
 clGetKernelContext :: CLKernel -> IO CLContext
-clGetKernelContext krn = wrapGetInfo (\(dat :: Ptr CLContext) 
-                                      -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
+clGetKernelContext krn =
+    wrapGetInfo (\(dat :: Ptr CLContext) ->
+        raw_clGetKernelInfo krn infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_KERNEL_CONTEXT
       size = fromIntegral $ sizeOf (nullPtr::CLContext)
@@ -752,8 +760,9 @@ clGetKernelContext krn = wrapGetInfo (\(dat :: Ptr CLContext)
 --
 -- This function execute OpenCL clGetKernelInfo with 'CL_KERNEL_PROGRAM'.
 clGetKernelProgram :: CLKernel -> IO CLProgram
-clGetKernelProgram krn = wrapGetInfo (\(dat :: Ptr CLProgram) 
-                                      -> raw_clGetKernelInfo krn infoid size (castPtr dat)) id
+clGetKernelProgram krn =
+    wrapGetInfo (\(dat :: Ptr CLProgram) ->
+        raw_clGetKernelInfo krn infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_KERNEL_PROGRAM
       size = fromIntegral $ sizeOf (nullPtr::CLProgram)
@@ -777,8 +786,9 @@ enum CLKernelGroupInfo {
 -- This function execute OpenCL clGetKernelWorkGroupInfo with
 -- 'CL_KERNEL_WORK_GROUP_SIZE'.
 clGetKernelWorkGroupSize :: CLKernel -> CLDeviceID -> IO CSize
-clGetKernelWorkGroupSize krn device = wrapGetInfo (\(dat :: Ptr CSize)
-                                                   -> raw_clGetKernelWorkGroupInfo krn device infoid size (castPtr dat)) id
+clGetKernelWorkGroupSize krn device =
+    wrapGetInfo (\(dat :: Ptr CSize) ->
+        raw_clGetKernelWorkGroupInfo krn device infoid size (castPtr dat)) id
     where
       infoid = getCLValue CL_KERNEL_WORK_GROUP_SIZE
       size = fromIntegral $ sizeOf (0::CSize)
@@ -816,8 +826,9 @@ clGetKernelCompileWorkGroupSize krn device = do
 -- This function execute OpenCL clGetKernelWorkGroupInfo with
 -- 'CL_KERNEL_LOCAL_MEM_SIZE'.
 clGetKernelLocalMemSize :: CLKernel -> CLDeviceID -> IO CLulong
-clGetKernelLocalMemSize krn device = wrapGetInfo (\(dat :: Ptr CLulong)
-                                                  -> raw_clGetKernelWorkGroupInfo krn device infoid size (castPtr dat)) id
+clGetKernelLocalMemSize krn device =
+    wrapGetInfo (\(dat :: Ptr CLulong) ->
+        raw_clGetKernelWorkGroupInfo krn device infoid size (castPtr dat)) id
     where
       infoid = getCLValue CL_KERNEL_LOCAL_MEM_SIZE
       size = fromIntegral $ sizeOf (0::CLulong)

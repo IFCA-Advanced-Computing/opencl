@@ -699,7 +699,14 @@ bitmaskToFlags :: (Enum a, Bits b) => [a] -> b -> [a]
 bitmaskToFlags xs mask = filter (testMask mask . fromIntegral . fromEnum) xs
 
 bitmaskToDeviceTypes :: CLDeviceType_ -> [CLDeviceType]
-bitmaskToDeviceTypes = bitmaskToFlags [CL_DEVICE_TYPE_CPU,CL_DEVICE_TYPE_GPU,CL_DEVICE_TYPE_ACCELERATOR,CL_DEVICE_TYPE_DEFAULT,CL_DEVICE_TYPE_ALL]
+bitmaskToDeviceTypes =
+	bitmaskToFlags 
+		[CL_DEVICE_TYPE_CPU
+		,CL_DEVICE_TYPE_GPU
+		,CL_DEVICE_TYPE_ACCELERATOR
+		,CL_DEVICE_TYPE_DEFAULT
+		,CL_DEVICE_TYPE_ALL
+		]
 
 bitmaskToCommandQueueProperties :: CLCommandQueueProperty_ -> [CLCommandQueueProperty]
 bitmaskToCommandQueueProperties = bitmaskToFlags (binaryFlags maxBound)
