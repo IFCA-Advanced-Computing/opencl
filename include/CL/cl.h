@@ -588,7 +588,8 @@ clGetDeviceInfo(cl_device_id    /* device */,
                 size_t          /* param_value_size */, 
                 void *          /* param_value */,
                 size_t *        /* param_value_size_ret */) CL_API_SUFFIX__VERSION_1_0;
-    
+
+#ifdef CL_API_SUFFIX__VERSION_1_2
 extern CL_API_ENTRY cl_int CL_API_CALL
 clCreateSubDevices(cl_device_id                         /* in_device */,
                    const cl_device_partition_property * /* properties */,
@@ -601,7 +602,8 @@ clRetainDevice(cl_device_id /* device */) CL_API_SUFFIX__VERSION_1_2;
     
 extern CL_API_ENTRY cl_int CL_API_CALL
 clReleaseDevice(cl_device_id /* device */) CL_API_SUFFIX__VERSION_1_2;
-    
+#endif
+
 /* Context APIs  */
 extern CL_API_ENTRY cl_context CL_API_CALL
 clCreateContext(const cl_context_properties * /* properties */,
@@ -666,6 +668,8 @@ clCreateSubBuffer(cl_mem                   /* buffer */,
                   const void *             /* buffer_create_info */,
                   cl_int *                 /* errcode_ret */) CL_API_SUFFIX__VERSION_1_1;
 
+#ifdef CL_API_SUFFIX__VERSION_1_2
+
 extern CL_API_ENTRY cl_mem CL_API_CALL
 clCreateImage(cl_context              /* context */,
               cl_mem_flags            /* flags */,
@@ -673,6 +677,7 @@ clCreateImage(cl_context              /* context */,
               const cl_image_desc *   /* image_desc */, 
               void *                  /* host_ptr */,
               cl_int *                /* errcode_ret */) CL_API_SUFFIX__VERSION_1_2;
+#endif
                         
 extern CL_API_ENTRY cl_int CL_API_CALL
 clRetainMemObject(cl_mem /* memobj */) CL_API_SUFFIX__VERSION_1_0;
@@ -745,12 +750,15 @@ clCreateProgramWithBinary(cl_context                     /* context */,
                           cl_int *                       /* binary_status */,
                           cl_int *                       /* errcode_ret */) CL_API_SUFFIX__VERSION_1_0;
 
+#ifdef CL_API_SUFFIX__VERSION_1_2
+
 extern CL_API_ENTRY cl_program CL_API_CALL
 clCreateProgramWithBuiltInKernels(cl_context            /* context */,
                                   cl_uint               /* num_devices */,
                                   const cl_device_id *  /* device_list */,
                                   const char *          /* kernel_names */,
                                   cl_int *              /* errcode_ret */) CL_API_SUFFIX__VERSION_1_2;
+#endif
 
 extern CL_API_ENTRY cl_int CL_API_CALL
 clRetainProgram(cl_program /* program */) CL_API_SUFFIX__VERSION_1_0;
@@ -766,6 +774,7 @@ clBuildProgram(cl_program           /* program */,
                void (CL_CALLBACK *  /* pfn_notify */)(cl_program /* program */, void * /* user_data */),
                void *               /* user_data */) CL_API_SUFFIX__VERSION_1_0;
 
+#ifdef CL_API_SUFFIX__VERSION_1_2
 extern CL_API_ENTRY cl_int CL_API_CALL
 clCompileProgram(cl_program           /* program */,
                  cl_uint              /* num_devices */,
@@ -788,9 +797,9 @@ clLinkProgram(cl_context           /* context */,
               void *               /* user_data */,
               cl_int *             /* errcode_ret */ ) CL_API_SUFFIX__VERSION_1_2;
 
-
 extern CL_API_ENTRY cl_int CL_API_CALL
 clUnloadPlatformCompiler(cl_platform_id /* platform */) CL_API_SUFFIX__VERSION_1_2;
+#endif
 
 extern CL_API_ENTRY cl_int CL_API_CALL
 clGetProgramInfo(cl_program         /* program */,
@@ -838,6 +847,7 @@ clGetKernelInfo(cl_kernel       /* kernel */,
                 void *          /* param_value */,
                 size_t *        /* param_value_size_ret */) CL_API_SUFFIX__VERSION_1_0;
 
+#ifdef CL_API_SUFFIX__VERSION_1_2
 extern CL_API_ENTRY cl_int CL_API_CALL
 clGetKernelArgInfo(cl_kernel       /* kernel */,
                    cl_uint         /* arg_indx */,
@@ -845,6 +855,7 @@ clGetKernelArgInfo(cl_kernel       /* kernel */,
                    size_t          /* param_value_size */,
                    void *          /* param_value */,
                    size_t *        /* param_value_size_ret */) CL_API_SUFFIX__VERSION_1_2;
+#endif
 
 extern CL_API_ENTRY cl_int CL_API_CALL
 clGetKernelWorkGroupInfo(cl_kernel                  /* kernel */,
@@ -955,7 +966,8 @@ clEnqueueWriteBufferRect(cl_command_queue    /* command_queue */,
                          cl_uint             /* num_events_in_wait_list */,
                          const cl_event *    /* event_wait_list */,
                          cl_event *          /* event */) CL_API_SUFFIX__VERSION_1_1;
-                            
+
+#ifdef CL_API_SUFFIX__VERSION_1_2
 extern CL_API_ENTRY cl_int CL_API_CALL
 clEnqueueFillBuffer(cl_command_queue   /* command_queue */,
                     cl_mem             /* buffer */, 
@@ -966,6 +978,7 @@ clEnqueueFillBuffer(cl_command_queue   /* command_queue */,
                     cl_uint            /* num_events_in_wait_list */, 
                     const cl_event *   /* event_wait_list */, 
                     cl_event *         /* event */) CL_API_SUFFIX__VERSION_1_2;
+#endif
                             
 extern CL_API_ENTRY cl_int CL_API_CALL
 clEnqueueCopyBuffer(cl_command_queue    /* command_queue */, 
@@ -1019,6 +1032,7 @@ clEnqueueWriteImage(cl_command_queue    /* command_queue */,
                     const cl_event *    /* event_wait_list */,
                     cl_event *          /* event */) CL_API_SUFFIX__VERSION_1_0;
 
+#ifdef CL_API_SUFFIX__VERSION_1_2
 extern CL_API_ENTRY cl_int CL_API_CALL
 clEnqueueFillImage(cl_command_queue   /* command_queue */,
                    cl_mem             /* image */, 
@@ -1028,6 +1042,7 @@ clEnqueueFillImage(cl_command_queue   /* command_queue */,
                    cl_uint            /* num_events_in_wait_list */, 
                    const cl_event *   /* event_wait_list */, 
                    cl_event *         /* event */) CL_API_SUFFIX__VERSION_1_2;
+#endif
                             
 extern CL_API_ENTRY cl_int CL_API_CALL
 clEnqueueCopyImage(cl_command_queue     /* command_queue */,
@@ -1096,6 +1111,7 @@ clEnqueueUnmapMemObject(cl_command_queue /* command_queue */,
                         const cl_event *  /* event_wait_list */,
                         cl_event *        /* event */) CL_API_SUFFIX__VERSION_1_0;
 
+#ifdef CL_API_SUFFIX__VERSION_1_2
 extern CL_API_ENTRY cl_int CL_API_CALL
 clEnqueueMigrateMemObjects(cl_command_queue       /* command_queue */,
                            cl_uint                /* num_mem_objects */,
@@ -1104,6 +1120,7 @@ clEnqueueMigrateMemObjects(cl_command_queue       /* command_queue */,
                            cl_uint                /* num_events_in_wait_list */,
                            const cl_event *       /* event_wait_list */,
                            cl_event *             /* event */) CL_API_SUFFIX__VERSION_1_2;
+#endif
 
 extern CL_API_ENTRY cl_int CL_API_CALL
 clEnqueueNDRangeKernel(cl_command_queue /* command_queue */,
@@ -1135,6 +1152,7 @@ clEnqueueNativeKernel(cl_command_queue  /* command_queue */,
                       const cl_event *  /* event_wait_list */,
                       cl_event *        /* event */) CL_API_SUFFIX__VERSION_1_0;
 
+#ifdef CL_API_SUFFIX__VERSION_1_2
 extern CL_API_ENTRY cl_int CL_API_CALL
 clEnqueueMarkerWithWaitList(cl_command_queue /* command_queue */,
                             cl_uint           /* num_events_in_wait_list */,
@@ -1154,7 +1172,7 @@ clSetPrintfCallback(cl_context          /* context */,
                                                           char * /* printf_data_ptr */, 
                                                           void * /* user_data */),
                     void *              /* user_data */) CL_API_SUFFIX__VERSION_1_2;
-
+#endif
 
 
 /* Extension function access
@@ -1164,10 +1182,11 @@ clSetPrintfCallback(cl_context          /* context */,
  * check to make sure the address is not NULL, before using or 
  * calling the returned function address.
  */
+#ifdef CL_API_SUFFIX__VERSION_1_2
 extern CL_API_ENTRY void * CL_API_CALL 
 clGetExtensionFunctionAddressForPlatform(cl_platform_id /* platform */,
                                          const char *   /* func_name */) CL_API_SUFFIX__VERSION_1_2;
-    
+#endif 
     
 #ifdef CL_USE_DEPRECATED_OPENCL_1_0_APIS
 #warning CL_USE_DEPRECATED_OPENCL_1_0_APIS is defined. These APIs are unsupported and untested in OpenCL 1.1!
