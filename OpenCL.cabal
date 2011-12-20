@@ -64,7 +64,6 @@ Test-suite tests
   ghc-options:    -Wall
   -- if !os(darwin)
   --   extra-libraries: OpenCL
-  Frameworks: OpenCL
   build-depends: base >=4.0 && < 5, QuickCheck==2.4.*, OpenCL
 
 
