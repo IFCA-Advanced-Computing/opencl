@@ -1,5 +1,5 @@
 Name: OpenCL
-Version: 1.0.2.4
+Version: 1.0.2.5
 License: BSD3
 License-File: LICENSE
 Author: Luis Cabellos
@@ -46,10 +46,14 @@ Library
   Other-Modules: 
     System.GPU.OpenCL.Types
 
+  
+  if os(darwin)
+    cpp-options: "-U__BLOCKS__"
+  
   if os(windows)
-    cpp-options: "-DCALLCONV=stdcall"
+      cpp-options: "-DCALLCONV=stdcall"
   else
-    cpp-options: "-DCALLCONV=ccall"
+      cpp-options: "-DCALLCONV=ccall"
 
   cpp-options: -Iinclude
 
