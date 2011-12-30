@@ -1,5 +1,5 @@
 Name: OpenCL
-Version: 1.0.2.5
+Version: 1.0.2.6
 License: BSD3
 License-File: LICENSE
 Author: Luis Cabellos
@@ -68,7 +68,7 @@ Test-suite tests
 source-repository this
   type: git
   location: https://zhensydow@github.com/zhensydow/opencl.git
-  tag: 1.0.2.4
+  tag: 1.0.2.6
   branch: master
 
 source-repository head
