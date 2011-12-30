@@ -52,7 +52,7 @@ module System.GPU.OpenCL.Program(
 import Control.Monad( zipWithM, forM )
 import Foreign
 import Foreign.C.Types
-import Foreign.C.String( CString, withCString, newCString, peekCString )
+import Foreign.C.String( CString, withCString, peekCString )
 import System.GPU.OpenCL.Types( 
   CLint, CLuint, CLulong, CLProgram, CLContext, CLKernel, CLDeviceID, CLError,
   CLProgramInfo_, CLBuildStatus(..), CLBuildStatus_, CLProgramBuildInfo_, 
@@ -128,15 +128,10 @@ by the OpenCL implementation on the host.
 -}
 clCreateProgramWithSource :: CLContext -> String -> IO CLProgram
 clCreateProgramWithSource ctx source =
-    wrapPError $ \perr -> do
-        let strings = lines source
-            count   = fromIntegral $ length strings
-        cstrings <- mapM newCString strings
-        prog <- withArray cstrings $ \srcArray -> do
-          raw_clCreateProgramWithSource ctx count srcArray nullPtr perr
-        mapM_ free cstrings
-        return prog
-  
+  withCString source $ \cSource ->
+  withArray [cSource] $ \sourcesP ->
+  wrapPError (raw_clCreateProgramWithSource ctx 1 sourcesP nullPtr)
+
 {-| Creates a program object for a context, and loads specified binary data into
 the program object.
 
