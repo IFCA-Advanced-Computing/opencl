@@ -1,5 +1,5 @@
 Name: OpenCL
-Version: 1.0.3
+Version: 1.0.2.6
 License: BSD3
 License-File: LICENSE
 Author: Luis Cabellos
@@ -46,16 +46,20 @@ Library
   Other-Modules: 
     System.GPU.OpenCL.Types
 
+  
+  if os(darwin)
+    cpp-options: "-U__BLOCKS__"
+  
   if os(windows)
     cpp-options: "-DCALLCONV=stdcall"
   else
     if os(darwin)
       cc-options: "-U__BLOCKS__"
       cc-options: "-DMACOSX"
-    cpp-options: "-DCALLCONV=ccall"
-  if !os(darwin)
-    cpp-options: -Iinclude
-  Frameworks:  OpenCL
+      cpp-options: "-DCALLCONV=ccall"
+    if !os(darwin)
+      cpp-options: -Iinclude
+    Frameworks:  OpenCL
 
 Test-suite tests
   type:         exitcode-stdio-1.0
@@ -70,7 +74,7 @@ Test-suite tests
 source-repository this
   type: git
   location: https://zhensydow@github.com/zhensydow/opencl.git
-  tag: 1.0.2.4
+  tag: 1.0.2.6
   branch: master
 
 source-repository head

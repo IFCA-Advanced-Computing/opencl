@@ -143,8 +143,9 @@ enum CLContextInfo {
 --
 -- This function execute OpenCL clGetContextInfo with 'CL_CONTEXT_REFERENCE_COUNT'.
 clGetContextReferenceCount :: CLContext -> IO CLuint
-clGetContextReferenceCount ctx = wrapGetInfo (\(dat :: Ptr CLuint) 
-                                              -> raw_clGetContextInfo ctx infoid size (castPtr dat)) id
+clGetContextReferenceCount ctx =
+    wrapGetInfo (\(dat :: Ptr CLuint) ->
+        raw_clGetContextInfo ctx infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_CONTEXT_REFERENCE_COUNT
       size = fromIntegral $ sizeOf (0::CLuint)

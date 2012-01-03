@@ -150,8 +150,9 @@ enum CLMemInfo {
 --
 -- This function execute OpenCL clGetMemObjectInfo with 'CL_MEM_TYPE'.
 clGetMemType :: CLMem -> IO CLMemObjectType
-clGetMemType mem = wrapGetInfo (\(dat :: Ptr CLMemObjectType_) 
-                                -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) getEnumCL
+clGetMemType mem =
+    wrapGetInfo (\(dat :: Ptr CLMemObjectType_) ->
+        raw_clGetMemObjectInfo mem infoid size (castPtr dat)) getEnumCL
     where 
       infoid = getCLValue CL_MEM_TYPE
       size = fromIntegral $ sizeOf (0::CLMemObjectType_)
@@ -160,8 +161,9 @@ clGetMemType mem = wrapGetInfo (\(dat :: Ptr CLMemObjectType_)
 --
 -- This function execute OpenCL clGetMemObjectInfo with 'CL_MEM_FLAGS'.
 clGetMemFlags :: CLMem -> IO [CLMemFlag]
-clGetMemFlags mem = wrapGetInfo (\(dat :: Ptr CLMemFlags_)
-                                  -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) bitmaskToMemFlags
+clGetMemFlags mem =
+    wrapGetInfo (\(dat :: Ptr CLMemFlags_)->
+        raw_clGetMemObjectInfo mem infoid size (castPtr dat)) bitmaskToMemFlags
     where 
       infoid = getCLValue CL_MEM_FLAGS
       size = fromIntegral $ sizeOf (0::CLMemFlags_)
@@ -170,8 +172,9 @@ clGetMemFlags mem = wrapGetInfo (\(dat :: Ptr CLMemFlags_)
 --
 -- This function execute OpenCL clGetMemObjectInfo with 'CL_MEM_SIZE'.
 clGetMemSize :: CLMem -> IO CSize
-clGetMemSize mem = wrapGetInfo (\(dat :: Ptr CSize)
-                                 -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
+clGetMemSize mem =
+    wrapGetInfo (\(dat :: Ptr CSize)->
+        raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_MEM_SIZE
       size = fromIntegral $ sizeOf (0::CSize)
@@ -180,8 +183,9 @@ clGetMemSize mem = wrapGetInfo (\(dat :: Ptr CSize)
 --
 -- This function execute OpenCL clGetMemObjectInfo with 'CL_MEM_HOST_PTR'.
 clGetMemHostPtr :: CLMem -> IO (Ptr ())
-clGetMemHostPtr mem = wrapGetInfo (\(dat :: Ptr (Ptr ()))
-                                   -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
+clGetMemHostPtr mem =
+    wrapGetInfo (\(dat :: Ptr (Ptr ()))->
+        raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_MEM_HOST_PTR
       size = fromIntegral $ sizeOf (nullPtr::Ptr ())
@@ -192,8 +196,9 @@ clGetMemHostPtr mem = wrapGetInfo (\(dat :: Ptr (Ptr ()))
 --
 -- This function execute OpenCL clGetMemObjectInfo with 'CL_MEM_MAP_COUNT'.
 clGetMemMapCount :: CLMem -> IO CLuint
-clGetMemMapCount mem = wrapGetInfo (\(dat :: Ptr CLuint)
-                                   -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
+clGetMemMapCount mem =
+    wrapGetInfo (\(dat :: Ptr CLuint)->
+        raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_MEM_MAP_COUNT
       size = fromIntegral $ sizeOf (0 :: CLuint)
@@ -204,8 +209,9 @@ clGetMemMapCount mem = wrapGetInfo (\(dat :: Ptr CLuint)
 --
 -- This function execute OpenCL clGetMemObjectInfo with 'CL_MEM_REFERENCE_COUNT'.
 clGetMemReferenceCount :: CLMem -> IO CLuint
-clGetMemReferenceCount mem = wrapGetInfo (\(dat :: Ptr CLuint)
-                                   -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
+clGetMemReferenceCount mem =
+    wrapGetInfo (\(dat :: Ptr CLuint)->
+        raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_MEM_REFERENCE_COUNT
       size = fromIntegral $ sizeOf (0 :: CLuint)
@@ -214,8 +220,9 @@ clGetMemReferenceCount mem = wrapGetInfo (\(dat :: Ptr CLuint)
 --
 -- This function execute OpenCL clGetMemObjectInfo with 'CL_MEM_CONTEXT'.
 clGetMemContext :: CLMem -> IO CLContext
-clGetMemContext mem = wrapGetInfo (\(dat :: Ptr CLContext)
-                                   -> raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
+clGetMemContext mem =
+    wrapGetInfo (\(dat :: Ptr CLContext)->
+        raw_clGetMemObjectInfo mem infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_MEM_CONTEXT
       size = fromIntegral $ sizeOf (0 :: CLuint)
@@ -281,8 +288,9 @@ enum CLSamplerInfo {
 -- This function execute OpenCL clGetSamplerInfo with
 -- 'CL_SAMPLER_REFERENCE_COUNT'.
 clGetSamplerReferenceCount :: CLSampler -> IO CLuint
-clGetSamplerReferenceCount sam = wrapGetInfo (\(dat :: Ptr CLuint)
-                                   -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) id
+clGetSamplerReferenceCount sam =
+    wrapGetInfo (\(dat :: Ptr CLuint)->
+        raw_clGetSamplerInfo sam infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_SAMPLER_REFERENCE_COUNT
       size = fromIntegral $ sizeOf (0 :: CLuint)
@@ -291,8 +299,9 @@ clGetSamplerReferenceCount sam = wrapGetInfo (\(dat :: Ptr CLuint)
 --
 -- This function execute OpenCL clGetSamplerInfo with 'CL_SAMPLER_CONTEXT'.
 clGetSamplerContext :: CLSampler -> IO CLContext
-clGetSamplerContext sam = wrapGetInfo (\(dat :: Ptr CLContext)
-                                       -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) id
+clGetSamplerContext sam =
+    wrapGetInfo (\(dat :: Ptr CLContext)->
+        raw_clGetSamplerInfo sam infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_SAMPLER_CONTEXT
       size = fromIntegral $ sizeOf (nullPtr :: CLContext)
@@ -302,8 +311,9 @@ clGetSamplerContext sam = wrapGetInfo (\(dat :: Ptr CLContext)
 -- This function execute OpenCL clGetSamplerInfo with
 -- 'CL_SAMPLER_ADDRESSING_MODE'.
 clGetSamplerAddressingMode :: CLSampler -> IO CLAddressingMode
-clGetSamplerAddressingMode sam = wrapGetInfo (\(dat :: Ptr CLAddressingMode_)
-                                              -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) getEnumCL
+clGetSamplerAddressingMode sam =
+    wrapGetInfo (\(dat :: Ptr CLAddressingMode_)->
+        raw_clGetSamplerInfo sam infoid size (castPtr dat)) getEnumCL
     where 
       infoid = getCLValue CL_SAMPLER_ADDRESSING_MODE
       size = fromIntegral $ sizeOf (0 :: CLAddressingMode_)
@@ -312,8 +322,9 @@ clGetSamplerAddressingMode sam = wrapGetInfo (\(dat :: Ptr CLAddressingMode_)
 --
 -- This function execute OpenCL clGetSamplerInfo with 'CL_SAMPLER_FILTER_MODE'.
 clGetSamplerFilterMode :: CLSampler -> IO CLFilterMode
-clGetSamplerFilterMode sam = wrapGetInfo (\(dat :: Ptr CLFilterMode_)
-                                          -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) getEnumCL
+clGetSamplerFilterMode sam =
+    wrapGetInfo (\(dat :: Ptr CLFilterMode_)->
+        raw_clGetSamplerInfo sam infoid size (castPtr dat)) getEnumCL
     where 
       infoid = getCLValue CL_SAMPLER_FILTER_MODE
       size = fromIntegral $ sizeOf (0 :: CLFilterMode_)
@@ -324,8 +335,9 @@ clGetSamplerFilterMode sam = wrapGetInfo (\(dat :: Ptr CLFilterMode_)
 -- This function execute OpenCL clGetSamplerInfo with
 -- 'CL_SAMPLER_NORMALIZED_COORDS'.
 clGetSamplerNormalizedCoords :: CLSampler -> IO Bool
-clGetSamplerNormalizedCoords sam = wrapGetInfo (\(dat :: Ptr CLbool)
-                                                -> raw_clGetSamplerInfo sam infoid size (castPtr dat)) (/=0)
+clGetSamplerNormalizedCoords sam =
+    wrapGetInfo (\(dat :: Ptr CLbool)->
+        raw_clGetSamplerInfo sam infoid size (castPtr dat)) (/=0)
     where 
       infoid = getCLValue CL_SAMPLER_NORMALIZED_COORDS
       size = fromIntegral $ sizeOf (0 :: CLbool)

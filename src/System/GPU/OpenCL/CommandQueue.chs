@@ -184,8 +184,9 @@ enum CLCommandQueueInfo {
 --
 -- This function execute OpenCL clGetCommandQueueInfo with 'CL_QUEUE_CONTEXT'.
 clGetCommandQueueContext :: CLCommandQueue -> IO CLContext
-clGetCommandQueueContext cq = wrapGetInfo (\(dat :: Ptr CLContext) 
-                                           -> raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) id
+clGetCommandQueueContext cq =
+    wrapGetInfo (\(dat :: Ptr CLContext) ->
+        raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_QUEUE_CONTEXT
       size = fromIntegral $ sizeOf (nullPtr::CLContext)
@@ -194,8 +195,9 @@ clGetCommandQueueContext cq = wrapGetInfo (\(dat :: Ptr CLContext)
 --
 -- This function execute OpenCL clGetCommandQueueInfo with 'CL_QUEUE_DEVICE'.
 clGetCommandQueueDevice :: CLCommandQueue -> IO CLDeviceID
-clGetCommandQueueDevice cq = wrapGetInfo (\(dat :: Ptr CLDeviceID) 
-                                           -> raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) id
+clGetCommandQueueDevice cq =
+    wrapGetInfo (\(dat :: Ptr CLDeviceID) ->
+        raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_QUEUE_DEVICE
       size = fromIntegral $ sizeOf (nullPtr::CLDeviceID)
@@ -208,8 +210,9 @@ clGetCommandQueueDevice cq = wrapGetInfo (\(dat :: Ptr CLDeviceID)
 -- This function execute OpenCL clGetCommandQueueInfo with
 -- 'CL_QUEUE_REFERENCE_COUNT'.
 clGetCommandQueueReferenceCount :: CLCommandQueue -> IO CLuint
-clGetCommandQueueReferenceCount cq = wrapGetInfo (\(dat :: Ptr CLuint) 
-                                           -> raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) id
+clGetCommandQueueReferenceCount cq =
+    wrapGetInfo (\(dat :: Ptr CLuint) ->
+        raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_QUEUE_REFERENCE_COUNT
       size = fromIntegral $ sizeOf (0::CLuint)
@@ -222,8 +225,9 @@ clGetCommandQueueReferenceCount cq = wrapGetInfo (\(dat :: Ptr CLuint)
 -- This function execute OpenCL clGetCommandQueueInfo with
 -- 'CL_QUEUE_PROPERTIES'.
 clGetCommandQueueProperties :: CLCommandQueue -> IO [CLCommandQueueProperty]
-clGetCommandQueueProperties cq = wrapGetInfo (\(dat :: Ptr CLCommandQueueProperty_) 
-                                           -> raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) bitmaskToCommandQueueProperties
+clGetCommandQueueProperties cq =
+    wrapGetInfo (\(dat :: Ptr CLCommandQueueProperty_) ->
+        raw_clGetCommandQueueInfo cq infoid size (castPtr dat)) bitmaskToCommandQueueProperties
     where 
       infoid = getCLValue CL_QUEUE_PROPERTIES
       size = fromIntegral $ sizeOf (0::CLCommandQueueProperty_)

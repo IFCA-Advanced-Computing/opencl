@@ -114,8 +114,9 @@ enum CLEventInfo {
 --
 -- This function execute OpenCL clGetEventInfo with 'CL_EVENT_COMMAND_QUEUE'.
 clGetEventCommandQueue :: CLEvent -> IO CLCommandQueue
-clGetEventCommandQueue ev = wrapGetInfo (\(dat :: Ptr CLCommandQueue) 
-                                         -> raw_clGetEventInfo ev infoid size (castPtr dat)) id
+clGetEventCommandQueue ev =
+    wrapGetInfo (\(dat :: Ptr CLCommandQueue) ->
+        raw_clGetEventInfo ev infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_EVENT_COMMAND_QUEUE
       size = fromIntegral $ sizeOf (nullPtr::CLCommandQueue)
@@ -124,8 +125,9 @@ clGetEventCommandQueue ev = wrapGetInfo (\(dat :: Ptr CLCommandQueue)
 --
 -- This function execute OpenCL clGetEventInfo with 'CL_EVENT_COMMAND_TYPE'.
 clGetEventCommandType :: CLEvent -> IO CLCommandType
-clGetEventCommandType ev = wrapGetInfo (\(dat :: Ptr CLCommandType_) 
-                                        -> raw_clGetEventInfo ev infoid size (castPtr dat)) getEnumCL
+clGetEventCommandType ev =
+    wrapGetInfo (\(dat :: Ptr CLCommandType_) ->
+        raw_clGetEventInfo ev infoid size (castPtr dat)) getEnumCL
     where 
       infoid = getCLValue CL_EVENT_COMMAND_TYPE
       size = fromIntegral $ sizeOf (0::CLCommandType_)
@@ -136,8 +138,9 @@ clGetEventCommandType ev = wrapGetInfo (\(dat :: Ptr CLCommandType_)
 --
 -- This function execute OpenCL clGetEventInfo with 'CL_EVENT_REFERENCE_COUNT'.
 clGetEventReferenceCount :: CLEvent -> IO CLint
-clGetEventReferenceCount ev = wrapGetInfo (\(dat :: Ptr CLint) 
-                                           -> raw_clGetEventInfo ev infoid size (castPtr dat)) id
+clGetEventReferenceCount ev =
+    wrapGetInfo (\(dat :: Ptr CLint) ->
+        raw_clGetEventInfo ev infoid size (castPtr dat)) id
     where 
       infoid = getCLValue CL_EVENT_REFERENCE_COUNT
       size = fromIntegral $ sizeOf (0::CLint)
@@ -147,8 +150,9 @@ clGetEventReferenceCount ev = wrapGetInfo (\(dat :: Ptr CLint)
 -- This function execute OpenCL clGetEventInfo with
 -- 'CL_EVENT_COMMAND_EXECUTION_STATUS'.
 clGetEventCommandExecutionStatus :: CLEvent -> IO CLCommandExecutionStatus
-clGetEventCommandExecutionStatus ev = wrapGetInfo (\(dat :: Ptr CLint) 
-                                                   -> raw_clGetEventInfo ev infoid size (castPtr dat)) getCommandExecutionStatus
+clGetEventCommandExecutionStatus ev =
+    wrapGetInfo (\(dat :: Ptr CLint) ->
+        raw_clGetEventInfo ev infoid size (castPtr dat)) getCommandExecutionStatus
     where 
       infoid = getCLValue CL_EVENT_COMMAND_EXECUTION_STATUS
       size = fromIntegral $ sizeOf (0::CLint)
@@ -177,8 +181,9 @@ command-queue and if the profiling information is currently not available
 not a valid event object.
 -} 
 clGetEventProfilingInfo :: CLEvent -> CLProfilingInfo -> IO CLulong
-clGetEventProfilingInfo ev prof = wrapGetInfo (\(dat :: Ptr CLulong) 
-                                               -> raw_clGetEventProfilingInfo ev infoid size (castPtr dat)) id
+clGetEventProfilingInfo ev prof =
+    wrapGetInfo (\(dat :: Ptr CLulong) ->
+        raw_clGetEventProfilingInfo ev infoid size (castPtr dat)) id
     where 
       infoid = getCLValue prof
       size = fromIntegral $ sizeOf (0::CLulong)
