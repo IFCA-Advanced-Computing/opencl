@@ -30,7 +30,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -}
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables, CPP #-}
-module System.GPU.OpenCL.CommandQueue(
+module Control.Parallel.OpenCL.CommandQueue(
   -- * Types
   CLCommandQueue, CLCommandQueueProperty(..), 
   -- * Command Queue Functions
@@ -50,14 +50,18 @@ module System.GPU.OpenCL.CommandQueue(
 -- -----------------------------------------------------------------------------
 import Foreign
 import Foreign.C.Types
-import System.GPU.OpenCL.Types( 
+import Control.Parallel.OpenCL.Types( 
   CLint, CLbool, CLuint, CLCommandQueueProperty_, CLCommandQueueInfo_, 
   CLCommandQueue, CLDeviceID, CLContext, CLCommandQueueProperty(..), 
   CLEvent, CLMem, CLKernel,
   whenSuccess, wrapCheckSuccess, wrapPError, wrapGetInfo, getCLValue, 
   bitmaskToCommandQueueProperties, bitmaskFromFlags )
 
+#ifdef __APPLE__
+#include <cl.h>
+#else
 #include <CL/cl.h>
+#endif
 
 -- -----------------------------------------------------------------------------
 foreign import CALLCONV "clCreateCommandQueue" raw_clCreateCommandQueue :: 

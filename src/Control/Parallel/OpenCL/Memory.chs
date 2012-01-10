@@ -30,7 +30,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -}
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables, CPP #-}
-module System.GPU.OpenCL.Memory(
+module Control.Parallel.OpenCL.Memory(
   -- * Types
   CLMem, CLSampler, CLMemFlag(..), CLMemObjectType(..), CLAddressingMode(..), 
   CLFilterMode(..),
@@ -47,7 +47,7 @@ module System.GPU.OpenCL.Memory(
 -- -----------------------------------------------------------------------------
 import Foreign
 import Foreign.C.Types
-import System.GPU.OpenCL.Types( 
+import Control.Parallel.OpenCL.Types( 
   CLMem, CLContext, CLSampler, CLint, CLuint, CLbool, CLMemFlags_,
   CLMemInfo_, CLAddressingMode_, CLFilterMode_, CLSamplerInfo_, 
   CLAddressingMode(..), CLFilterMode(..), CLMemFlag(..), CLMemObjectType_, 
@@ -55,7 +55,11 @@ import System.GPU.OpenCL.Types(
   wrapPError, wrapCheckSuccess, wrapGetInfo, getEnumCL, bitmaskFromFlags, 
   bitmaskToMemFlags, getCLValue )
 
+#ifdef __APPLE__
+#include <cl.h>
+#else
 #include <CL/cl.h>
+#endif
 
 -- -----------------------------------------------------------------------------
 foreign import CALLCONV "clCreateBuffer" raw_clCreateBuffer :: 

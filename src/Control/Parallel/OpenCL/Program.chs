@@ -30,7 +30,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -}
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables, CPP #-}
-module System.GPU.OpenCL.Program(  
+module Control.Parallel.OpenCL.Program(  
   -- * Types
   CLProgram, CLBuildStatus(..), CLKernel,
   -- * Program Functions
@@ -53,13 +53,17 @@ import Control.Monad( zipWithM, forM )
 import Foreign
 import Foreign.C.Types
 import Foreign.C.String( CString, withCString, peekCString )
-import System.GPU.OpenCL.Types( 
+import Control.Parallel.OpenCL.Types( 
   CLint, CLuint, CLulong, CLProgram, CLContext, CLKernel, CLDeviceID, CLError,
   CLProgramInfo_, CLBuildStatus(..), CLBuildStatus_, CLProgramBuildInfo_, 
   CLKernelInfo_, CLKernelWorkGroupInfo_, wrapCheckSuccess, 
   whenSuccess, wrapPError, wrapGetInfo, getCLValue, getEnumCL )
 
+#ifdef __APPLE__
+#include <cl.h>
+#else
 #include <CL/cl.h>
+#endif
 
 -- -----------------------------------------------------------------------------
 type BuildCallback = CLProgram -> Ptr () -> IO ()

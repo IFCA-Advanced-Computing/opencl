@@ -30,7 +30,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -}
 {-# LANGUAGE DeriveDataTypeable #-}
-module System.GPU.OpenCL.Types( 
+module Control.Parallel.OpenCL.Types( 
   -- * Symple CL Types
   CLbool, CLint, CLuint, CLulong, CLProgram, CLEvent, CLMem, CLPlatformID, 
   CLDeviceID, CLContext, CLCommandQueue, CLPlatformInfo_, CLDeviceType_, 
@@ -61,7 +61,11 @@ import Data.Typeable( Typeable(..) )
 import Control.Applicative( (<$>) )
 import Control.Exception( Exception(..), throwIO )
 
+#ifdef __APPLE__
+#include <cl.h>
+#else
 #include <CL/cl.h>
+#endif
 
 -- -----------------------------------------------------------------------------
 

@@ -30,7 +30,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -}
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables, CPP #-}
-module System.GPU.OpenCL.Event(  
+module Control.Parallel.OpenCL.Event(  
   -- * Types
   CLEvent, CLCommandType(..), CLProfilingInfo(..), CLCommandExecutionStatus(..),
   -- * Functions
@@ -42,13 +42,17 @@ module System.GPU.OpenCL.Event(
 -- -----------------------------------------------------------------------------
 import Foreign
 import Foreign.C.Types
-import System.GPU.OpenCL.Types( 
+import Control.Parallel.OpenCL.Types( 
   CLEvent, CLint, CLuint, CLulong, CLEventInfo_, CLProfilingInfo_,
   CLCommandQueue, CLCommandType(..), CLCommandType_, 
   CLCommandExecutionStatus(..), CLProfilingInfo(..), getCommandExecutionStatus, 
   getCLValue, getEnumCL, wrapCheckSuccess, wrapGetInfo )
 
+#ifdef __APPLE__
+#include <cl.h>
+#else
 #include <CL/cl.h>
+#endif
 
 -- -----------------------------------------------------------------------------
 foreign import CALLCONV "clWaitForEvents" raw_clWaitForEvents :: 
