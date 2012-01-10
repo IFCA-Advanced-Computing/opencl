@@ -39,7 +39,7 @@ import Test.QuickCheck.Monadic( monadicIO, assert, run )
 import Test.QuickCheck.Test( Result, Args(..), isSuccess, stdArgs )
 import Text.Printf( printf )
 import System.Exit( exitSuccess, exitFailure )
-import System.GPU.OpenCL
+import Control.Parallel.OpenCL
 
 -- -----------------------------------------------------------------------------
 clDupSource :: String

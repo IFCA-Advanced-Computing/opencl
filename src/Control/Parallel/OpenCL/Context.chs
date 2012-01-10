@@ -30,7 +30,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -}
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables, CPP #-}
-module System.GPU.OpenCL.Context(
+module Control.Parallel.OpenCL.Context(
   -- * Types
   CLContext,
   -- * Context Functions
@@ -45,12 +45,16 @@ import Foreign(
 import Foreign.C.Types( CSize )
 import Foreign.C.String( CString, peekCString )
 import Foreign.Storable( sizeOf )
-import System.GPU.OpenCL.Types( 
+import Control.Parallel.OpenCL.Types( 
   CLuint, CLint, CLDeviceType_, CLContextInfo_, CLContextProperty_, CLDeviceID, 
   CLContext, CLDeviceType, bitmaskFromFlags, getCLValue,
   whenSuccess, wrapCheckSuccess, wrapPError, wrapGetInfo )
 
+#ifdef __APPLE__
+#include <cl.h>
+#else
 #include <CL/cl.h>
+#endif
 
 -- -----------------------------------------------------------------------------
 type ContextCallback = CString -> Ptr () -> CSize -> Ptr () -> IO ()

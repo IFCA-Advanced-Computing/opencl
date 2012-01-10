@@ -30,7 +30,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -}
 import qualified Control.Exception as Ex( catch )
-import System.GPU.OpenCL
+import Control.Parallel.OpenCL
 import Foreign( castPtr, nullPtr, sizeOf )
 import Foreign.C.Types( CDouble )
 import Foreign.Marshal.Array( newArray, peekArray )

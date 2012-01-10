@@ -29,27 +29,27 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -}
-module System.GPU.OpenCL( 
+module Control.Parallel.OpenCL( 
   -- * Basic Types
   CLError(..), CLint, CLuint, CLulong,
   -- * Modules
-  module System.GPU.OpenCL.Query,
-  module System.GPU.OpenCL.Context,
-  module System.GPU.OpenCL.CommandQueue, 
-  module System.GPU.OpenCL.Memory,
-  module System.GPU.OpenCL.Event,
-  module System.GPU.OpenCL.Program
+  module Control.Parallel.OpenCL.Query,
+  module Control.Parallel.OpenCL.Context,
+  module Control.Parallel.OpenCL.CommandQueue, 
+  module Control.Parallel.OpenCL.Memory,
+  module Control.Parallel.OpenCL.Event,
+  module Control.Parallel.OpenCL.Program
   )
        where
 
 -- -----------------------------------------------------------------------------
-import System.GPU.OpenCL.Query
-import System.GPU.OpenCL.Context
-import System.GPU.OpenCL.CommandQueue
-import System.GPU.OpenCL.Memory
-import System.GPU.OpenCL.Event
-import System.GPU.OpenCL.Program
-import System.GPU.OpenCL.Types( 
+import Control.Parallel.OpenCL.Query
+import Control.Parallel.OpenCL.Context
+import Control.Parallel.OpenCL.CommandQueue
+import Control.Parallel.OpenCL.Memory
+import Control.Parallel.OpenCL.Event
+import Control.Parallel.OpenCL.Program
+import Control.Parallel.OpenCL.Types( 
   CLError(..), CLint, CLuint, CLulong )
 
 -- -----------------------------------------------------------------------------
