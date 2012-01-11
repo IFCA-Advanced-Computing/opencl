@@ -1,5 +1,5 @@
 Name: OpenCL
-Version: 1.0.2.6
+Version: 1.0.3.0
 License: BSD3
 License-File: LICENSE
 Author: Luis Cabellos
@@ -53,9 +53,9 @@ Library
     cpp-options: -Iinclude
 
   if os(windows)
-      cpp-options: "-DCALLCONV=stdcall"
+    cpp-options: "-DCALLCONV=stdcall"
   else
-      cpp-options: "-DCALLCONV=ccall"
+    cpp-options: "-DCALLCONV=ccall"
 
 
 Test-suite tests
@@ -71,7 +71,7 @@ Test-suite tests
 source-repository this
   type: git
   location: https://zhensydow@github.com/zhensydow/opencl.git
-  tag: 1.0.2.6
+  tag: 1.0.3.0
   branch: master
 
 source-repository head
