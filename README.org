@@ -14,6 +14,16 @@
   Programs using the library must link against OpenCL; for example, by
   passing ~-lOpenCL~ to GHC.
 
+*** About versioning
+
+    OpenCL module uses Package Version Policy:
+
+    http://www.haskell.org/haskellwiki/Package_versioning_policy
+
+    But It differs in the A version number. It use OpenCL API version as A
+    number, so 1.0.3.0 correspond to A=1.0=OpenCL API version 1.0, B=3 and
+    C=0. The major version number is 1.0.3
+
 ** Optional Requisites
    Some OpenCL libraries require additional NUMA libraries. For instance,
    on Ubuntu 11.04:
