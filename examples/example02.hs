@@ -74,8 +74,8 @@ executeArray original ctx q krn = withArray original $ \input -> do
   mem_in <- clCreateBuffer ctx [CL_MEM_READ_ONLY] (vecSize, nullPtr)  
   mem_out <- clCreateBuffer ctx [CL_MEM_WRITE_ONLY] (vecSize, nullPtr)
 
-  clSetKernelArg krn 0 mem_in
-  clSetKernelArg krn 1 mem_out
+  clSetKernelArgSto krn 0 mem_in
+  clSetKernelArgSto krn 1 mem_out
   
   -- Put Input
   eventWrite <- clEnqueueWriteBuffer q mem_in True 0 vecSize (castPtr input) []

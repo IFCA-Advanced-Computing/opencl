@@ -42,7 +42,7 @@ module Control.Parallel.OpenCL.Program(
   clGetProgramBuildLog,
   -- * Kernel Functions
   clCreateKernel, clCreateKernelsInProgram, clRetainKernel, clReleaseKernel, 
-  clSetKernelArg, clGetKernelFunctionName, clGetKernelNumArgs, 
+  clSetKernelArg, clSetKernelArgSto, clGetKernelFunctionName, clGetKernelNumArgs, 
   clGetKernelReferenceCount, clGetKernelContext, clGetKernelProgram, 
   clGetKernelWorkGroupSize, clGetKernelCompileWorkGroupSize, 
   clGetKernelLocalMemSize
@@ -686,8 +686,14 @@ object and arg_size != sizeof(cl_mem) or if arg_size is zero and the argument is
 declared with the __local qualifier or if the argument is a sampler and arg_size
 != sizeof(cl_sampler).  
 -}
-clSetKernelArg :: Storable a => CLKernel -> CLuint -> a -> IO ()
-clSetKernelArg krn idx val = with val $ \pval -> do
+clSetKernelArg :: Integral a => CLKernel -> CLuint -> a -> Ptr b -> IO ()
+clSetKernelArg krn idx sz pval = do
+  whenSuccess (raw_clSetKernelArg krn idx (fromIntegral sz) (castPtr pval))
+    $ return ()
+
+-- | Wrap function of `clSetKernelArg` with Storable data.
+clSetKernelArgSto :: Storable a => CLKernel -> CLuint -> a -> IO ()
+clSetKernelArgSto krn idx val = with val $ \pval -> do
   whenSuccess (raw_clSetKernelArg krn idx (fromIntegral . sizeOf $ val) (castPtr pval))
     $ return ()
 

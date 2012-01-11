@@ -69,8 +69,8 @@ main = do
   mem_in <- clCreateBuffer context [CL_MEM_READ_ONLY, CL_MEM_COPY_HOST_PTR] (vecSize, castPtr input)  
   mem_out <- clCreateBuffer context [CL_MEM_WRITE_ONLY] (vecSize, nullPtr)
 
-  clSetKernelArg kernel 0 mem_in
-  clSetKernelArg kernel 1 mem_out
+  clSetKernelArgSto kernel 0 mem_in
+  clSetKernelArgSto kernel 1 mem_out
   
   -- Execute Kernel
   eventExec <- clEnqueueNDRangeKernel q kernel [length original] [1] []

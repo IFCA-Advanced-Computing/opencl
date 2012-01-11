@@ -70,14 +70,14 @@ main = do
   mem_out1 <- clCreateBuffer context [CL_MEM_WRITE_ONLY] (vecSize, nullPtr)
   mem_out2 <- clCreateBuffer context [CL_MEM_WRITE_ONLY] (vecSize, nullPtr)
 
-  clSetKernelArg kernel1 0 mem_in
-  clSetKernelArg kernel1 1 mem_mid
+  clSetKernelArgSto kernel1 0 mem_in
+  clSetKernelArgSto kernel1 1 mem_mid
   
-  clSetKernelArg kernel2 0 mem_mid
-  clSetKernelArg kernel2 1 mem_out1
+  clSetKernelArgSto kernel2 0 mem_mid
+  clSetKernelArgSto kernel2 1 mem_out1
   
-  clSetKernelArg kernel3 0 mem_mid
-  clSetKernelArg kernel3 1 mem_out2
+  clSetKernelArgSto kernel3 0 mem_mid
+  clSetKernelArgSto kernel3 1 mem_out2
   
   -- Execute Kernels
   eventExec1 <- clEnqueueNDRangeKernel q kernel1 [length original] [1] []
