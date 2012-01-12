@@ -55,8 +55,8 @@ import Control.Parallel.OpenCL.Types(
   CLMemInfo_, CLAddressingMode_, CLFilterMode_, CLSamplerInfo_,
   CLAddressingMode(..), CLFilterMode(..), CLMemFlag(..), CLMemObjectType_, 
   CLMemObjectType(..), 
-  wrapPError, wrapCheckSuccess, wrapGetInfo, getEnumCL, bitmaskFromFlags, 
-  bitmaskToMemFlags, getCLValue )
+  wrapPError, wrapCheckSuccess, wrapGetInfo, whenSuccess, getEnumCL, 
+  bitmaskFromFlags, bitmaskToMemFlags, getCLValue )
 
 #ifdef __APPLE__
 #include <cl.h>
@@ -175,7 +175,7 @@ the table below.
  * 'CL_ARGB', 'CL_BGRA'. This format can only be used if channel data type =
 'CL_UNORM_INT8', 'CL_SNORM_INT8', 'CL_SIGNED_INT8' or 'CL_UNSIGNED_INT8'.  
 -}
-{#enum CLChannelOrder {upcaseFirstLetter} #}
+{#enum CLChannelOrder {upcaseFirstLetter} deriving(Show)#}
 
 #c
 enum CLChannelType {
@@ -244,11 +244,12 @@ integer value.
  * 'CL_FLOAT', Each channel component is a single precision floating-point
 value.
 -}
-{#enum CLChannelType {upcaseFirstLetter} #}
+{#enum CLChannelType {upcaseFirstLetter} deriving(Show)#}
 
 data CLImageFormat = CLImageFormat
                      { image_channel_order :: ! CLChannelOrder
                      , image_channel_data_type :: ! CLChannelType }
+                     deriving( Show )
 {#pointer *cl_image_format as CLImageFormat_p -> CLImageFormat#}
 instance Storable CLImageFormat where
   alignment _ = alignment (undefined :: CDouble)
@@ -425,16 +426,44 @@ clCreateImage3D ctx xs fmt iw ih idepth irp isp ptr = wrapPError $ \perr -> with
       cirp = fromIntegral irp
       cisp = fromIntegral isp  
       
-getNumSupportedImageFormats :: CLContext -> [CLMemFlag] -> CLMemObjectType -> IO CUint
-getNumSupportedImageFormats ctx xs mtype = alloca $ \(value_size :: Ptr CUint) -> do
-  whenSuccess (raw_clGetSupportedImageFormats ctx flags mtype 0 nullPtr value_size)
+getNumSupportedImageFormats :: CLContext -> [CLMemFlag] -> CLMemObjectType -> IO CLuint
+getNumSupportedImageFormats ctx xs mtype = alloca $ \(value_size :: Ptr CLuint) -> do
+  whenSuccess (raw_clGetSupportedImageFormats ctx flags (getCLValue mtype) 0 nullPtr value_size)
     $ peek value_size
---getProgramInfoSize prg infoid = alloca $ \(value_size :: Ptr CSize) -> do
---  whenSuccess (raw_clGetProgramInfo prg infoid 0 nullPtr value_size)
---    $ peek value_size
+    where
+      flags = bitmaskFromFlags xs
   
-  
-clGetSupportedImageFormats = id
+{-| Get the list of image formats supported by an OpenCL
+implementation. 'clGetSupportedImageFormats' can be used to get the list of
+image formats supported by an OpenCL implementation when the following
+information about an image memory object is specified:
+
+ * Context
+ * Image type - 2D or 3D image
+ * Image object allocation information
+
+Throws 'CL_INVALID_CONTEXT' if context is not a valid context, throws
+'CL_INVALID_VALUE' if flags or image_type are not valid.
+
+-}
+clGetSupportedImageFormats :: CLContext -- ^ A valid OpenCL context on which the
+                                        -- image object(s) will be created.
+                              -> [CLMemFlag] -- ^ A bit-field that is used to
+                                             -- specify allocation and usage
+                                             -- information about the image
+                                             -- memory object.
+                              -> CLMemObjectType -- ^ Describes the image type
+                                                 -- and must be either
+                                                 -- 'CL_MEM_OBJECT_IMAGE2D' or
+                                                 -- 'CL_MEM_OBJECT_IMAGE3D'.
+                              -> IO [CLImageFormat]
+clGetSupportedImageFormats ctx xs mtype = do
+  num <- getNumSupportedImageFormats ctx xs mtype
+  allocaArray (fromIntegral num) $ \(buff :: Ptr CLImageFormat) -> do
+    whenSuccess (raw_clGetSupportedImageFormats ctx flags (getCLValue mtype) num (castPtr buff) nullPtr)
+      $ peekArray (fromIntegral num) buff
+    where
+      flags = bitmaskFromFlags xs
 
 #c
 enum CLMemInfo {
