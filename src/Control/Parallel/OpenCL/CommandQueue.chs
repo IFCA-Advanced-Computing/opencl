@@ -41,7 +41,7 @@ module Control.Parallel.OpenCL.CommandQueue(
   -- * Memory Commands
   clEnqueueReadBuffer, clEnqueueWriteBuffer, clEnqueueReadImage, 
   clEnqueueWriteImage, clEnqueueCopyImage, clEnqueueCopyImageToBuffer,
-  clEnqueueCopyBufferToImage,
+  clEnqueueCopyBufferToImage, clEnqueueMapBuffer,
   -- * Executing Kernels
   clEnqueueNDRangeKernel, clEnqueueTask, clEnqueueMarker, 
   clEnqueueWaitForEvents, clEnqueueBarrier,
@@ -54,7 +54,7 @@ import Foreign
 import Foreign.C.Types
 import Control.Parallel.OpenCL.Types( 
   CLint, CLbool, CLuint, CLCommandQueueProperty_, CLCommandQueueInfo_, 
-  CLMapFlags_,  CLCommandQueue, CLDeviceID, CLContext, 
+  CLMapFlags_, CLMapFlag(..), CLCommandQueue, CLDeviceID, CLContext, 
   CLCommandQueueProperty(..), CLEvent, CLMem, CLKernel,
   whenSuccess, wrapCheckSuccess, wrapPError, wrapGetInfo, getCLValue, 
   bitmaskToCommandQueueProperties, bitmaskFromFlags )
@@ -859,6 +859,129 @@ clEnqueueCopyBufferToImage cq src dst offset (dst_orix,dst_oriy,dst_oriz) (regx,
   withArray (fmap fromIntegral [dst_orix,dst_oriy,dst_oriz]) $ \pdst_ori -> 
   withArray (fmap fromIntegral [regx,regy,regz]) $ \preg -> 
   clEnqueue (raw_clEnqueueCopyBufferToImage cq src dst (fromIntegral offset) pdst_ori preg) xs
+
+{-| Enqueues a command to map a region of the buffer object given by buffer into
+the host address space and returns a pointer to this mapped region.
+
+If blocking_map is 'True', 'clEnqueueMapBuffer' does not return until the
+specified region in buffer can be mapped.
+
+If blocking_map is 'False' i.e. map operation is non-blocking, the pointer to
+the mapped region returned by 'clEnqueueMapBuffer' cannot be used until the map
+command has completed. The event argument returns an event object which can be
+used to query the execution status of the map command. When the map command is
+completed, the application can access the contents of the mapped region using
+the pointer returned by 'clEnqueueMapBuffer'.
+
+Returns an event object that identifies this particular copy command and can be
+used toquery or queue a wait for this particular command to complete. event can
+be NULL in which case it will not be possible for the application to query the
+status of this command or queue a wait for this command to complete.
+
+The contents of the regions of a memory object mapped for writing
+(i.e. 'CL_MAP_WRITE' is set in map_flags argument to 'clEnqueueMapBuffer' or
+'clEnqueueMapImage') are considered to be undefined until this region is
+unmapped. Reads and writes by a kernel executing on a device to a memory
+region(s) mapped for writing are undefined.
+
+Multiple command-queues can map a region or overlapping regions of a memory
+object for reading (i.e. map_flags = 'CL_MAP_READ'). The contents of the regions
+of a memory object mapped for reading can also be read by kernels executing on a
+device(s). The behavior of writes by a kernel executing on a device to a mapped
+region of a memory object is undefined. Mapping (and unmapping) overlapped
+regions of a buffer or image memory object for writing is undefined.
+
+The behavior of OpenCL function calls that enqueue commands that write or copy
+to regions of a memory object that are mapped is undefined.
+
+'clEnqueueMapBuffer' will return a pointer to the mapped region if the function
+is executed successfully. A nullPtr pointer is returned otherwise with one of
+the following throw error:
+
+ * 'CL_INVALID_COMMAND_QUEUE' if command_queue is not a valid command-queue.
+
+ * 'CL_INVALID_CONTEXT' if the context associated with command_queue, src_image
+and dst_buffer are not the same or if the context associated with command_queue
+and events in event_wait_list are not the same.
+
+ * 'CL_INVALID_MEM_OBJECT' if buffer is not a valid buffer object.
+
+ * 'CL_INVALID_VALUE' if region being mapped given by (offset, cb) is out of
+bounds or if values specified in map_flags are not valid
+
+ * 'CL_INVALID_EVENT_WAIT_LIST' if event objects in event_wait_list are not
+valid events.
+
+ * 'CL_MAP_FAILURE' if there is a failure to map the requested region into the
+host address space. This error cannot occur for buffer objects created with
+'CL_MEM_USE_HOST_PTR' or 'CL_MEM_ALLOC_HOST_PTR'.
+
+ * 'CL_MEM_OBJECT_ALLOCATION_FAILURE' if there is a failure to allocate memory
+for data store associated with buffer.
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.
+
+The pointer returned maps a region starting at offset and is atleast cb bytes in
+size. The result of a memory access outside this region is undefined.
+
+-}
+clEnqueueMapBuffer :: Integral a 
+                      => CLCommandQueue -- ^ Must be a valid command-queue.
+                      -> CLMem -- ^ A valid buffer object. The OpenCL context
+                               -- associated with command_queue and buffer must
+                               -- be the same.
+                      -> Bool -- ^ Indicates if the map operation is blocking or
+                              -- non-blocking.
+                      -> [CLMapFlag] -- ^ Is a list and can be set to
+                                     -- 'CL_MAP_READ' to indicate that the
+                                     -- region specified by (offset, cb) in the
+                                     -- buffer object is being mapped for
+                                     -- reading, and/or 'CL_MAP_WRITE' to
+                                     -- indicate that the region specified by
+                                     -- (offset, cb) in the buffer object is
+                                     -- being mapped for writing.
+                      -> a -- ^ The offset in bytes of the region in the buffer
+                           -- object that is being mapped.
+                      -> a -- ^ The size in bytes of the region in the buffer
+                           -- object that is being mapped.
+                      -> [CLEvent] -- ^ Specify events that need to complete
+                                   -- before this particular command can be
+                                   -- executed. If event_wait_list is empty,
+                                   -- then this particular command does not wait
+                                   -- on any event to complete. The events
+                                   -- specified in event_wait_list act as
+                                   -- synchronization points. The context
+                                   -- associated with events in event_wait_list
+                                   -- and command_queue must be the same.
+
+                      -> IO (CLEvent, Ptr ())
+clEnqueueMapBuffer cq mem check xs offset cb [] = 
+  alloca $ \pevent -> do
+    val <- wrapPError $ \perr -> raw_clEnqueueMapBuffer cq mem (fromBool check) flags (fromIntegral offset) (fromIntegral cb) 0 nullPtr pevent perr
+    event <- peek pevent
+    return (event, val)
+    
+      where
+        flags = bitmaskFromFlags xs
+clEnqueueMapBuffer cq mem check xs offset cb events = 
+  allocaArray nevents $ \pevents -> do
+    pokeArray pevents events
+    alloca $ \pevent -> do
+      val <- wrapPError $ \perr -> raw_clEnqueueMapBuffer cq mem (fromBool check) flags (fromIntegral offset) (fromIntegral cb) cnevents pevents pevent perr
+      event <- peek pevent
+      return (event, val)
+    where
+      flags = bitmaskFromFlags xs
+      nevents = length events
+      cnevents = fromIntegral nevents
+
+{-
+foreign import CALLCONV "clEnqueueMapImage" raw_clEnqueueMapImage ::
+  CLCommandQueue -> CLMem -> CLbool -> CLMapFlags_ -> Ptr CSize -> Ptr CSize -> Ptr CSize -> Ptr CSize -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> Ptr CLint -> IO (Ptr ())
+foreign import CALLCONV "clEnqueueUnmapMemObject" raw_clEnqueueUnmapMemObject ::
+  CLCommandQueue -> CLMem -> Ptr () -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
+-}
 
 -- -----------------------------------------------------------------------------
 {-| Enqueues a command to execute a kernel on a device. Each work-item is

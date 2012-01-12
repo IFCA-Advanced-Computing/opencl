@@ -45,7 +45,7 @@ module Control.Parallel.OpenCL.Types(
   CLDeviceExecCapability(..), CLDeviceLocalMemType(..), CLDeviceType(..), 
   CLCommandQueueProperty(..), CLCommandType(..),  CLCommandExecutionStatus(..), 
   CLProfilingInfo(..), CLPlatformInfo(..), CLMemFlag(..), CLMemObjectType(..),
-  CLBuildStatus(..), CLAddressingMode(..), CLFilterMode(..),
+  CLBuildStatus(..), CLAddressingMode(..), CLFilterMode(..), CLMapFlag(..),
   -- * Functions
   wrapPError, wrapCheckSuccess, wrapGetInfo, whenSuccess, getCLValue, 
   throwCLError, getEnumCL, bitmaskToFlags, getCommandExecutionStatus, 
@@ -615,6 +615,14 @@ initialize the contents of the cl_mem object allocated using host-accessible
 (e.g. PCIe) memory.  
 -} 
 {#enum CLMemFlag {upcaseFirstLetter} deriving( Show, Bounded, Eq, Ord ) #}
+
+#c
+enum CLMapFlag {
+  cL_MAP_READ=CL_MAP_READ,
+  cL_MAP_WRITE=CL_MAP_WRITE
+  };
+#endc
+{#enum CLMapFlag {upcaseFirstLetter} deriving( Show, Bounded, Eq, Ord ) #}
 
 #c
 enum CLMemObjectType {
