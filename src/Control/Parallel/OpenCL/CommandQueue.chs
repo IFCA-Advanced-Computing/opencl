@@ -39,7 +39,8 @@ module Control.Parallel.OpenCL.CommandQueue(
   clGetCommandQueueReferenceCount, clGetCommandQueueProperties,
   clSetCommandQueueProperty,
   -- * Memory Commands
-  clEnqueueReadBuffer, clEnqueueWriteBuffer,
+  clEnqueueReadBuffer, clEnqueueWriteBuffer, clEnqueueReadImage, 
+  clEnqueueWriteImage,
   -- * Executing Kernels
   clEnqueueNDRangeKernel, clEnqueueTask, clEnqueueMarker, 
   clEnqueueWaitForEvents, clEnqueueBarrier,
@@ -52,8 +53,8 @@ import Foreign
 import Foreign.C.Types
 import Control.Parallel.OpenCL.Types( 
   CLint, CLbool, CLuint, CLCommandQueueProperty_, CLCommandQueueInfo_, 
-  CLCommandQueue, CLDeviceID, CLContext, CLCommandQueueProperty(..), 
-  CLEvent, CLMem, CLKernel,
+  CLMapFlags_,  CLCommandQueue, CLDeviceID, CLContext, 
+  CLCommandQueueProperty(..), CLEvent, CLMem, CLKernel,
   whenSuccess, wrapCheckSuccess, wrapPError, wrapGetInfo, getCLValue, 
   bitmaskToCommandQueueProperties, bitmaskFromFlags )
 
@@ -78,6 +79,22 @@ foreign import CALLCONV "clEnqueueReadBuffer" raw_clEnqueueReadBuffer ::
   CLCommandQueue -> CLMem -> CLbool -> CSize -> CSize -> Ptr () -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
 foreign import CALLCONV "clEnqueueWriteBuffer" raw_clEnqueueWriteBuffer ::
   CLCommandQueue -> CLMem -> CLbool -> CSize -> CSize -> Ptr () -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
+foreign import CALLCONV "clEnqueueReadImage" raw_clEnqueueReadImage ::
+  CLCommandQueue -> CLMem -> CLbool -> Ptr CSize -> Ptr CSize -> CSize -> CSize -> Ptr () -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
+foreign import CALLCONV "clEnqueueWriteImage" raw_clEnqueueWriteImage ::
+  CLCommandQueue -> CLMem -> CLbool -> Ptr CSize -> Ptr CSize -> CSize -> CSize -> Ptr () -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
+foreign import CALLCONV "clEnqueueCopyImage" raw_clEnqueueCopyImage ::
+  CLCommandQueue -> CLMem -> CLMem -> Ptr CSize -> Ptr CSize -> Ptr CSize -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
+foreign import CALLCONV "clEnqueueCopyImageToBuffer" raw_clEnqueueCopyImageToBuffer ::
+  CLCommandQueue -> CLMem -> CLMem -> Ptr CSize -> Ptr CSize -> CSize -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
+foreign import CALLCONV "clEnqueueCopyBufferToImage" raw_clEnqueueCopyBufferToImage ::
+  CLCommandQueue -> CLMem -> CLMem -> CSize -> Ptr CSize -> Ptr CSize -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
+foreign import CALLCONV "clEnqueueMapBuffer" raw_clEnqueueMapBuffer ::
+  CLCommandQueue -> CLMem -> CLbool -> CLMapFlags_ -> CSize -> CSize -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> Ptr CLint -> IO (Ptr ())
+foreign import CALLCONV "clEnqueueMapImage" raw_clEnqueueMapImage ::
+  CLCommandQueue -> CLMem -> CLbool -> CLMapFlags_ -> Ptr CSize -> Ptr CSize -> Ptr CSize -> Ptr CSize -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> Ptr CLint -> IO (Ptr ())
+foreign import CALLCONV "clEnqueueUnmapMemObject" raw_clEnqueueUnmapMemObject ::
+  CLCommandQueue -> CLMem -> Ptr () -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
 foreign import CALLCONV "clEnqueueNDRangeKernel" raw_clEnqueueNDRangeKernel :: 
   CLCommandQueue -> CLKernel -> CLuint -> Ptr CSize -> Ptr CSize -> Ptr CSize -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
 foreign import CALLCONV "clEnqueueTask" raw_clEnqueueTask :: 
@@ -363,6 +380,232 @@ clEnqueueWriteBuffer :: Integral a => CLCommandQueue -> CLMem -> Bool -> a -> a
                        -> Ptr () -> [CLEvent] -> IO CLEvent
 clEnqueueWriteBuffer cq mem check off size dat = clEnqueue (raw_clEnqueueWriteBuffer cq mem (fromBool check) (fromIntegral off) (fromIntegral size) dat)
 
+{-| Enqueues a command to read from a 2D or 3D image object to host memory.
+
+Returns an event object that identifies this particular read command and can be
+used to query or queue a wait for this particular command to complete. event can
+be NULL in which case it will not be possible for the application to query the
+status of this command or queue a wait for this command to complete.
+
+Notes
+
+If blocking is 'True' i.e. the read command is blocking, 'clEnqueueReadImage'
+does not return until the buffer data has been read and copied into memory
+pointed to by ptr.
+
+If blocking_read is 'False' i.e. map operation is non-blocking,
+'clEnqueueReadImage' queues a non-blocking read command and returns. The
+contents of the buffer that ptr points to cannot be used until the read command
+has completed. The event argument returns an event object which can be used to
+query the execution status of the read command. When the read command has
+completed, the contents of the buffer that ptr points to can be used by the
+application.
+
+Calling 'clEnqueueReadImage' to read a region of the image object with the ptr
+argument value set to host_ptr + (origin.z * image slice pitch + origin.y *
+image row pitch + origin.x * bytes per pixel), where host_ptr is a pointer to
+the memory region specified when the image object being read is created with
+'CL_MEM_USE_HOST_PTR', must meet the following requirements in order to avoid
+undefined behavior:
+
+ * All commands that use this image object have finished execution before the
+read command begins execution.
+
+ * The row_pitch and slice_pitch argument values in clEnqueueReadImage must be
+set to the image row pitch and slice pitch.
+
+ * The image object is not mapped.
+
+ * The image object is not used by any command-queue until the read command has
+finished execution.
+
+'clEnqueueReadImage' returns the 'CLEvent' if the function is executed
+successfully. It can throw the following 'CLError' exceptions:
+
+ * 'CL_INVALID_COMMAND_QUEUE' if command_queue is not a valid command-queue.
+
+ * 'CL_INVALID_CONTEXT' if the context associated with command_queue and image
+are not the same or if the context associated with command_queue and events in
+event_wait_list are not the same.
+
+ * 'CL_INVALID_MEM_OBJECT' if image is not a valid image object.
+
+ * 'CL_INVALID_VALUE' if the region being read specified by origin and region is
+out of bounds or if ptr is a nullPtr value.
+
+ * 'CL_INVALID_VALUE' if image is a 2D image object and z is not equal to 0 or
+depth is not equal to 1 or slice_pitch is not equal to 0.
+
+ * 'CL_INVALID_EVENT_WAIT_LIST' if event objects in event_wait_list are not
+valid events.
+
+ * 'CL_MEM_OBJECT_ALLOCATION_FAILURE' if there is a failure to allocate memory
+for data store associated with image.
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.
+
+-}
+clEnqueueReadImage :: Integral a => CLCommandQueue -- ^ Refers to the
+                                                   -- command-queue in which the
+                                                   -- read command will be
+                                                   -- queued. command_queue and
+                                                   -- image must be created with
+                                                   -- the same OpenCL contex
+                      -> CLMem -- ^ Refers to a valid 2D or 3D image object.
+                      -> Bool -- ^ Indicates if the read operations are blocking
+                              -- or non-blocking.
+                      -> (a,a,a) -- ^ Defines the (x, y, z) offset in pixels in
+                                 -- the image from where to read. If image is a
+                                 -- 2D image object, the z value given must be
+                                 -- 0.
+                      -> (a,a,a) -- ^ Defines the (width, height, depth) in
+                                 -- pixels of the 2D or 3D rectangle being
+                                 -- read. If image is a 2D image object, the
+                                 -- depth value given must be 1.
+                      -> a -- ^ The length of each row in bytes. This value must
+                           -- be greater than or equal to the element size in
+                           -- bytes * width. If row_pitch is set to 0, the
+                           -- appropriate row pitch is calculated based on the
+                           -- size of each element in bytes multiplied by width.
+                      -> a -- ^ Size in bytes of the 2D slice of the 3D region
+                           -- of a 3D image being read. This must be 0 if image
+                           -- is a 2D image. This value must be greater than or
+                           -- equal to row_pitch * height. If slice_pitch is set
+                           -- to 0, the appropriate slice pitch is calculated
+                           -- based on the row_pitch * height.
+                      -> Ptr () -- ^ The pointer to a buffer in host memory
+                                -- where image data is to be read from.
+                      -> [CLEvent] -- ^ Specify events that need to complete
+                                   -- before this particular command can be
+                                   -- executed. If event_wait_list is empty,
+                                   -- then this particular command does not wait
+                                   -- on any event to complete. The events
+                                   -- specified in the list act as
+                                   -- synchronization points. The context
+                                   -- associated with events in event_wait_list
+                                   -- and command_queue must be the same.
+                      -> IO CLEvent
+clEnqueueReadImage cq mem check (orix,oriy,oriz) (regx,regy,regz) rp sp dat xs = 
+  withArray (fmap fromIntegral [orix,oriy,oriz]) $ \pori -> 
+  withArray (fmap fromIntegral [regx,regy,regz]) $ \preg -> 
+  clEnqueue (raw_clEnqueueReadImage cq mem (fromBool check) pori preg (fromIntegral rp) (fromIntegral sp) dat) xs
+                       
+{-| Enqueues a command to write from a 2D or 3D image object to host memory.
+
+Returns an event object that identifies this particular write command and can be
+used to query or queue a wait for this particular command to complete. event can
+be NULL in which case it will not be possible for the application to query the
+status of this command or queue a wait for this command to complete.
+
+Notes
+
+If blocking_write is 'True' the OpenCL implementation copies the data referred
+to by ptr and enqueues the write command in the command-queue. The memory
+pointed to by ptr can be reused by the application after the
+'clEnqueueWriteImage' call returns.
+
+If blocking_write is 'False' the OpenCL implementation will use ptr to perform a
+nonblocking write. As the write is non-blocking the implementation can return
+immediately. The memory pointed to by ptr cannot be reused by the application
+after the call returns. The event argument returns an event object which can be
+used to query the execution status of the write command. When the write command
+has completed, the memory pointed to by ptr can then be reused by the
+application.
+
+Calling 'clEnqueueWriteImage' to update the latest bits in a region of the image
+object with the ptr argument value set to host_ptr + (origin.z * image slice
+pitch + origin.y * image row pitch + origin.x * bytes per pixel), where host_ptr
+is a pointer to the memory region specified when the image object being written
+is created with 'CL_MEM_USE_HOST_PTR', must meet the following requirements in
+order to avoid undefined behavior:
+
+ * The host memory region being written contains the latest bits when the
+enqueued write command begins execution.
+
+ * The input_row_pitch and input_slice_pitch argument values in
+clEnqueueWriteImage must be set to the image row pitch and slice pitch.
+
+ * The image object is not mapped.
+
+ * The image object is not used by any command-queue until the write command has
+finished execution.
+
+'clEnqueueWriteImage' returns the 'CLEvent' if the function is executed
+successfully. It can throw the following 'CLError' exceptions:
+
+ * 'CL_INVALID_COMMAND_QUEUE' if command_queue is not a valid command-queue.
+
+ * 'CL_INVALID_CONTEXT' if the context associated with command_queue and image
+are not the same or if the context associated with command_queue and events in
+event_wait_list are not the same.
+
+ * 'CL_INVALID_MEM_OBJECT' if image is not a valid image object.
+
+ * 'CL_INVALID_VALUE' if the region being write or written specified by origin
+and region is out of bounds or if ptr is a NULL value.
+
+ * 'CL_INVALID_VALUE' if image is a 2D image object and z is not equal to 0 or
+depth is not equal to 1 or slice_pitch is not equal to 0.
+
+ * 'CL_INVALID_EVENT_WAIT_LIST' if event objects in event_wait_list are not
+valid events.
+
+ * 'CL_MEM_OBJECT_ALLOCATION_FAILURE' if there is a failure to allocate memory
+for data store associated with image.
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.
+
+-}
+clEnqueueWriteImage :: Integral a => CLCommandQueue -- ^ Refers to the
+                                                    -- command-queue in which
+                                                    -- the write command will be
+                                                    -- queued. command_queue and
+                                                    -- image must be created
+                                                    -- with the same OpenCL
+                                                    -- contex
+                       -> CLMem -- ^ Refers to a valid 2D or 3D image object.
+                       -> Bool -- ^ Indicates if the write operation is blocking
+                               -- or non-blocking.
+                       -> (a,a,a) -- ^ Defines the (x, y, z) offset in pixels in
+                                  -- the image from where to write or write. If
+                                  -- image is a 2D image object, the z value
+                                  -- given must be 0.
+                       -> (a,a,a) -- ^ Defines the (width, height, depth) in
+                                  -- pixels of the 2D or 3D rectangle being
+                                  -- write or written. If image is a 2D image
+                                  -- object, the depth value given must be 1.
+                       -> a -- ^ The length of each row in bytes. This value
+                            -- must be greater than or equal to the element size
+                            -- in bytes * width. If input_row_pitch is set to 0,
+                            -- the appropriate row pitch is calculated based on
+                            -- the size of each element in bytes multiplied by
+                            -- width.
+                       -> a -- ^ Size in bytes of the 2D slice of the 3D region
+                            -- of a 3D image being written. This must be 0 if
+                            -- image is a 2D image. This value must be greater
+                            -- than or equal to row_pitch * height. If
+                            -- input_slice_pitch is set to 0, the appropriate
+                            -- slice pitch is calculated based on the row_pitch
+                            -- * height.
+                       -> Ptr () -- ^ The pointer to a buffer in host memory
+                                 -- where image data is to be written to.
+                       -> [CLEvent] -- ^ Specify events that need to complete
+                                    -- before this particular command can be
+                                    -- executed. If event_wait_list is empty,
+                                    -- then this particular command does not
+                                    -- wait on any event to complete. The events
+                                    -- specified in event_wait_list act as
+                                    -- synchronization points. The context
+                                    -- associated with events in event_wait_list
+                                    -- and command_queue must be the same.
+                       -> IO CLEvent
+clEnqueueWriteImage cq mem check (orix,oriy,oriz) (regx,regy,regz) rp sp dat xs = 
+  withArray (fmap fromIntegral [orix,oriy,oriz]) $ \pori -> 
+  withArray (fmap fromIntegral [regx,regy,regz]) $ \preg -> 
+  clEnqueue (raw_clEnqueueWriteImage cq mem (fromBool check) pori preg (fromIntegral rp) (fromIntegral sp) dat) xs
+                       
 -- -----------------------------------------------------------------------------
 {-| Enqueues a command to execute a kernel on a device. Each work-item is
 uniquely identified by a global identifier. The global ID, which can be read
