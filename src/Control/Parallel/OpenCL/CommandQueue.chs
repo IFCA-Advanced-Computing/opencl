@@ -40,7 +40,8 @@ module Control.Parallel.OpenCL.CommandQueue(
   clSetCommandQueueProperty,
   -- * Memory Commands
   clEnqueueReadBuffer, clEnqueueWriteBuffer, clEnqueueReadImage, 
-  clEnqueueWriteImage,
+  clEnqueueWriteImage, clEnqueueCopyImage, clEnqueueCopyImageToBuffer,
+  clEnqueueCopyBufferToImage,
   -- * Executing Kernels
   clEnqueueNDRangeKernel, clEnqueueTask, clEnqueueMarker, 
   clEnqueueWaitForEvents, clEnqueueBarrier,
@@ -446,12 +447,12 @@ for data store associated with image.
 by the OpenCL implementation on the host.
 
 -}
-clEnqueueReadImage :: Integral a => CLCommandQueue -- ^ Refers to the
-                                                   -- command-queue in which the
-                                                   -- read command will be
-                                                   -- queued. command_queue and
-                                                   -- image must be created with
-                                                   -- the same OpenCL contex
+clEnqueueReadImage :: Integral a 
+                      => CLCommandQueue -- ^ Refers to the command-queue in
+                                        -- which the read command will be
+                                        -- queued. command_queue and image must
+                                        -- be created with the same OpenCL
+                                        -- contex
                       -> CLMem -- ^ Refers to a valid 2D or 3D image object.
                       -> Bool -- ^ Indicates if the read operations are blocking
                               -- or non-blocking.
@@ -558,13 +559,12 @@ for data store associated with image.
 by the OpenCL implementation on the host.
 
 -}
-clEnqueueWriteImage :: Integral a => CLCommandQueue -- ^ Refers to the
-                                                    -- command-queue in which
-                                                    -- the write command will be
-                                                    -- queued. command_queue and
-                                                    -- image must be created
-                                                    -- with the same OpenCL
-                                                    -- contex
+clEnqueueWriteImage :: Integral a 
+                       => CLCommandQueue -- ^ Refers to the command-queue in
+                                         -- which the write command will be
+                                         -- queued. command_queue and image must
+                                         -- be created with the same OpenCL
+                                         -- contex
                        -> CLMem -- ^ Refers to a valid 2D or 3D image object.
                        -> Bool -- ^ Indicates if the write operation is blocking
                                -- or non-blocking.
@@ -606,6 +606,260 @@ clEnqueueWriteImage cq mem check (orix,oriy,oriz) (regx,regy,regz) rp sp dat xs 
   withArray (fmap fromIntegral [regx,regy,regz]) $ \preg -> 
   clEnqueue (raw_clEnqueueWriteImage cq mem (fromBool check) pori preg (fromIntegral rp) (fromIntegral sp) dat) xs
                        
+{-| Enqueues a command to copy image objects.
+
+Notes 
+
+It is currently a requirement that the src_image and dst_image image memory
+objects for 'clEnqueueCopyImage' must have the exact same image format (i.e. the
+'CLImageFormat' descriptor specified when src_image and dst_image are created
+must match).
+
+src_image and dst_image can be 2D or 3D image objects allowing us to perform the
+following actions:
+
+ * Copy a 2D image object to a 2D image object.
+
+ * Copy a 2D image object to a 2D slice of a 3D image object.
+
+ * Copy a 2D slice of a 3D image object to a 2D image object.
+
+ * Copy a 3D image object to a 3D image object.
+
+'clEnqueueCopyImage' returns the 'CLEvent' if the function is executed
+successfully. It can throw the following 'CLError' exceptions:
+
+ * 'CL_INVALID_COMMAND_QUEUE if command_queue is not a valid command-queue.
+
+ * 'CL_INVALID_CONTEXT if the context associated with command_queue, src_image
+and dst_image are not the same or if the context associated with command_queue
+and events in event_wait_list are not the same.
+
+ * 'CL_INVALID_MEM_OBJECT if src_image and dst_image are not valid image
+objects.
+
+ * 'CL_IMAGE_FORMAT_MISMATCH if src_image and dst_image do not use the same
+image format.
+
+ * 'CL_INVALID_VALUE if the 2D or 3D rectangular region specified by src_origin
+and src_origin + region refers to a region outside src_image, or if the 2D or 3D
+rectangular region specified by dst_origin and dst_origin + region refers to a
+region outside dst_image.
+
+ * 'CL_INVALID_VALUE if src_image is a 2D image object and src_origin.z is not
+equal to 0 or region.depth is not equal to 1.
+
+ * 'CL_INVALID_VALUE if dst_image is a 2D image object and dst_origen.z is not
+equal to 0 or region.depth is not equal to 1.
+
+ * 'CL_INVALID_EVENT_WAIT_LIST if event objects in event_wait_list are not valid
+events.
+
+ * 'CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate memory
+for data store associated with src_image or dst_image.
+
+ * 'CL_OUT_OF_HOST_MEMORY if there is a failure to allocate resources required
+by the OpenCL implementation on the host.
+
+ * 'CL_MEM_COPY_OVERLAP if src_image and dst_image are the same image object and
+the source and destination regions overlap.
+
+-}
+clEnqueueCopyImage :: Integral a 
+                      => CLCommandQueue -- ^ Refers to the command-queue in
+                                        -- which the copy command will be
+                                        -- queued. The OpenCL context associated
+                                        -- with command_queue, src_image and
+                                        -- dst_image must be the same.
+                      -> CLMem -- ^ src
+                      -> CLMem -- ^ dst
+                      -> (a,a,a) -- ^ Defines the starting (x, y, z) location in
+                                 -- pixels in src_image from where to start the
+                                 -- data copy. If src_image is a 2D image
+                                 -- object, the z value given must be 0.
+                      -> (a,a,a) -- ^ Defines the starting (x, y, z) location in
+                                 -- pixels in dst_image from where to start the
+                                 -- data copy. If dst_image is a 2D image
+                                 -- object, the z value given must be 0.
+                      -> (a,a,a) -- ^ Defines the (width, height, depth) in
+                                 -- pixels of the 2D or 3D rectangle to copy. If
+                                 -- src_image or dst_image is a 2D image object,
+                                 -- the depth value given must be 1.
+                      -> [CLEvent] -- ^ Specify events that need to complete
+                                   -- before this particular command can be
+                                   -- executed. If event_wait_list is empty, then
+                                   -- this particular command does not wait on
+                                   -- any event to complete. 
+                      -> IO CLEvent
+clEnqueueCopyImage cq src dst (src_orix,src_oriy,src_oriz) (dst_orix,dst_oriy,dst_oriz) (regx,regy,regz) xs =
+  withArray (fmap fromIntegral [src_orix,src_oriy,src_oriz]) $ \psrc_ori -> 
+  withArray (fmap fromIntegral [dst_orix,dst_oriy,dst_oriz]) $ \pdst_ori -> 
+  withArray (fmap fromIntegral [regx,regy,regz]) $ \preg -> 
+  clEnqueue (raw_clEnqueueCopyImage cq src dst psrc_ori pdst_ori preg) xs
+
+
+{-| Enqueues a command to copy an image object to a buffer object.
+
+Returns an event object that identifies this particular copy command and can be
+used to query or queue a wait for this particular command to complete. event can
+be NULL in which case it will not be possible for the application to query the
+status of this command or queue a wait for this command to
+complete. 'clEnqueueBarrier' can be used instead.
+
+'clEnqueueCopyImageToBuffer' returns the 'CLEvent' if the function is executed
+successfully. It can throw the following 'CLError' exceptions:
+
+ * CL_INVALID_COMMAND_QUEUE if command_queue is not a valid command-queue.
+
+ * CL_INVALID_CONTEXT if the context associated with command_queue, src_image
+and dst_buffer are not the same or if the context associated with command_queue
+and events in event_wait_list are not the same.
+
+ * CL_INVALID_MEM_OBJECT if src_image is not a valid image object and dst_buffer
+is not a valid buffer object.
+
+ * CL_INVALID_VALUE if the 2D or 3D rectangular region specified by src_origin
+and src_origin + region refers to a region outside src_image, or if the region
+specified by dst_offset and dst_offset + dst_cb refers to a region outside
+dst_buffer.
+
+ * CL_INVALID_VALUE if src_image is a 2D image object and src_origin.z is not
+equal to 0 or region.depth is not equal to 1.
+
+ * CL_INVALID_EVENT_WAIT_LIST if event objects in event_wait_list are not valid
+events.
+
+ * CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate memory for
+data store associated with src_image or dst_buffer.
+
+ * CL_OUT_OF_HOST_MEMORY if there is a failure to allocate resources required by
+the OpenCL implementation on the host.
+
+-}
+clEnqueueCopyImageToBuffer :: Integral a 
+                              => CLCommandQueue -- ^ Must be a valid
+                                                -- command-queue. The OpenCL
+                                                -- context associated with
+                                                -- command_queue, src_image, and
+                                                -- dst_buffer must be the same.
+                              -> CLMem -- ^ src. A valid image object.
+                              -> CLMem -- ^ dst. A valid buffer object.
+                              -> (a,a,a) -- ^ Defines the (x, y, z) offset in
+                                         -- pixels in the image from where to
+                                         -- copy. If src_image is a 2D image
+                                         -- object, the z value given must be 0.
+                              -> (a,a,a) -- ^ Defines the (width, height, depth)
+                                         -- in pixels of the 2D or 3D rectangle
+                                         -- to copy. If src_image is a 2D image
+                                         -- object, the depth value given must
+                                         -- be 1.
+                              -> a -- ^ The offset where to begin copying data
+                                   -- into dst_buffer. The size in bytes of the
+                                   -- region to be copied referred to as dst_cb
+                                   -- is computed as width * height * depth *
+                                   -- bytes/image element if src_image is a 3D
+                                   -- image object and is computed as width *
+                                   -- height * bytes/image element if src_image
+                                   -- is a 2D image object.
+                              -> [CLEvent] -- ^ Specify events that need to
+                                           -- complete before this particular
+                                           -- command can be executed. If
+                                           -- event_wait_list is empty, then
+                                           -- this particular command does not
+                                           -- wait on any event to complete. The
+                                           -- events specified in
+                                           -- event_wait_list act as
+                                           -- synchronization points. The
+                                           -- context associated with events in
+                                           -- event_wait_list and command_queue
+                                           -- must be the same.
+                              -> IO CLEvent
+clEnqueueCopyImageToBuffer cq src dst (src_orix,src_oriy,src_oriz) (regx,regy,regz) offset xs =
+  withArray (fmap fromIntegral [src_orix,src_oriy,src_oriz]) $ \psrc_ori -> 
+  withArray (fmap fromIntegral [regx,regy,regz]) $ \preg -> 
+  clEnqueue (raw_clEnqueueCopyImageToBuffer cq src dst psrc_ori preg (fromIntegral offset)) xs
+
+{-| Enqueues a command to copy a buffer object to an image object.
+
+The size in bytes of the region to be copied from src_buffer referred to as
+src_cb is computed as width * height * depth * bytes/image element if dst_image
+is a 3D image object and is computed as width * height * bytes/image element if
+dst_image is a 2D image object.
+
+Returns an event object that identifies this particular copy command and can be
+used to query or queue a wait for this particular command to complete. event can
+be NULL in which case it will not be possible for the application to query the
+status of this command or queue a wait for this command to
+complete. 'clEnqueueBarrier' can be used instead.
+
+'clEnqueueCopyBufferToImage' returns the 'CLEvent' if the function is executed
+successfully. It can throw the following 'CLError' exceptions:
+
+ * 'CL_INVALID_COMMAND_QUEUE' if command_queue is not a valid command-queue.
+
+ * 'CL_INVALID_CONTEXT' if the context associated with command_queue, src_buffer
+and dst_image are not the same or if the context associated with command_queue
+and events in event_wait_list are not the same.
+
+ * 'CL_INVALID_MEM_OBJECT' if src_buffer is not a valid buffer object and
+dst_image is not a valid image object.
+
+ * 'CL_INVALID_VALUE' if the 2D or 3D rectangular region specified by dst_origin
+and dst_origin + region refers to a region outside dst_origin, or if the region
+specified by src_offset and src_offset + src_cb refers to a region outside
+src_buffer.
+
+ * 'CL_INVALID_VALUE' if dst_image is a 2D image object and dst_origin.z is not
+equal to 0 or region.depth is not equal to 1.
+
+ * 'CL_INVALID_EVENT_WAIT_LIST' if event objects in event_wait_list are not
+valid events.
+
+ * 'CL_MEM_OBJECT_ALLOCATION_FAILURE' if there is a failure to allocate memory
+for data store associated with src_buffer or dst_image.
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.
+
+-}
+clEnqueueCopyBufferToImage :: Integral a 
+                              => CLCommandQueue -- ^ Must be a valid
+                                                -- command-queue. The OpenCL
+                                                -- context associated with
+                                                -- command_queue, src_image, and
+                                                -- dst_buffer must be the same.
+                              -> CLMem -- ^ src. A valid buffer object.
+                              -> CLMem -- ^ dst. A valid image object.
+                              -> a -- ^ The offset where to begin copying data
+                                   -- from src_buffer.
+                              -> (a,a,a) -- ^ The (x, y, z) offset in pixels
+                                         -- where to begin copying data to
+                                         -- dst_image. If dst_image is a 2D
+                                         -- image object, the z value given by
+                                         -- must be 0.
+                              -> (a,a,a) -- ^ Defines the (width, height, depth)
+                                         -- in pixels of the 2D or 3D rectangle
+                                         -- to copy. If dst_image is a 2D image
+                                         -- object, the depth value given by
+                                         -- must be 1.
+                              -> [CLEvent] -- ^ Specify events that need to
+                                           -- complete before this particular
+                                           -- command can be executed. If
+                                           -- event_wait_list is empty, then
+                                           -- this particular command does not
+                                           -- wait on any event to complete. The
+                                           -- events specified in
+                                           -- event_wait_list act as
+                                           -- synchronization points. The
+                                           -- context associated with events in
+                                           -- event_wait_list and command_queue
+                                           -- must be the same.
+                              -> IO CLEvent
+clEnqueueCopyBufferToImage cq src dst offset (dst_orix,dst_oriy,dst_oriz) (regx,regy,regz) xs =
+  withArray (fmap fromIntegral [dst_orix,dst_oriy,dst_oriz]) $ \pdst_ori -> 
+  withArray (fmap fromIntegral [regx,regy,regz]) $ \preg -> 
+  clEnqueue (raw_clEnqueueCopyBufferToImage cq src dst (fromIntegral offset) pdst_ori preg) xs
+
 -- -----------------------------------------------------------------------------
 {-| Enqueues a command to execute a kernel on a device. Each work-item is
 uniquely identified by a global identifier. The global ID, which can be read
