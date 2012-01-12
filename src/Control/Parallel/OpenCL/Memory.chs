@@ -38,6 +38,8 @@ module Control.Parallel.OpenCL.Memory(
   clCreateBuffer, clRetainMemObject, clReleaseMemObject, clGetMemType, 
   clGetMemFlags, clGetMemSize, clGetMemHostPtr, clGetMemMapCount, 
   clGetMemReferenceCount, clGetMemContext,
+  -- * Image Functions
+  clCreateImage2D,
   -- * Sampler Functions
   clCreateSampler, clRetainSampler, clReleaseSampler, clGetSamplerReferenceCount, 
   clGetSamplerContext, clGetSamplerAddressingMode, clGetSamplerFilterMode, 
@@ -47,9 +49,10 @@ module Control.Parallel.OpenCL.Memory(
 -- -----------------------------------------------------------------------------
 import Foreign
 import Foreign.C.Types
+import Control.Applicative( (<$>), (<*>) )
 import Control.Parallel.OpenCL.Types( 
   CLMem, CLContext, CLSampler, CLint, CLuint, CLbool, CLMemFlags_,
-  CLMemInfo_, CLAddressingMode_, CLFilterMode_, CLSamplerInfo_, 
+  CLMemInfo_, CLAddressingMode_, CLFilterMode_, CLSamplerInfo_,
   CLAddressingMode(..), CLFilterMode(..), CLMemFlag(..), CLMemObjectType_, 
   CLMemObjectType(..), 
   wrapPError, wrapCheckSuccess, wrapGetInfo, getEnumCL, bitmaskFromFlags, 
@@ -64,9 +67,9 @@ import Control.Parallel.OpenCL.Types(
 -- -----------------------------------------------------------------------------
 foreign import CALLCONV "clCreateBuffer" raw_clCreateBuffer :: 
   CLContext -> CLMemFlags_ -> CSize -> Ptr () -> Ptr CLint -> IO CLMem
---foreign import CALLCONV "clCreateImage2D" raw_clCreateImage2D :: 
---  CLContext -> CLMemFlags_ -> CLImageFormat_p -> CSize -> CSize -> CSize 
---  -> Ptr () -> Ptr CLint -> IO CLMem
+foreign import CALLCONV "clCreateImage2D" raw_clCreateImage2D :: 
+  CLContext -> CLMemFlags_ -> CLImageFormat_p -> CSize -> CSize -> CSize 
+  -> Ptr () -> Ptr CLint -> IO CLMem
 --foreign import CALLCONV "clCreateImage3D" raw_clCreateImage3D :: 
 --  CLContext -> CLMemFlags_-> CLImageFormat_p -> CSize -> CSize -> CSize -> CSize 
 --  -> CSize -> Ptr () -> Ptr CLint -> IO CLMem
@@ -133,6 +136,7 @@ clRetainMemObject mem = wrapCheckSuccess $ raw_clRetainMemObject mem
 clReleaseMemObject :: CLMem -> IO Bool
 clReleaseMemObject mem = wrapCheckSuccess $ raw_clReleaseMemObject mem
 
+-- -----------------------------------------------------------------------------
 #c
 enum CLChannelOrder {
   cL_R=CL_R,
@@ -245,6 +249,92 @@ value.
 data CLImageFormat = CLImageFormat
                      { image_channel_order :: ! CLChannelOrder
                      , image_channel_data_type :: ! CLChannelType }
+{#pointer *cl_image_format as CLImageFormat_p -> CLImageFormat#}
+instance Storable CLImageFormat where
+  alignment _ = alignment (undefined :: CDouble)
+  sizeOf _ = {#sizeof cl_image_format #}
+  peek p =
+    CLImageFormat <$> fmap getEnumCL ({#get cl_image_format.image_channel_order #} p)
+           <*> fmap getEnumCL ({#get cl_image_format.image_channel_data_type #} p)
+  poke p (CLImageFormat a b) = do
+    {#set cl_image_format.image_channel_order #} p (getCLValue a)
+    {#set cl_image_format.image_channel_data_type #} p (getCLValue b)
+
+-- -----------------------------------------------------------------------------
+{-| Creates a 2D image object.
+
+'clCreateImage2D' returns a valid non-zero image object created if the image
+object is created successfully. Otherwise, it throws one of the following
+'CLError' exceptions:
+
+ * 'CL_INVALID_CONTEXT' if context is not a valid context.
+
+ * 'CL_INVALID_VALUE' if values specified in flags are not valid.
+
+ * 'CL_INVALID_IMAGE_FORMAT_DESCRIPTOR' if values specified in image_format are
+not valid.
+
+ * 'CL_INVALID_IMAGE_SIZE' if image_width or image_height are 0 or if they
+exceed values specified in 'CL_DEVICE_IMAGE2D_MAX_WIDTH' or
+'CL_DEVICE_IMAGE2D_MAX_HEIGHT' respectively for all devices in context or if
+values specified by image_row_pitch do not follow rules described in the
+argument description above.
+
+ * 'CL_INVALID_HOST_PTR' if host_ptr is 'nullPtr' and 'CL_MEM_USE_HOST_PTR' or
+'CL_MEM_COPY_HOST_PTR' are set in flags or if host_ptr is not 'nullPtr' but
+'CL_MEM_COPY_HOST_PTR' or 'CL_MEM_USE_HOST_PTR' are not set in flags.
+
+ * 'CL_IMAGE_FORMAT_NOT_SUPPORTED' if the image_format is not supported.
+
+ * 'CL_MEM_OBJECT_ALLOCATION_FAILURE' if there is a failure to allocate memory
+for image object.
+
+ * 'CL_INVALID_OPERATION' if there are no devices in context that support images
+(i.e. 'CL_DEVICE_IMAGE_SUPPORT' (specified in the table of OpenCL Device Queries
+for 'clGetDeviceInfo') is 'False').
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.
+
+-}
+
+clCreateImage2D :: Integral a => CLContext -- ^ A valid OpenCL context on which
+                                           -- the image object is to be created.
+                   -> [CLMemFlag] -- ^ A list of flags that is used to specify
+                                  -- allocation and usage information about the
+                                  -- image memory object being created.
+                   -> CLImageFormat -- ^ Structure that describes format
+                                    -- properties of the image to be allocated.
+                   -> a -- ^ The width of the image in pixels. It must be values
+                        -- greater than or equal to 1.
+                   -> a -- ^ The height of the image in pixels. It must be
+                        -- values greater than or equal to 1.
+                   -> a -- ^ The scan-line pitch in bytes. This must be 0 if
+                        -- host_ptr is 'nullPtr' and can be either 0 or greater
+                        -- than or equal to image_width * size of element in
+                        -- bytes if host_ptr is not 'nullPtr'. If host_ptr is
+                        -- not 'nullPtr' and image_row_pitch is equal to 0,
+                        -- image_row_pitch is calculated as image_width * size
+                        -- of element in bytes. If image_row_pitch is not 0, it
+                        -- must be a multiple of the image element size in
+                        -- bytes.
+                   -> Ptr () -- ^ A pointer to the image data that may already
+                             -- be allocated by the application. The size of the
+                             -- buffer that host_ptr points to must be greater
+                             -- than or equal to image_row_pitch *
+                             -- image_height. The size of each element in bytes
+                             -- must be a power of 2. The image data specified
+                             -- by host_ptr is stored as a linear sequence of
+                             -- adjacent scanlines. Each scanline is stored as a
+                             -- linear sequence of image elements.
+                   -> IO CLMem
+clCreateImage2D ctx xs fmt iw ih irp ptr = wrapPError $ \perr -> with fmt $ \pfmt -> do
+  raw_clCreateImage2D ctx flags pfmt ciw cih cirp ptr perr
+    where
+      flags = bitmaskFromFlags xs
+      ciw = fromIntegral iw
+      cih = fromIntegral ih
+      cirp = fromIntegral irp
 
 #c
 enum CLMemInfo {

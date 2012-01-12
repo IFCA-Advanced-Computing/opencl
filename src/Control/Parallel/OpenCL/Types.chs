@@ -36,7 +36,7 @@ module Control.Parallel.OpenCL.Types(
   CLDeviceID, CLContext, CLCommandQueue, CLPlatformInfo_, CLDeviceType_, 
   CLDeviceInfo_, CLContextInfo_, CLContextProperty_, CLCommandQueueInfo_, 
   CLEventInfo_, CLProfilingInfo_, CLCommandType_, CLCommandQueueProperty_, 
-  CLMemFlags_, CLImageFormat_p, CLMemObjectType_, CLMemInfo_, CLImageInfo_,
+  CLMemFlags_, CLMemObjectType_, CLMemInfo_, CLImageInfo_,
   CLProgramInfo_, CLBuildStatus_,CLKernel, CLProgramBuildInfo_, CLKernelInfo_,
   CLKernelWorkGroupInfo_, CLDeviceLocalMemType_, CLDeviceMemCacheType_,
   CLSampler, CLFilterMode_, CLSamplerInfo_, CLAddressingMode_,
@@ -110,11 +110,6 @@ type CLKernelWorkGroupInfo_ = {#type cl_kernel_work_group_info#}
 type CLFilterMode_ = {#type cl_filter_mode#}
 type CLSamplerInfo_ = {#type cl_sampler_info#}
 type CLAddressingMode_ = {#type cl_addressing_mode#}
-
-{#pointer *cl_image_format as CLImageFormat_p#}
-
---type CLImageChannelOrder_ = {#type cl_channel_order#}
---type CLImageChannelDataType_ = {#type cl_channel_type#}
 
 -- -----------------------------------------------------------------------------
 #c
