@@ -39,7 +39,7 @@ module Control.Parallel.OpenCL.Memory(
   clGetMemFlags, clGetMemSize, clGetMemHostPtr, clGetMemMapCount, 
   clGetMemReferenceCount, clGetMemContext,
   -- * Image Functions
-  clCreateImage2D, clCreateImage3D,
+  clCreateImage2D, clCreateImage3D, clGetSupportedImageFormats,
   -- * Sampler Functions
   clCreateSampler, clRetainSampler, clReleaseSampler, clGetSamplerReferenceCount, 
   clGetSamplerContext, clGetSamplerAddressingMode, clGetSamplerFilterMode, 
@@ -77,9 +77,9 @@ foreign import CALLCONV "clRetainMemObject" raw_clRetainMemObject ::
   CLMem -> IO CLint
 foreign import CALLCONV "clReleaseMemObject" raw_clReleaseMemObject :: 
   CLMem -> IO CLint
---foreign import CALLCONV "clGetSupportedImageFormats" raw_clGetSupportedImageFormats :: 
---  CLContext -> CLMemFlags_ -> CLMemObjectType_ -> CLuint -> CLImageFormat_p 
---  -> Ptr CLuint -> IO CLint
+foreign import CALLCONV "clGetSupportedImageFormats" raw_clGetSupportedImageFormats :: 
+  CLContext -> CLMemFlags_ -> CLMemObjectType_ -> CLuint -> CLImageFormat_p 
+  -> Ptr CLuint -> IO CLint
 foreign import CALLCONV "clGetMemObjectInfo" raw_clGetMemObjectInfo :: 
   CLMem -> CLMemInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 --foreign import CALLCONV "clGetImageInfo" raw_clGetImageInfo :: 
@@ -424,6 +424,18 @@ clCreateImage3D ctx xs fmt iw ih idepth irp isp ptr = wrapPError $ \perr -> with
       cid = fromIntegral idepth
       cirp = fromIntegral irp
       cisp = fromIntegral isp  
+      
+getNumSupportedImageFormats :: CLContext -> [CLMemFlag] -> CLMemObjectType -> IO CUint
+getNumSupportedImageFormats ctx xs mtype = alloca $ \(value_size :: Ptr CUint) -> do
+  whenSuccess (raw_clGetSupportedImageFormats ctx flags mtype 0 nullPtr value_size)
+    $ peek value_size
+--getProgramInfoSize prg infoid = alloca $ \(value_size :: Ptr CSize) -> do
+--  whenSuccess (raw_clGetProgramInfo prg infoid 0 nullPtr value_size)
+--    $ peek value_size
+  
+  
+clGetSupportedImageFormats = id
+
 #c
 enum CLMemInfo {
   cL_MEM_TYPE=CL_MEM_TYPE,
