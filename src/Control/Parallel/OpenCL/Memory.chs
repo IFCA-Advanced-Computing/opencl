@@ -39,7 +39,7 @@ module Control.Parallel.OpenCL.Memory(
   clGetMemFlags, clGetMemSize, clGetMemHostPtr, clGetMemMapCount, 
   clGetMemReferenceCount, clGetMemContext,
   -- * Image Functions
-  clCreateImage2D,
+  clCreateImage2D, clCreateImage3D,
   -- * Sampler Functions
   clCreateSampler, clRetainSampler, clReleaseSampler, clGetSamplerReferenceCount, 
   clGetSamplerContext, clGetSamplerAddressingMode, clGetSamplerFilterMode, 
@@ -70,9 +70,9 @@ foreign import CALLCONV "clCreateBuffer" raw_clCreateBuffer ::
 foreign import CALLCONV "clCreateImage2D" raw_clCreateImage2D :: 
   CLContext -> CLMemFlags_ -> CLImageFormat_p -> CSize -> CSize -> CSize 
   -> Ptr () -> Ptr CLint -> IO CLMem
---foreign import CALLCONV "clCreateImage3D" raw_clCreateImage3D :: 
---  CLContext -> CLMemFlags_-> CLImageFormat_p -> CSize -> CSize -> CSize -> CSize 
---  -> CSize -> Ptr () -> Ptr CLint -> IO CLMem
+foreign import CALLCONV "clCreateImage3D" raw_clCreateImage3D :: 
+  CLContext -> CLMemFlags_-> CLImageFormat_p -> CSize -> CSize -> CSize -> CSize 
+  -> CSize -> Ptr () -> Ptr CLint -> IO CLMem
 foreign import CALLCONV "clRetainMemObject" raw_clRetainMemObject :: 
   CLMem -> IO CLint
 foreign import CALLCONV "clReleaseMemObject" raw_clReleaseMemObject :: 
@@ -336,6 +336,94 @@ clCreateImage2D ctx xs fmt iw ih irp ptr = wrapPError $ \perr -> with fmt $ \pfm
       cih = fromIntegral ih
       cirp = fromIntegral irp
 
+{-| Creates a 3D image object.
+
+'clCreateImage3D' returns a valid non-zero image object created if the image
+object is created successfully. Otherwise, it throws one of the following
+'CLError' exceptions:
+
+ * 'CL_INVALID_CONTEXT' if context is not a valid context.
+
+ * 'CL_INVALID_VALUE' if values specified in flags are not valid.
+
+ * 'CL_INVALID_IMAGE_FORMAT_DESCRIPTOR' if values specified in image_format are
+not valid.
+
+ * 'CL_INVALID_IMAGE_SIZE' if image_width, image_height are 0 or if image_depth
+less than or equal to 1 or if they exceed values specified in
+'CL_DEVICE_IMAGE3D_MAX_WIDTH', CL_DEVICE_IMAGE3D_MAX_HEIGHT' or
+'CL_DEVICE_IMAGE3D_MAX_DEPTH' respectively for all devices in context or if
+values specified by image_row_pitch and image_slice_pitch do not follow rules
+described in the argument description above.
+
+ * 'CL_INVALID_HOST_PTR' if host_ptr is 'nullPtr' and 'CL_MEM_USE_HOST_PTR' or
+'CL_MEM_COPY_HOST_PTR' are set in flags or if host_ptr is not 'nullPtr' but
+'CL_MEM_COPY_HOST_PTR' or 'CL_MEM_USE_HOST_PTR' are not set in flags.
+
+ * 'CL_IMAGE_FORMAT_NOT_SUPPORTED' if the image_format is not supported.
+
+ * 'CL_MEM_OBJECT_ALLOCATION_FAILURE' if there is a failure to allocate memory
+for image object.
+
+ * 'CL_INVALID_OPERATION' if there are no devices in context that support images
+(i.e. 'CL_DEVICE_IMAGE_SUPPORT' (specified in the table of OpenCL Device Queries
+for clGetDeviceInfo) is 'False').
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.
+
+-}
+clCreateImage3D :: Integral a => CLContext -- ^ A valid OpenCL context on which
+                                           -- the image object is to be created.
+                   -> [CLMemFlag] -- ^ A list of flags that is used to specify
+                                  -- allocation and usage information about the
+                                  -- image memory object being created.
+                   -> CLImageFormat -- ^ Structure that describes format
+                                    -- properties of the image to be allocated.
+                   -> a -- ^ The width of the image in pixels. It must be values
+                        -- greater than or equal to 1.
+                   -> a -- ^ The height of the image in pixels. It must be
+                        -- values greater than or equal to 1.
+                   -> a -- ^ The depth of the image in pixels. This must be a
+                        -- value greater than 1.
+                   -> a -- ^ The scan-line pitch in bytes. This must be 0 if
+                        -- host_ptr is 'nullPtr' and can be either 0 or greater
+                        -- than or equal to image_width * size of element in
+                        -- bytes if host_ptr is not 'nullPtr'. If host_ptr is
+                        -- not 'nullPtr' and image_row_pitch is equal to 0,
+                        -- image_row_pitch is calculated as image_width * size
+                        -- of element in bytes. If image_row_pitch is not 0, it
+                        -- must be a multiple of the image element size in
+                        -- bytes.
+                   -> a -- ^ The size in bytes of each 2D slice in the 3D
+                        -- image. This must be 0 if host_ptr is 'nullPtr' and
+                        -- can be either 0 or greater than or equal to
+                        -- image_row_pitch * image_height if host_ptr is not
+                        -- 'nullPtr'. If host_ptr is not 'nullPtr' and
+                        -- image_slice_pitch equal to 0, image_slice_pitch is
+                        -- calculated as image_row_pitch * image_height. If
+                        -- image_slice_pitch is not 0, it must be a multiple of
+                        -- the image_row_pitch.
+                   -> Ptr () -- ^ A pointer to the image data that may already
+                             -- be allocated by the application. The size of the
+                             -- buffer that host_ptr points to must be greater
+                             -- than or equal to image_slice_pitch *
+                             -- image_depth. The size of each element in bytes
+                             -- must be a power of 2. The image data specified
+                             -- by host_ptr is stored as a linear sequence of
+                             -- adjacent 2D slices. Each 2D slice is a linear
+                             -- sequence of adjacent scanlines. Each scanline is
+                             -- a linear sequence of image elements.
+                   -> IO CLMem
+clCreateImage3D ctx xs fmt iw ih idepth irp isp ptr = wrapPError $ \perr -> with fmt $ \pfmt -> do
+  raw_clCreateImage3D ctx flags pfmt ciw cih cid cirp cisp ptr perr
+    where
+      flags = bitmaskFromFlags xs
+      ciw = fromIntegral iw
+      cih = fromIntegral ih
+      cid = fromIntegral idepth
+      cirp = fromIntegral irp
+      cisp = fromIntegral isp  
 #c
 enum CLMemInfo {
   cL_MEM_TYPE=CL_MEM_TYPE,
