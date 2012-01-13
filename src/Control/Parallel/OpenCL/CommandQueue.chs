@@ -42,6 +42,7 @@ module Control.Parallel.OpenCL.CommandQueue(
   clEnqueueReadBuffer, clEnqueueWriteBuffer, clEnqueueReadImage, 
   clEnqueueWriteImage, clEnqueueCopyImage, clEnqueueCopyImageToBuffer,
   clEnqueueCopyBufferToImage, clEnqueueMapBuffer, clEnqueueMapImage,
+  clEnqueueUnmapMemObject,
   -- * Executing Kernels
   clEnqueueNDRangeKernel, clEnqueueTask, clEnqueueMarker, 
   clEnqueueWaitForEvents, clEnqueueBarrier,
@@ -1121,10 +1122,70 @@ clEnqueueMapImage cq mem check xs (orix,oriy,oriz) (regx,regy,regz) events =
       flags = bitmaskFromFlags xs
       nevents = length events
       cnevents = fromIntegral nevents
-{-
-foreign import CALLCONV "clEnqueueUnmapMemObject" raw_clEnqueueUnmapMemObject ::
-  CLCommandQueue -> CLMem -> Ptr () -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
+      
+{-| Enqueues a command to unmap a previously mapped region of a memory object.
+
+Returns an event object that identifies this particular copy command and can be
+used to query or queue a wait for this particular command to complete. event can
+be NULL in which case it will not be possible for the application to query the
+status of this command or queue a wait for this command to
+complete. 'clEnqueueBarrier' can be used instead.
+
+Reads or writes from the host using the pointer returned by 'clEnqueueMapBuffer'
+or 'clEnqueueMapImage' are considered to be complete.
+
+'clEnqueueMapBuffer' and 'clEnqueueMapImage' increments the mapped count of the
+memory object. The initial mapped count value of a memory object is
+zero. Multiple calls to 'clEnqueueMapBuffer' or 'clEnqueueMapImage' on the same
+memory object will increment this mapped count by appropriate number of
+calls. 'clEnqueueUnmapMemObject' decrements the mapped count of the memory
+object.
+
+'clEnqueueMapBuffer' and 'clEnqueueMapImage' act as synchronization points for a
+region of the memory object being mapped.
+
+'clEnqueueUnmapMemObject' returns the 'CLEvent' if the function is executed
+successfully. It can throw the following 'CLError' exceptions:
+
+ * CL_INVALID_COMMAND_QUEUE if command_queue is not a valid command-queue.
+
+ * CL_INVALID_MEM_OBJECT if memobj is not a valid memory object.
+
+ * CL_INVALID_VALUE if mapped_ptr is not a valid pointer returned by
+'clEnqueueMapBuffer' or 'clEnqueueMapImage' for memobj.
+
+ * CL_INVALID_EVENT_WAIT_LIST if event objects in event_wait_list are not valid
+events.
+
+ * CL_OUT_OF_HOST_MEMORY if there is a failure to allocate resources required by
+the OpenCL implementation on the host.
+
+ * CL_INVALID_CONTEXT if the context associated with command_queue and memobj
+are not the same or if the context associated with command_queue and events in
+event_wait_list are not the same.
 -}
+clEnqueueUnmapMemObject :: CLCommandQueue 
+                           -> CLMem -- ^ A valid memory object. The OpenCL
+                                    -- context associated with command_queue and
+                                    -- memobj must be the same.
+                           -> Ptr () -- ^ The host address returned by a
+                                     -- previous call to 'clEnqueueMapBuffer' or
+                                     -- 'clEnqueueMapImage' for memobj.
+                           -> [CLEvent] -- ^ Specify events that need to
+                                        -- complete before
+                                        -- 'clEnqueueUnmapMemObject' can be
+                                        -- executed. If event_wait_list is
+                                        -- empty, then 'clEnqueueUnmapMemObject'
+                                        -- does not wait on any event to
+                                        -- complete. The events specified in
+                                        -- event_wait_list act as
+                                        -- synchronization points. The context
+                                        -- associated with events in
+                                        -- event_wait_list and command_queue
+                                        -- must be the same.
+
+                           -> IO CLEvent
+clEnqueueUnmapMemObject cq mem pp = clEnqueue (raw_clEnqueueUnmapMemObject cq mem pp)
 
 -- -----------------------------------------------------------------------------
 {-| Enqueues a command to execute a kernel on a device. Each work-item is
