@@ -40,6 +40,8 @@ module Control.Parallel.OpenCL.Memory(
   clGetMemReferenceCount, clGetMemContext,
   -- * Image Functions
   clCreateImage2D, clCreateImage3D, clGetSupportedImageFormats,
+  clGetImageFormat, clGetImageElementSize, clGetImageRowPitch,
+  clGetImageSlicePitch, clGetImageWidth, clGetImageHeight, clGetImageDepth,
   -- * Sampler Functions
   clCreateSampler, clRetainSampler, clReleaseSampler, clGetSamplerReferenceCount, 
   clGetSamplerContext, clGetSamplerAddressingMode, clGetSamplerFilterMode, 
@@ -52,7 +54,7 @@ import Foreign.C.Types
 import Control.Applicative( (<$>), (<*>) )
 import Control.Parallel.OpenCL.Types( 
   CLMem, CLContext, CLSampler, CLint, CLuint, CLbool, CLMemFlags_,
-  CLMemInfo_, CLAddressingMode_, CLFilterMode_, CLSamplerInfo_,
+  CLMemInfo_, CLAddressingMode_, CLFilterMode_, CLSamplerInfo_, CLImageInfo_,
   CLAddressingMode(..), CLFilterMode(..), CLMemFlag(..), CLMemObjectType_, 
   CLMemObjectType(..), 
   wrapPError, wrapCheckSuccess, wrapGetInfo, whenSuccess, getEnumCL, 
@@ -82,8 +84,8 @@ foreign import CALLCONV "clGetSupportedImageFormats" raw_clGetSupportedImageForm
   -> Ptr CLuint -> IO CLint
 foreign import CALLCONV "clGetMemObjectInfo" raw_clGetMemObjectInfo :: 
   CLMem -> CLMemInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
---foreign import CALLCONV "clGetImageInfo" raw_clGetImageInfo :: 
---  CLMem -> CLImageInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
+foreign import CALLCONV "clGetImageInfo" raw_clGetImageInfo ::
+  CLMem -> CLImageInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 foreign import CALLCONV "clCreateSampler" raw_clCreateSampler :: 
   CLContext -> CLbool -> CLAddressingMode_ -> CLFilterMode_ -> Ptr CLint -> IO CLSampler
 foreign import CALLCONV "clRetainSampler" raw_clRetainSampler :: 
@@ -465,6 +467,103 @@ clGetSupportedImageFormats ctx xs mtype = do
     where
       flags = bitmaskFromFlags xs
 
+-- -----------------------------------------------------------------------------
+#c
+enum CLImageInfo {
+  cL_IMAGE_FORMAT=CL_IMAGE_FORMAT,
+  cL_IMAGE_ELEMENT_SIZE=CL_IMAGE_ELEMENT_SIZE,
+  cL_IMAGE_ROW_PITCH=CL_IMAGE_ROW_PITCH,
+  cL_IMAGE_SLICE_PITCH=CL_IMAGE_SLICE_PITCH,
+  cL_IMAGE_WIDTH=CL_IMAGE_WIDTH,
+  cL_IMAGE_HEIGHT=CL_IMAGE_HEIGHT,
+  cL_IMAGE_DEPTH=CL_IMAGE_DEPTH,
+  };
+#endc
+{#enum CLImageInfo {upcaseFirstLetter} #}
+
+-- | Return image format descriptor specified when image is created with
+-- clCreateImage2D or clCreateImage3D.
+--
+-- This function execute OpenCL clGetImageInfo with 'CL_IMAGE_FORMAT'.
+clGetImageFormat :: CLMem -> IO CLImageFormat
+clGetImageFormat mem =
+  wrapGetInfo (\(dat :: Ptr CLImageFormat) ->
+                raw_clGetImageInfo mem infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_IMAGE_FORMAT
+      size = fromIntegral $ sizeOf (undefined :: CLImageFormat)
+  
+-- | Return size of each element of the image memory object given by image. An
+-- element is made up of n channels. The value of n is given in 'CLImageFormat'
+-- descriptor.
+--
+-- This function execute OpenCL clGetImageInfo with 'CL_IMAGE_ELEMENT_SIZE'.
+clGetImageElementSize :: CLMem -> IO CSize      
+clGetImageElementSize mem =
+  wrapGetInfo (\(dat :: Ptr CSize) ->
+                raw_clGetImageInfo mem infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_IMAGE_ELEMENT_SIZE
+      size = fromIntegral $ sizeOf (undefined :: CSize)
+      
+-- | Return size in bytes of a row of elements of the image object given by
+-- image.
+--
+-- This function execute OpenCL clGetImageInfo with 'CL_IMAGE_ROW_PITCH'.
+clGetImageRowPitch :: CLMem -> IO CSize      
+clGetImageRowPitch mem = 
+  wrapGetInfo (\(dat :: Ptr CSize) ->
+                raw_clGetImageInfo mem infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_IMAGE_ROW_PITCH
+      size = fromIntegral $ sizeOf (undefined :: CSize)
+      
+-- | Return size in bytes of a 2D slice for the 3D image object given by
+-- image. For a 2D image object this value will be 0.
+--
+-- This function execute OpenCL clGetImageInfo with 'CL_IMAGE_SLICE_PITCH'.
+clGetImageSlicePitch :: CLMem -> IO CSize      
+clGetImageSlicePitch mem = 
+  wrapGetInfo (\(dat :: Ptr CSize) ->
+                raw_clGetImageInfo mem infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_IMAGE_SLICE_PITCH
+      size = fromIntegral $ sizeOf (undefined :: CSize)      
+      
+-- | Return width of image in pixels.
+--
+-- This function execute OpenCL clGetImageInfo with 'CL_IMAGE_WIDTH'.
+clGetImageWidth :: CLMem -> IO CSize      
+clGetImageWidth mem = 
+  wrapGetInfo (\(dat :: Ptr CSize) ->
+                raw_clGetImageInfo mem infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_IMAGE_WIDTH
+      size = fromIntegral $ sizeOf (undefined :: CSize)
+      
+-- | Return height of image in pixels.
+--
+-- This function execute OpenCL clGetImageInfo with 'CL_IMAGE_HEIGHT'.
+clGetImageHeight :: CLMem -> IO CSize      
+clGetImageHeight mem = 
+  wrapGetInfo (\(dat :: Ptr CSize) ->
+                raw_clGetImageInfo mem infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_IMAGE_HEIGHT
+      size = fromIntegral $ sizeOf (undefined :: CSize)
+
+-- | Return depth of the image in pixels. For a 2D image, depth equals 0.
+--
+-- This function execute OpenCL clGetImageInfo with 'CL_IMAGE_DEPTH'.
+clGetImageDepth :: CLMem -> IO CSize      
+clGetImageDepth mem = 
+  wrapGetInfo (\(dat :: Ptr CSize) ->
+                raw_clGetImageInfo mem infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_IMAGE_DEPTH
+      size = fromIntegral $ sizeOf (undefined :: CSize)
+
+-- -----------------------------------------------------------------------------
 #c
 enum CLMemInfo {
   cL_MEM_TYPE=CL_MEM_TYPE,
