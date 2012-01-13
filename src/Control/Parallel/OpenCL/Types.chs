@@ -36,7 +36,7 @@ module Control.Parallel.OpenCL.Types(
   CLDeviceID, CLContext, CLCommandQueue, CLPlatformInfo_, CLDeviceType_, 
   CLDeviceInfo_, CLContextInfo_, CLContextProperty_, CLCommandQueueInfo_, 
   CLEventInfo_, CLProfilingInfo_, CLCommandType_, CLCommandQueueProperty_, 
-  CLMemFlags_, CLImageFormat_p, CLMemObjectType_, CLMemInfo_, CLImageInfo_,
+  CLMemFlags_, CLMemObjectType_, CLMemInfo_, CLImageInfo_, CLMapFlags_,
   CLProgramInfo_, CLBuildStatus_,CLKernel, CLProgramBuildInfo_, CLKernelInfo_,
   CLKernelWorkGroupInfo_, CLDeviceLocalMemType_, CLDeviceMemCacheType_,
   CLSampler, CLFilterMode_, CLSamplerInfo_, CLAddressingMode_,
@@ -45,7 +45,7 @@ module Control.Parallel.OpenCL.Types(
   CLDeviceExecCapability(..), CLDeviceLocalMemType(..), CLDeviceType(..), 
   CLCommandQueueProperty(..), CLCommandType(..),  CLCommandExecutionStatus(..), 
   CLProfilingInfo(..), CLPlatformInfo(..), CLMemFlag(..), CLMemObjectType(..),
-  CLBuildStatus(..), CLAddressingMode(..), CLFilterMode(..),
+  CLBuildStatus(..), CLAddressingMode(..), CLFilterMode(..), CLMapFlag(..),
   -- * Functions
   wrapPError, wrapCheckSuccess, wrapGetInfo, whenSuccess, getCLValue, 
   throwCLError, getEnumCL, bitmaskToFlags, getCommandExecutionStatus, 
@@ -102,6 +102,7 @@ type CLMemFlags_ = {#type cl_mem_flags#}
 type CLMemObjectType_ = {#type cl_mem_object_type#}
 type CLMemInfo_ = {#type cl_mem_info#}
 type CLImageInfo_ = {#type cl_image_info#}
+type CLMapFlags_ = {#type cl_map_flags#}
 type CLProgramInfo_ = {#type cl_program_info#}
 type CLProgramBuildInfo_ = {#type cl_program_build_info#}
 type CLBuildStatus_ = {#type cl_build_status#}
@@ -110,11 +111,6 @@ type CLKernelWorkGroupInfo_ = {#type cl_kernel_work_group_info#}
 type CLFilterMode_ = {#type cl_filter_mode#}
 type CLSamplerInfo_ = {#type cl_sampler_info#}
 type CLAddressingMode_ = {#type cl_addressing_mode#}
-
-{#pointer *cl_image_format as CLImageFormat_p#}
-
---type CLImageChannelOrder_ = {#type cl_channel_order#}
---type CLImageChannelDataType_ = {#type cl_channel_type#}
 
 -- -----------------------------------------------------------------------------
 #c
@@ -619,6 +615,14 @@ initialize the contents of the cl_mem object allocated using host-accessible
 (e.g. PCIe) memory.  
 -} 
 {#enum CLMemFlag {upcaseFirstLetter} deriving( Show, Bounded, Eq, Ord ) #}
+
+#c
+enum CLMapFlag {
+  cL_MAP_READ=CL_MAP_READ,
+  cL_MAP_WRITE=CL_MAP_WRITE
+  };
+#endc
+{#enum CLMapFlag {upcaseFirstLetter} deriving( Show, Bounded, Eq, Ord ) #}
 
 #c
 enum CLMemObjectType {

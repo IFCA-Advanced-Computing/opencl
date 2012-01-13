@@ -33,11 +33,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 module Control.Parallel.OpenCL.Memory(
   -- * Types
   CLMem, CLSampler, CLMemFlag(..), CLMemObjectType(..), CLAddressingMode(..), 
-  CLFilterMode(..),
+  CLFilterMode(..), CLImageFormat(..),
   -- * Memory Functions
   clCreateBuffer, clRetainMemObject, clReleaseMemObject, clGetMemType, 
   clGetMemFlags, clGetMemSize, clGetMemHostPtr, clGetMemMapCount, 
   clGetMemReferenceCount, clGetMemContext,
+  -- * Image Functions
+  clCreateImage2D, clCreateImage3D, clGetSupportedImageFormats,
+  clGetImageFormat, clGetImageElementSize, clGetImageRowPitch,
+  clGetImageSlicePitch, clGetImageWidth, clGetImageHeight, clGetImageDepth,
   -- * Sampler Functions
   clCreateSampler, clRetainSampler, clReleaseSampler, clGetSamplerReferenceCount, 
   clGetSamplerContext, clGetSamplerAddressingMode, clGetSamplerFilterMode, 
@@ -47,13 +51,14 @@ module Control.Parallel.OpenCL.Memory(
 -- -----------------------------------------------------------------------------
 import Foreign
 import Foreign.C.Types
+import Control.Applicative( (<$>), (<*>) )
 import Control.Parallel.OpenCL.Types( 
   CLMem, CLContext, CLSampler, CLint, CLuint, CLbool, CLMemFlags_,
-  CLMemInfo_, CLAddressingMode_, CLFilterMode_, CLSamplerInfo_, 
+  CLMemInfo_, CLAddressingMode_, CLFilterMode_, CLSamplerInfo_, CLImageInfo_,
   CLAddressingMode(..), CLFilterMode(..), CLMemFlag(..), CLMemObjectType_, 
   CLMemObjectType(..), 
-  wrapPError, wrapCheckSuccess, wrapGetInfo, getEnumCL, bitmaskFromFlags, 
-  bitmaskToMemFlags, getCLValue )
+  wrapPError, wrapCheckSuccess, wrapGetInfo, whenSuccess, getEnumCL, 
+  bitmaskFromFlags, bitmaskToMemFlags, getCLValue )
 
 #ifdef __APPLE__
 #include <cl.h>
@@ -64,23 +69,23 @@ import Control.Parallel.OpenCL.Types(
 -- -----------------------------------------------------------------------------
 foreign import CALLCONV "clCreateBuffer" raw_clCreateBuffer :: 
   CLContext -> CLMemFlags_ -> CSize -> Ptr () -> Ptr CLint -> IO CLMem
---foreign import CALLCONV "clCreateImage2D" raw_clCreateImage2D :: 
---  CLContext -> CLMemFlags_ -> CLImageFormat_p -> CSize -> CSize -> CSize 
---  -> Ptr () -> Ptr CLint -> IO CLMem
---foreign import CALLCONV "clCreateImage3D" raw_clCreateImage3D :: 
---  CLContext -> CLMemFlags_-> CLImageFormat_p -> CSize -> CSize -> CSize -> CSize 
---  -> CSize -> Ptr () -> Ptr CLint -> IO CLMem
+foreign import CALLCONV "clCreateImage2D" raw_clCreateImage2D :: 
+  CLContext -> CLMemFlags_ -> CLImageFormat_p -> CSize -> CSize -> CSize 
+  -> Ptr () -> Ptr CLint -> IO CLMem
+foreign import CALLCONV "clCreateImage3D" raw_clCreateImage3D :: 
+  CLContext -> CLMemFlags_-> CLImageFormat_p -> CSize -> CSize -> CSize -> CSize 
+  -> CSize -> Ptr () -> Ptr CLint -> IO CLMem
 foreign import CALLCONV "clRetainMemObject" raw_clRetainMemObject :: 
   CLMem -> IO CLint
 foreign import CALLCONV "clReleaseMemObject" raw_clReleaseMemObject :: 
   CLMem -> IO CLint
---foreign import CALLCONV "clGetSupportedImageFormats" raw_clGetSupportedImageFormats :: 
---  CLContext -> CLMemFlags_ -> CLMemObjectType_ -> CLuint -> CLImageFormat_p 
---  -> Ptr CLuint -> IO CLint
+foreign import CALLCONV "clGetSupportedImageFormats" raw_clGetSupportedImageFormats :: 
+  CLContext -> CLMemFlags_ -> CLMemObjectType_ -> CLuint -> CLImageFormat_p 
+  -> Ptr CLuint -> IO CLint
 foreign import CALLCONV "clGetMemObjectInfo" raw_clGetMemObjectInfo :: 
   CLMem -> CLMemInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
---foreign import CALLCONV "clGetImageInfo" raw_clGetImageInfo :: 
---  CLMem -> CLImageInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
+foreign import CALLCONV "clGetImageInfo" raw_clGetImageInfo ::
+  CLMem -> CLImageInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 foreign import CALLCONV "clCreateSampler" raw_clCreateSampler :: 
   CLContext -> CLbool -> CLAddressingMode_ -> CLFilterMode_ -> Ptr CLint -> IO CLSampler
 foreign import CALLCONV "clRetainSampler" raw_clRetainSampler :: 
@@ -133,6 +138,432 @@ clRetainMemObject mem = wrapCheckSuccess $ raw_clRetainMemObject mem
 clReleaseMemObject :: CLMem -> IO Bool
 clReleaseMemObject mem = wrapCheckSuccess $ raw_clReleaseMemObject mem
 
+-- -----------------------------------------------------------------------------
+#c
+enum CLChannelOrder {
+  cL_R=CL_R,
+  cL_A=CL_A,
+  cL_INTENSITY=CL_INTENSITY,
+  cL_LUMINANCE=CL_LUMINANCE,
+  cL_RG=CL_RG,
+  cL_RA=CL_RA,
+  cL_RGB=CL_RGB,
+  cL_RGBA=CL_RGBA,
+  cL_ARGB=CL_ARGB,
+  cL_BGRA=CL_BGRA,
+  };
+#endc
+{-| Specifies the number of channels and the channel layout i.e. the memory
+layout in which channels are stored in the image. Valid values are described in
+the table below.
+ 
+ * 'CL_R', 'CL_A'.
+
+ * 'CL_INTENSITY', This format can only be used if channel data type =
+'CL_UNORM_INT8', 'CL_UNORM_INT16', 'CL_SNORM_INT8', 'CL_SNORM_INT16',
+'CL_HALF_FLOAT', or 'CL_FLOAT'.
+
+ * 'CL_LUMINANCE', This format can only be used if channel data type =
+'CL_UNORM_INT8', 'CL_UNORM_INT16', 'CL_SNORM_INT8', 'CL_SNORM_INT16',
+'CL_HALF_FLOAT', or 'CL_FLOAT'.
+
+ * 'CL_RG', 'CL_RA'.
+
+ * 'CL_RGB', This format can only be used if channel data type =
+'CL_UNORM_SHORT_565', 'CL_UNORM_SHORT_555' or 'CL_UNORM_INT101010'.
+
+ * 'CL_RGBA'.
+
+ * 'CL_ARGB', 'CL_BGRA'. This format can only be used if channel data type =
+'CL_UNORM_INT8', 'CL_SNORM_INT8', 'CL_SIGNED_INT8' or 'CL_UNSIGNED_INT8'.  
+-}
+{#enum CLChannelOrder {upcaseFirstLetter} deriving(Show)#}
+
+#c
+enum CLChannelType {
+  cL_SNORM_INT8=CL_SNORM_INT8,
+  cL_SNORM_INT16=CL_SNORM_INT16,
+  cL_UNORM_INT8=CL_UNORM_INT8,
+  cL_UNORM_INT16=CL_UNORM_INT16,
+  cL_UNORM_SHORT_565=CL_UNORM_SHORT_565,
+  cL_UNORM_SHORT_555=CL_UNORM_SHORT_555,
+  cL_UNORM_INT_101010=CL_UNORM_INT_101010,
+  cL_SIGNED_INT8=CL_SIGNED_INT8,
+  cL_SIGNED_INT16=CL_SIGNED_INT16,
+  cL_SIGNED_INT32=CL_SIGNED_INT32,
+  cL_UNSIGNED_INT8=CL_UNSIGNED_INT8,
+  cL_UNSIGNED_INT16=CL_UNSIGNED_INT16,
+  cL_UNSIGNED_INT32=CL_UNSIGNED_INT32,
+  cL_HALF_FLOAT=CL_HALF_FLOAT,
+  cL_FLOAT=CL_FLOAT,
+  };
+#endc
+{-| Describes the size of the channel data type. The number of bits per element
+determined by the image_channel_data_type and image_channel_order must be a
+power of two. The list of supported values is described in the table below.
+
+ * 'CL_SNORM_INT8', Each channel component is a normalized signed 8-bit integer
+value.
+
+ * 'CL_SNORM_INT16', Each channel component is a normalized signed 16-bit
+integer value.
+
+ * 'CL_UNORM_INT8', Each channel component is a normalized unsigned 8-bit
+integer value.
+
+ * 'CL_UNORM_INT16', Each channel component is a normalized unsigned 16-bit
+integer value.
+
+ * 'CL_UNORM_SHORT_565', Represents a normalized 5-6-5 3-channel RGB image. The
+channel order must be 'CL_RGB'.
+
+ * 'CL_UNORM_SHORT_555', Represents a normalized x-5-5-5 4-channel xRGB
+image. The channel order must be 'CL_RGB'.
+
+ * 'CL_UNORM_INT_101010', Represents a normalized x-10-10-10 4-channel xRGB
+image. The channel order must be 'CL_RGB'.
+
+ * 'CL_SIGNED_INT8', Each channel component is an unnormalized signed 8-bit
+integer value.
+
+ * 'CL_SIGNED_INT16', Each channel component is an unnormalized signed 16-bit
+integer value.
+
+ * 'CL_SIGNED_INT32', Each channel component is an unnormalized signed 32-bit
+integer value.
+
+ * 'CL_UNSIGNED_INT8', Each channel component is an unnormalized unsigned 8-bit
+integer value.
+
+ * 'CL_UNSIGNED_INT16', Each channel component is an unnormalized unsigned
+16-bit integer value.
+
+ * 'CL_UNSIGNED_INT32', Each channel component is an unnormalized unsigned
+32-bit integer value.
+
+ * 'CL_HALF_FLOAT', Each channel component is a 16-bit half-float value.
+
+ * 'CL_FLOAT', Each channel component is a single precision floating-point
+value.
+-}
+{#enum CLChannelType {upcaseFirstLetter} deriving(Show)#}
+
+data CLImageFormat = CLImageFormat
+                     { image_channel_order :: ! CLChannelOrder
+                     , image_channel_data_type :: ! CLChannelType }
+                     deriving( Show )
+{#pointer *cl_image_format as CLImageFormat_p -> CLImageFormat#}
+instance Storable CLImageFormat where
+  alignment _ = alignment (undefined :: CDouble)
+  sizeOf _ = {#sizeof cl_image_format #}
+  peek p =
+    CLImageFormat <$> fmap getEnumCL ({#get cl_image_format.image_channel_order #} p)
+           <*> fmap getEnumCL ({#get cl_image_format.image_channel_data_type #} p)
+  poke p (CLImageFormat a b) = do
+    {#set cl_image_format.image_channel_order #} p (getCLValue a)
+    {#set cl_image_format.image_channel_data_type #} p (getCLValue b)
+
+-- -----------------------------------------------------------------------------
+{-| Creates a 2D image object.
+
+'clCreateImage2D' returns a valid non-zero image object created if the image
+object is created successfully. Otherwise, it throws one of the following
+'CLError' exceptions:
+
+ * 'CL_INVALID_CONTEXT' if context is not a valid context.
+
+ * 'CL_INVALID_VALUE' if values specified in flags are not valid.
+
+ * 'CL_INVALID_IMAGE_FORMAT_DESCRIPTOR' if values specified in image_format are
+not valid.
+
+ * 'CL_INVALID_IMAGE_SIZE' if image_width or image_height are 0 or if they
+exceed values specified in 'CL_DEVICE_IMAGE2D_MAX_WIDTH' or
+'CL_DEVICE_IMAGE2D_MAX_HEIGHT' respectively for all devices in context or if
+values specified by image_row_pitch do not follow rules described in the
+argument description above.
+
+ * 'CL_INVALID_HOST_PTR' if host_ptr is 'nullPtr' and 'CL_MEM_USE_HOST_PTR' or
+'CL_MEM_COPY_HOST_PTR' are set in flags or if host_ptr is not 'nullPtr' but
+'CL_MEM_COPY_HOST_PTR' or 'CL_MEM_USE_HOST_PTR' are not set in flags.
+
+ * 'CL_IMAGE_FORMAT_NOT_SUPPORTED' if the image_format is not supported.
+
+ * 'CL_MEM_OBJECT_ALLOCATION_FAILURE' if there is a failure to allocate memory
+for image object.
+
+ * 'CL_INVALID_OPERATION' if there are no devices in context that support images
+(i.e. 'CL_DEVICE_IMAGE_SUPPORT' (specified in the table of OpenCL Device Queries
+for 'clGetDeviceInfo') is 'False').
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.
+
+-}
+
+clCreateImage2D :: Integral a => CLContext -- ^ A valid OpenCL context on which
+                                           -- the image object is to be created.
+                   -> [CLMemFlag] -- ^ A list of flags that is used to specify
+                                  -- allocation and usage information about the
+                                  -- image memory object being created.
+                   -> CLImageFormat -- ^ Structure that describes format
+                                    -- properties of the image to be allocated.
+                   -> a -- ^ The width of the image in pixels. It must be values
+                        -- greater than or equal to 1.
+                   -> a -- ^ The height of the image in pixels. It must be
+                        -- values greater than or equal to 1.
+                   -> a -- ^ The scan-line pitch in bytes. This must be 0 if
+                        -- host_ptr is 'nullPtr' and can be either 0 or greater
+                        -- than or equal to image_width * size of element in
+                        -- bytes if host_ptr is not 'nullPtr'. If host_ptr is
+                        -- not 'nullPtr' and image_row_pitch is equal to 0,
+                        -- image_row_pitch is calculated as image_width * size
+                        -- of element in bytes. If image_row_pitch is not 0, it
+                        -- must be a multiple of the image element size in
+                        -- bytes.
+                   -> Ptr () -- ^ A pointer to the image data that may already
+                             -- be allocated by the application. The size of the
+                             -- buffer that host_ptr points to must be greater
+                             -- than or equal to image_row_pitch *
+                             -- image_height. The size of each element in bytes
+                             -- must be a power of 2. The image data specified
+                             -- by host_ptr is stored as a linear sequence of
+                             -- adjacent scanlines. Each scanline is stored as a
+                             -- linear sequence of image elements.
+                   -> IO CLMem
+clCreateImage2D ctx xs fmt iw ih irp ptr = wrapPError $ \perr -> with fmt $ \pfmt -> do
+  raw_clCreateImage2D ctx flags pfmt ciw cih cirp ptr perr
+    where
+      flags = bitmaskFromFlags xs
+      ciw = fromIntegral iw
+      cih = fromIntegral ih
+      cirp = fromIntegral irp
+
+{-| Creates a 3D image object.
+
+'clCreateImage3D' returns a valid non-zero image object created if the image
+object is created successfully. Otherwise, it throws one of the following
+'CLError' exceptions:
+
+ * 'CL_INVALID_CONTEXT' if context is not a valid context.
+
+ * 'CL_INVALID_VALUE' if values specified in flags are not valid.
+
+ * 'CL_INVALID_IMAGE_FORMAT_DESCRIPTOR' if values specified in image_format are
+not valid.
+
+ * 'CL_INVALID_IMAGE_SIZE' if image_width, image_height are 0 or if image_depth
+less than or equal to 1 or if they exceed values specified in
+'CL_DEVICE_IMAGE3D_MAX_WIDTH', CL_DEVICE_IMAGE3D_MAX_HEIGHT' or
+'CL_DEVICE_IMAGE3D_MAX_DEPTH' respectively for all devices in context or if
+values specified by image_row_pitch and image_slice_pitch do not follow rules
+described in the argument description above.
+
+ * 'CL_INVALID_HOST_PTR' if host_ptr is 'nullPtr' and 'CL_MEM_USE_HOST_PTR' or
+'CL_MEM_COPY_HOST_PTR' are set in flags or if host_ptr is not 'nullPtr' but
+'CL_MEM_COPY_HOST_PTR' or 'CL_MEM_USE_HOST_PTR' are not set in flags.
+
+ * 'CL_IMAGE_FORMAT_NOT_SUPPORTED' if the image_format is not supported.
+
+ * 'CL_MEM_OBJECT_ALLOCATION_FAILURE' if there is a failure to allocate memory
+for image object.
+
+ * 'CL_INVALID_OPERATION' if there are no devices in context that support images
+(i.e. 'CL_DEVICE_IMAGE_SUPPORT' (specified in the table of OpenCL Device Queries
+for clGetDeviceInfo) is 'False').
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.
+
+-}
+clCreateImage3D :: Integral a => CLContext -- ^ A valid OpenCL context on which
+                                           -- the image object is to be created.
+                   -> [CLMemFlag] -- ^ A list of flags that is used to specify
+                                  -- allocation and usage information about the
+                                  -- image memory object being created.
+                   -> CLImageFormat -- ^ Structure that describes format
+                                    -- properties of the image to be allocated.
+                   -> a -- ^ The width of the image in pixels. It must be values
+                        -- greater than or equal to 1.
+                   -> a -- ^ The height of the image in pixels. It must be
+                        -- values greater than or equal to 1.
+                   -> a -- ^ The depth of the image in pixels. This must be a
+                        -- value greater than 1.
+                   -> a -- ^ The scan-line pitch in bytes. This must be 0 if
+                        -- host_ptr is 'nullPtr' and can be either 0 or greater
+                        -- than or equal to image_width * size of element in
+                        -- bytes if host_ptr is not 'nullPtr'. If host_ptr is
+                        -- not 'nullPtr' and image_row_pitch is equal to 0,
+                        -- image_row_pitch is calculated as image_width * size
+                        -- of element in bytes. If image_row_pitch is not 0, it
+                        -- must be a multiple of the image element size in
+                        -- bytes.
+                   -> a -- ^ The size in bytes of each 2D slice in the 3D
+                        -- image. This must be 0 if host_ptr is 'nullPtr' and
+                        -- can be either 0 or greater than or equal to
+                        -- image_row_pitch * image_height if host_ptr is not
+                        -- 'nullPtr'. If host_ptr is not 'nullPtr' and
+                        -- image_slice_pitch equal to 0, image_slice_pitch is
+                        -- calculated as image_row_pitch * image_height. If
+                        -- image_slice_pitch is not 0, it must be a multiple of
+                        -- the image_row_pitch.
+                   -> Ptr () -- ^ A pointer to the image data that may already
+                             -- be allocated by the application. The size of the
+                             -- buffer that host_ptr points to must be greater
+                             -- than or equal to image_slice_pitch *
+                             -- image_depth. The size of each element in bytes
+                             -- must be a power of 2. The image data specified
+                             -- by host_ptr is stored as a linear sequence of
+                             -- adjacent 2D slices. Each 2D slice is a linear
+                             -- sequence of adjacent scanlines. Each scanline is
+                             -- a linear sequence of image elements.
+                   -> IO CLMem
+clCreateImage3D ctx xs fmt iw ih idepth irp isp ptr = wrapPError $ \perr -> with fmt $ \pfmt -> do
+  raw_clCreateImage3D ctx flags pfmt ciw cih cid cirp cisp ptr perr
+    where
+      flags = bitmaskFromFlags xs
+      ciw = fromIntegral iw
+      cih = fromIntegral ih
+      cid = fromIntegral idepth
+      cirp = fromIntegral irp
+      cisp = fromIntegral isp  
+      
+getNumSupportedImageFormats :: CLContext -> [CLMemFlag] -> CLMemObjectType -> IO CLuint
+getNumSupportedImageFormats ctx xs mtype = alloca $ \(value_size :: Ptr CLuint) -> do
+  whenSuccess (raw_clGetSupportedImageFormats ctx flags (getCLValue mtype) 0 nullPtr value_size)
+    $ peek value_size
+    where
+      flags = bitmaskFromFlags xs
+  
+{-| Get the list of image formats supported by an OpenCL
+implementation. 'clGetSupportedImageFormats' can be used to get the list of
+image formats supported by an OpenCL implementation when the following
+information about an image memory object is specified:
+
+ * Context
+ * Image type - 2D or 3D image
+ * Image object allocation information
+
+Throws 'CL_INVALID_CONTEXT' if context is not a valid context, throws
+'CL_INVALID_VALUE' if flags or image_type are not valid.
+
+-}
+clGetSupportedImageFormats :: CLContext -- ^ A valid OpenCL context on which the
+                                        -- image object(s) will be created.
+                              -> [CLMemFlag] -- ^ A bit-field that is used to
+                                             -- specify allocation and usage
+                                             -- information about the image
+                                             -- memory object.
+                              -> CLMemObjectType -- ^ Describes the image type
+                                                 -- and must be either
+                                                 -- 'CL_MEM_OBJECT_IMAGE2D' or
+                                                 -- 'CL_MEM_OBJECT_IMAGE3D'.
+                              -> IO [CLImageFormat]
+clGetSupportedImageFormats ctx xs mtype = do
+  num <- getNumSupportedImageFormats ctx xs mtype
+  allocaArray (fromIntegral num) $ \(buff :: Ptr CLImageFormat) -> do
+    whenSuccess (raw_clGetSupportedImageFormats ctx flags (getCLValue mtype) num (castPtr buff) nullPtr)
+      $ peekArray (fromIntegral num) buff
+    where
+      flags = bitmaskFromFlags xs
+
+-- -----------------------------------------------------------------------------
+#c
+enum CLImageInfo {
+  cL_IMAGE_FORMAT=CL_IMAGE_FORMAT,
+  cL_IMAGE_ELEMENT_SIZE=CL_IMAGE_ELEMENT_SIZE,
+  cL_IMAGE_ROW_PITCH=CL_IMAGE_ROW_PITCH,
+  cL_IMAGE_SLICE_PITCH=CL_IMAGE_SLICE_PITCH,
+  cL_IMAGE_WIDTH=CL_IMAGE_WIDTH,
+  cL_IMAGE_HEIGHT=CL_IMAGE_HEIGHT,
+  cL_IMAGE_DEPTH=CL_IMAGE_DEPTH,
+  };
+#endc
+{#enum CLImageInfo {upcaseFirstLetter} #}
+
+-- | Return image format descriptor specified when image is created with
+-- clCreateImage2D or clCreateImage3D.
+--
+-- This function execute OpenCL clGetImageInfo with 'CL_IMAGE_FORMAT'.
+clGetImageFormat :: CLMem -> IO CLImageFormat
+clGetImageFormat mem =
+  wrapGetInfo (\(dat :: Ptr CLImageFormat) ->
+                raw_clGetImageInfo mem infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_IMAGE_FORMAT
+      size = fromIntegral $ sizeOf (undefined :: CLImageFormat)
+  
+-- | Return size of each element of the image memory object given by image. An
+-- element is made up of n channels. The value of n is given in 'CLImageFormat'
+-- descriptor.
+--
+-- This function execute OpenCL clGetImageInfo with 'CL_IMAGE_ELEMENT_SIZE'.
+clGetImageElementSize :: CLMem -> IO CSize      
+clGetImageElementSize mem =
+  wrapGetInfo (\(dat :: Ptr CSize) ->
+                raw_clGetImageInfo mem infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_IMAGE_ELEMENT_SIZE
+      size = fromIntegral $ sizeOf (undefined :: CSize)
+      
+-- | Return size in bytes of a row of elements of the image object given by
+-- image.
+--
+-- This function execute OpenCL clGetImageInfo with 'CL_IMAGE_ROW_PITCH'.
+clGetImageRowPitch :: CLMem -> IO CSize      
+clGetImageRowPitch mem = 
+  wrapGetInfo (\(dat :: Ptr CSize) ->
+                raw_clGetImageInfo mem infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_IMAGE_ROW_PITCH
+      size = fromIntegral $ sizeOf (undefined :: CSize)
+      
+-- | Return size in bytes of a 2D slice for the 3D image object given by
+-- image. For a 2D image object this value will be 0.
+--
+-- This function execute OpenCL clGetImageInfo with 'CL_IMAGE_SLICE_PITCH'.
+clGetImageSlicePitch :: CLMem -> IO CSize      
+clGetImageSlicePitch mem = 
+  wrapGetInfo (\(dat :: Ptr CSize) ->
+                raw_clGetImageInfo mem infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_IMAGE_SLICE_PITCH
+      size = fromIntegral $ sizeOf (undefined :: CSize)      
+      
+-- | Return width of image in pixels.
+--
+-- This function execute OpenCL clGetImageInfo with 'CL_IMAGE_WIDTH'.
+clGetImageWidth :: CLMem -> IO CSize      
+clGetImageWidth mem = 
+  wrapGetInfo (\(dat :: Ptr CSize) ->
+                raw_clGetImageInfo mem infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_IMAGE_WIDTH
+      size = fromIntegral $ sizeOf (undefined :: CSize)
+      
+-- | Return height of image in pixels.
+--
+-- This function execute OpenCL clGetImageInfo with 'CL_IMAGE_HEIGHT'.
+clGetImageHeight :: CLMem -> IO CSize      
+clGetImageHeight mem = 
+  wrapGetInfo (\(dat :: Ptr CSize) ->
+                raw_clGetImageInfo mem infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_IMAGE_HEIGHT
+      size = fromIntegral $ sizeOf (undefined :: CSize)
+
+-- | Return depth of the image in pixels. For a 2D image, depth equals 0.
+--
+-- This function execute OpenCL clGetImageInfo with 'CL_IMAGE_DEPTH'.
+clGetImageDepth :: CLMem -> IO CSize      
+clGetImageDepth mem = 
+  wrapGetInfo (\(dat :: Ptr CSize) ->
+                raw_clGetImageInfo mem infoid size (castPtr dat)) id
+    where 
+      infoid = getCLValue CL_IMAGE_DEPTH
+      size = fromIntegral $ sizeOf (undefined :: CSize)
+
+-- -----------------------------------------------------------------------------
 #c
 enum CLMemInfo {
   cL_MEM_TYPE=CL_MEM_TYPE,
