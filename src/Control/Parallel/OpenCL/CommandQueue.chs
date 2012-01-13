@@ -41,7 +41,7 @@ module Control.Parallel.OpenCL.CommandQueue(
   -- * Memory Commands
   clEnqueueReadBuffer, clEnqueueWriteBuffer, clEnqueueReadImage, 
   clEnqueueWriteImage, clEnqueueCopyImage, clEnqueueCopyImageToBuffer,
-  clEnqueueCopyBufferToImage, clEnqueueMapBuffer,
+  clEnqueueCopyBufferToImage, clEnqueueMapBuffer, clEnqueueMapImage,
   -- * Executing Kernels
   clEnqueueNDRangeKernel, clEnqueueTask, clEnqueueMarker, 
   clEnqueueWaitForEvents, clEnqueueBarrier,
@@ -737,9 +737,8 @@ the OpenCL implementation on the host.
 
 -}
 clEnqueueCopyImageToBuffer :: Integral a 
-                              => CLCommandQueue -- ^ Must be a valid
-                                                -- command-queue. The OpenCL
-                                                -- context associated with
+                              => CLCommandQueue -- ^ The OpenCL context
+                                                -- associated with
                                                 -- command_queue, src_image, and
                                                 -- dst_buffer must be the same.
                               -> CLMem -- ^ src. A valid image object.
@@ -823,9 +822,8 @@ by the OpenCL implementation on the host.
 
 -}
 clEnqueueCopyBufferToImage :: Integral a 
-                              => CLCommandQueue -- ^ Must be a valid
-                                                -- command-queue. The OpenCL
-                                                -- context associated with
+                              => CLCommandQueue -- ^ The OpenCL context
+                                                -- associated with
                                                 -- command_queue, src_image, and
                                                 -- dst_buffer must be the same.
                               -> CLMem -- ^ src. A valid buffer object.
@@ -896,7 +894,7 @@ to regions of a memory object that are mapped is undefined.
 
 'clEnqueueMapBuffer' will return a pointer to the mapped region if the function
 is executed successfully. A nullPtr pointer is returned otherwise with one of
-the following throw error:
+the following exception:
 
  * 'CL_INVALID_COMMAND_QUEUE' if command_queue is not a valid command-queue.
 
@@ -926,8 +924,7 @@ The pointer returned maps a region starting at offset and is atleast cb bytes in
 size. The result of a memory access outside this region is undefined.
 
 -}
-clEnqueueMapBuffer :: Integral a 
-                      => CLCommandQueue -- ^ Must be a valid command-queue.
+clEnqueueMapBuffer :: Integral a => CLCommandQueue 
                       -> CLMem -- ^ A valid buffer object. The OpenCL context
                                -- associated with command_queue and buffer must
                                -- be the same.
@@ -976,9 +973,155 @@ clEnqueueMapBuffer cq mem check xs offset cb events =
       nevents = length events
       cnevents = fromIntegral nevents
 
+{-| Enqueues a command to map a region of an image object into the host address
+space and returns a pointer to this mapped region.
+
+If blocking_map is 'False' i.e. map operation is non-blocking, the pointer to
+the mapped region returned by 'clEnqueueMapImage' cannot be used until the map
+command has completed. The event argument returns an event object which can be
+used to query the execution status of the map command. When the map command is
+completed, the application can access the contents of the mapped region using
+the pointer returned by 'clEnqueueMapImage'.
+
+Returns an event object that identifies this particular copy command and can be
+used to query or queue a wait for this particular command to complete. event can
+be NULL in which case it will not be possible for the application to query the
+status of this command or queue a wait for this command to complete.
+
+If the buffer or image object is created with 'CL_MEM_USE_HOST_PTR' set in
+mem_flags, the following will be true:
+
+* The host_ptr specified in 'clCreateBuffer', 'clCreateImage2D', or
+'clCreateImage3D' is guaranteed to contain the latest bits in the region being
+mapped when the 'clEnqueueMapBuffer' or 'clEnqueueMapImage' command has
+completed.
+
+ * The pointer value returned by 'clEnqueueMapBuffer' or 'clEnqueueMapImage'
+will be derived from the host_ptr specified when the buffer or image object is
+created.  
+
+The contents of the regions of a memory object mapped for writing
+(i.e. 'CL_MAP_WRITE' is set in map_flags argument to 'clEnqueueMapBuffer' or
+'clEnqueueMapImage') are considered to be undefined until this region is
+unmapped. Reads and writes by a kernel executing on a device to a memory
+region(s) mapped for writing are undefined.
+
+Multiple command-queues can map a region or overlapping regions of a memory
+object for reading (i.e. map_flags = 'CL_MAP_READ'). The contents of the regions
+of a memory object mapped for reading can also be read by kernels executing on a
+device(s). The behavior of writes by a kernel executing on a device to a mapped
+region of a memory object is undefined. Mapping (and unmapping) overlapped
+regions of a buffer or image memory object for writing is undefined.
+
+The behavior of OpenCL function calls that enqueue commands that write or copy
+to regions of a memory object that are mapped is undefined.
+
+'clEnqueueMapImage' will return a pointer to the mapped region if the
+function is executed successfully also the scan-line (row) pitch in bytes for
+the mapped region and the size in bytes of each 2D slice for the mapped
+region. For a 2D image, zero is returned as slice pitch. A nullPtr pointer is
+returned otherwise with one of the following exception:
+
+ * 'CL_INVALID_COMMAND_QUEUE' if command_queue is not a valid command-queue.
+
+ * 'CL_INVALID_CONTEXT' if the context associated with command_queue and image
+are not the same or if the context associated with command_queue and events in
+event_wait_list are not the same.
+
+ * 'CL_INVALID_MEM_OBJECT' if image is not a valid image object.
+
+ * 'CL_INVALID_VALUE' if region being mapped given by (origin, origin+region) is
+out of bounds or if values specified in map_flags are not valid.
+
+ * 'CL_INVALID_VALUE' if image is a 2D image object and z is not equal to 0 or
+depth is not equal to 1.
+
+ * 'CL_INVALID_EVENT_WAIT_LIST' if event objects in event_wait_list are not
+valid events.
+
+ * 'CL_MAP_FAILURE' if there is a failure to map the requested region into the
+host address space. This error cannot occur for image objects created with
+'CL_MEM_USE_HOST_PTR' or 'CL_MEM_ALLOC_HOST_PTR'.
+
+ * 'CL_MEM_OBJECT_ALLOCATION_FAILURE' if there is a failure to allocate memory
+for data store associated with image.
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.
+
+The pointer returned maps a 2D or 3D region starting at origin and is atleast
+(image_row_pitch * y + x) pixels in size for a 2D image, and is atleast
+(image_slice_pitch * z] + image_row_pitch * y + x) pixels in size for a 3D
+image. The result of a memory access outside this region is undefined.
+
+-}
+clEnqueueMapImage :: Integral a => CLCommandQueue 
+                     -> CLMem -- ^ A valid image object. The OpenCL context
+                              -- associated with command_queue and image must be
+                              -- the same.
+                     -> Bool -- ^ Indicates if the map operation is blocking or
+                             -- non-blocking. If blocking_map is 'True',
+                             -- 'clEnqueueMapImage' does not return until the
+                             -- specified region in image can be mapped.
+                     -> [CLMapFlag] -- ^ Is a bit-field and can be set to
+                                    -- 'CL_MAP_READ' to indicate that the region
+                                    -- specified by (origin, region) in the
+                                    -- image object is being mapped for reading,
+                                    -- and/or 'CL_MAP_WRITE' to indicate that the
+                                    -- region specified by (origin, region) in
+                                    -- the image object is being mapped for
+                                    -- writing.
+                     -> (a,a,a) -- ^ Define the (x, y, z) offset in pixels of
+                                -- the 2D or 3D rectangle region that is to be
+                                -- mapped. If image is a 2D image object, the z
+                                -- value given must be 0.
+                     -> (a,a,a) -- ^ Define the (width, height, depth) in pixels
+                                -- of the 2D or 3D rectangle region that is to
+                                -- be mapped. If image is a 2D image object, the
+                                -- depth value given must be 1.
+                     -> [CLEvent] -- ^ Specify events that need to complete
+                                  -- before 'clEnqueueMapImage' can be
+                                  -- executed. If event_wait_list is empty, then
+                                  -- 'clEnqueueMapImage' does not wait on any
+                                  -- event to complete. The events specified in
+                                  -- event_wait_list act as synchronization
+                                  -- points. The context associated with events
+                                  -- in event_wait_list and command_queue must
+                                  -- be the same.
+                     -> IO (CLEvent, (Ptr (), CSize, CSize))
+clEnqueueMapImage cq mem check xs (orix,oriy,oriz) (regx,regy,regz) [] = 
+  alloca $ \ppitch -> 
+  alloca $ \pslice ->
+  withArray (fmap fromIntegral [orix,oriy,oriz]) $ \pori -> 
+  withArray (fmap fromIntegral [regx,regy,regz]) $ \preg -> 
+  alloca $ \pevent -> do
+    val <- wrapPError $ \perr -> raw_clEnqueueMapImage cq mem (fromBool check) flags pori preg ppitch pslice 0 nullPtr pevent perr
+    event <- peek pevent
+    pitch <- peek ppitch
+    slice <- peek pslice
+    return (event, (val, pitch, slice))
+    
+      where
+        flags = bitmaskFromFlags xs
+clEnqueueMapImage cq mem check xs (orix,oriy,oriz) (regx,regy,regz) events = 
+  alloca $ \ppitch -> 
+  alloca $ \pslice ->
+  withArray (fmap fromIntegral [orix,oriy,oriz]) $ \pori -> 
+  withArray (fmap fromIntegral [regx,regy,regz]) $ \preg -> 
+  allocaArray nevents $ \pevents -> do
+    pokeArray pevents events
+    alloca $ \pevent -> do
+      val <- wrapPError $ \perr -> raw_clEnqueueMapImage cq mem (fromBool check) flags pori preg ppitch pslice cnevents pevents pevent perr
+      event <- peek pevent
+      pitch <- peek ppitch
+      slice <- peek pslice
+      return (event, (val, pitch, slice))
+
+    where
+      flags = bitmaskFromFlags xs
+      nevents = length events
+      cnevents = fromIntegral nevents
 {-
-foreign import CALLCONV "clEnqueueMapImage" raw_clEnqueueMapImage ::
-  CLCommandQueue -> CLMem -> CLbool -> CLMapFlags_ -> Ptr CSize -> Ptr CSize -> Ptr CSize -> Ptr CSize -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> Ptr CLint -> IO (Ptr ())
 foreign import CALLCONV "clEnqueueUnmapMemObject" raw_clEnqueueUnmapMemObject ::
   CLCommandQueue -> CLMem -> Ptr () -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
 -}
