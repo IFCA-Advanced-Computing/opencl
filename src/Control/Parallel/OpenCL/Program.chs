@@ -59,7 +59,7 @@ import Control.Parallel.OpenCL.Types(
   CLKernelInfo_, CLKernelWorkGroupInfo_, wrapCheckSuccess, 
   whenSuccess, wrapPError, wrapGetInfo, getCLValue, getEnumCL )
 
-#ifdef MACOSX
+#ifdef __APPLE__
 #include <OpenCL/opencl.h>
 #else
 #include <CL/cl.h>

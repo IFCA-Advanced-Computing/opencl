@@ -87,7 +87,7 @@ foreign import CALLCONV "clGetDeviceIDs" raw_clGetDeviceIDs ::
 foreign import CALLCONV "clGetDeviceInfo" raw_clGetDeviceInfo :: 
   CLDeviceID -> CLDeviceInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 
-#ifdef MACOSX
+#ifdef __APPLE__
 #include <OpenCL/opencl.h>
 #else
 #include <CL/cl.h>

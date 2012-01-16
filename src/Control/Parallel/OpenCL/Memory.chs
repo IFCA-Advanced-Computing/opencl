@@ -60,7 +60,7 @@ import Control.Parallel.OpenCL.Types(
   wrapPError, wrapCheckSuccess, wrapGetInfo, whenSuccess, getEnumCL, 
   bitmaskFromFlags, bitmaskToMemFlags, getCLValue )
 
-#ifdef MACOSX
+#ifdef __APPLE__
 #include <OpenCL/opencl.h>
 #else
 #include <CL/cl.h>

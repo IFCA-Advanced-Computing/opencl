@@ -48,7 +48,7 @@ import Control.Parallel.OpenCL.Types(
   CLCommandExecutionStatus(..), CLProfilingInfo(..), getCommandExecutionStatus, 
   getCLValue, getEnumCL, wrapCheckSuccess, wrapGetInfo )
 
-#ifdef MACOSX
+#ifdef __APPLE__
 #include <OpenCL/opencl.h>
 #else
 #include <CL/cl.h>
