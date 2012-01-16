@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables, CPP #-}
 module Control.Parallel.OpenCL.CommandQueue(
   -- * Types
-  CLCommandQueue, CLCommandQueueProperty(..), 
+  CLCommandQueue, CLCommandQueueProperty(..), CLMapFlag(..),
   -- * Command Queue Functions
   clCreateCommandQueue, clRetainCommandQueue, clReleaseCommandQueue,
   clGetCommandQueueContext, clGetCommandQueueDevice, 
