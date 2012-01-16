@@ -60,8 +60,8 @@ import Control.Parallel.OpenCL.Types(
   whenSuccess, wrapCheckSuccess, wrapPError, wrapGetInfo, getCLValue, 
   bitmaskToCommandQueueProperties, bitmaskFromFlags )
 
-#ifdef __APPLE__
-#include <cl.h>
+#ifdef MACOSX
+#include <OpenCL/opencl.h>
 #else
 #include <CL/cl.h>
 #endif
@@ -1255,10 +1255,12 @@ the OpenCL implementation on the host.
 -}
 clEnqueueNDRangeKernel :: Integral a => CLCommandQueue -> CLKernel -> [a] -> [a] 
                           -> [CLEvent] -> IO CLEvent
-clEnqueueNDRangeKernel cq krn gws lws events = withArray (map fromIntegral gws) $ \pgws -> withArray (map fromIntegral lws) $ \plws -> do
+clEnqueueNDRangeKernel cq krn gws lws events = withArray (map fromIntegral gws) $ \pgws -> withMaybeArray (map fromIntegral lws) $ \plws -> do
   clEnqueue (raw_clEnqueueNDRangeKernel cq krn num nullPtr pgws plws) events
     where
       num = fromIntegral $ length gws
+      withMaybeArray [] = ($ nullPtr)
+      withMaybeArray xs = withArray xs
       
 {-| Enqueues a command to execute a kernel on a device. The kernel is executed
 using a single work-item.

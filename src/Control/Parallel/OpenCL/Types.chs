@@ -61,8 +61,8 @@ import Data.Typeable( Typeable(..) )
 import Control.Applicative( (<$>) )
 import Control.Exception( Exception(..), throwIO )
 
-#ifdef __APPLE__
-#include <cl.h>
+#ifdef MACOSX
+#include <OpenCL/opencl.h>
 #else
 #include <CL/cl.h>
 #endif
