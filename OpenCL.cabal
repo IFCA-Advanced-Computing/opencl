@@ -70,7 +70,7 @@ Test-suite tests
   ghc-options:    -Wall
   -- Uncomment the following line to build tests on Linux or Windows:
   -- extra-libraries: OpenCL
-  build-depends: base >=4.0 && < 5, QuickCheck==2.4.0.*, OpenCL
+  build-depends: base >=4.0 && < 5, QuickCheck==2.4.*, OpenCL
 
 source-repository this
   type: git
