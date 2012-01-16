@@ -57,7 +57,7 @@ Library
   else
     if os(darwin)
       cc-options: "-U__BLOCKS__"
-      cc-options: "-DMACOSX"
+      -- cc-options: "-DMACOSX"
       cpp-options: "-DCALLCONV=ccall"
     if !os(darwin)
       cpp-options: -Iinclude
