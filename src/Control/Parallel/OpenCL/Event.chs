@@ -49,7 +49,7 @@ import Control.Parallel.OpenCL.Types(
   getCLValue, getEnumCL, wrapCheckSuccess, wrapGetInfo )
 
 #ifdef __APPLE__
-#include <cl.h>
+#include <OpenCL/opencl.h>
 #else
 #include <CL/cl.h>
 #endif

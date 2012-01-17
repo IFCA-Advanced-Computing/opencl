@@ -55,18 +55,21 @@ Library
   if os(windows)
     cpp-options: "-DCALLCONV=stdcall"
   else
-    cpp-options: "-DCALLCONV=ccall"
-
+    if os(darwin)
+      cc-options: "-U__BLOCKS__"
+      cpp-options: "-DCALLCONV=ccall"
+    if !os(darwin)
+      cpp-options: -Iinclude
+    Frameworks:  OpenCL
 
 Test-suite tests
   type:         exitcode-stdio-1.0
   main-is:      test-opencl.hs
   hs-Source-Dirs: src/test
   ghc-options:    -Wall
-  frameworks:     OpenCL
-  -- Remove the following line to build on OSX:
-  extra-libraries: OpenCL
-  build-depends: base >=4.0 && < 5, QuickCheck==2.4.0.*, OpenCL
+  -- Uncomment the following line to build tests on Linux or Windows:
+  -- extra-libraries: OpenCL
+  build-depends: base >=4.0 && < 5, QuickCheck==2.4.*, OpenCL
 
 source-repository this
   type: git

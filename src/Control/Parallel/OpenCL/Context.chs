@@ -51,7 +51,7 @@ import Control.Parallel.OpenCL.Types(
   whenSuccess, wrapCheckSuccess, wrapPError, wrapGetInfo )
 
 #ifdef __APPLE__
-#include <cl.h>
+#include <OpenCL/opencl.h>
 #else
 #include <CL/cl.h>
 #endif
