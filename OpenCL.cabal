@@ -51,7 +51,7 @@ Library
     Frameworks:  OpenCL
 
   if os(darwin)
-    cpp-options: -DCALLCONV=ccall -I/System/Library/Frameworks/OpenCL.framework/Headers
+    cpp-options: -DCALLCONV=ccall
     cc-options: "-U__BLOCKS__"
     Frameworks:  OpenCL
 
