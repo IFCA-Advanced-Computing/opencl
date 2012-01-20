@@ -46,21 +46,17 @@ Library
   Other-Modules: 
     Control.Parallel.OpenCL.Types
 
+  if os(linux)
+    cpp-options: -DCALLCONV=ccall -Iinclude
+    Frameworks:  OpenCL
 
   if os(darwin)
-    cpp-options: -I/System/Library/Frameworks/OpenCL.framework/Headers
-  else
-    cpp-options: -Iinclude
+    cpp-options: -DCALLCONV=ccall -I/System/Library/Frameworks/OpenCL.framework/Headers
+    cc-options: "-U__BLOCKS__"
+    Frameworks:  OpenCL
 
   if os(windows)
-    cpp-options: "-DCALLCONV=stdcall"
-  else
-    if os(darwin)
-      cc-options: "-U__BLOCKS__"
-      cpp-options: "-DCALLCONV=ccall"
-    if !os(darwin)
-      cpp-options: -Iinclude
-    Frameworks:  OpenCL
+    cpp-options: -DCALLCONV=stdcall
 
 Test-suite tests
   type:         exitcode-stdio-1.0
