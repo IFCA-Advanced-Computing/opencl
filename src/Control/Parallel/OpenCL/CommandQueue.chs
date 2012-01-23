@@ -113,6 +113,11 @@ foreign import CALLCONV "clFinish" raw_clFinish ::
   CLCommandQueue -> IO CLint
 
 -- -----------------------------------------------------------------------------
+withMaybeArray :: Storable a => [a] -> (Ptr a -> IO b) -> IO b
+withMaybeArray [] = ($ nullPtr)
+withMaybeArray xs = withArray xs
+
+-- -----------------------------------------------------------------------------
 {-| Create a command-queue on a specific device.
 
 The OpenCL functions that are submitted to a command-queue are enqueued in the 
@@ -1259,9 +1264,7 @@ clEnqueueNDRangeKernel cq krn gws lws events = withArray (map fromIntegral gws) 
   clEnqueue (raw_clEnqueueNDRangeKernel cq krn num nullPtr pgws plws) events
     where
       num = fromIntegral $ length gws
-      withMaybeArray [] = ($ nullPtr)
-      withMaybeArray xs = withArray xs
-      
+
 {-| Enqueues a command to execute a kernel on a device. The kernel is executed
 using a single work-item.
 
