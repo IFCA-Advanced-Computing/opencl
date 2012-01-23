@@ -39,7 +39,7 @@ import Test.QuickCheck.Monadic( monadicIO, assert, run )
 import Test.QuickCheck.Test( Result, Args(..), isSuccess, stdArgs )
 import Text.Printf( printf )
 import System.Exit( exitSuccess, exitFailure )
-import System.GPU.OpenCL
+import Control.Parallel.OpenCL
 
 -- -----------------------------------------------------------------------------
 clDupSource :: String
@@ -50,7 +50,7 @@ dupOpencl xs = do
   -- Initialize OpenCL
   (platform:_) <- clGetPlatformIDs
   (dev:_) <- clGetDeviceIDs platform CL_DEVICE_TYPE_ALL
-  context <- clCreateContext [dev] print
+  context <- clCreateContext [] [dev] print
   q <- clCreateCommandQueue context dev []
   
   -- Initialize Kernel
@@ -68,8 +68,8 @@ dupOpencl xs = do
   mem_in <- clCreateBuffer context [CL_MEM_READ_ONLY, CL_MEM_COPY_HOST_PTR] (vecSize, castPtr input)  
   mem_out <- clCreateBuffer context [CL_MEM_WRITE_ONLY] (vecSize, nullPtr)
 
-  clSetKernelArg kernel 0 mem_in
-  clSetKernelArg kernel 1 mem_out
+  clSetKernelArgSto kernel 0 mem_in
+  clSetKernelArgSto kernel 1 mem_out
   
   -- Execute Kernel
   eventExec <- clEnqueueNDRangeKernel q kernel [length original] [1] []

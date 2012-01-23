@@ -29,7 +29,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -}
-import System.GPU.OpenCL  
+import Control.Parallel.OpenCL  
 import Foreign( castPtr, nullPtr, sizeOf )
 import Foreign.C.Types( CFloat )
 import Foreign.Marshal.Array( peekArray, withArray )
@@ -47,7 +47,7 @@ main = do
   -- Initialize OpenCL
   (platform:_) <- clGetPlatformIDs
   (dev:_) <- clGetDeviceIDs platform CL_DEVICE_TYPE_ALL
-  context <- clCreateContext [dev] print
+  context <- clCreateContext [] [dev] print
   q <- clCreateCommandQueue context dev [CL_QUEUE_PROFILING_ENABLE]
   
   -- Initialize Kernel
@@ -74,8 +74,8 @@ executeArray original ctx q krn = withArray original $ \input -> do
   mem_in <- clCreateBuffer ctx [CL_MEM_READ_ONLY] (vecSize, nullPtr)  
   mem_out <- clCreateBuffer ctx [CL_MEM_WRITE_ONLY] (vecSize, nullPtr)
 
-  clSetKernelArg krn 0 mem_in
-  clSetKernelArg krn 1 mem_out
+  clSetKernelArgSto krn 0 mem_in
+  clSetKernelArgSto krn 1 mem_out
   
   -- Put Input
   eventWrite <- clEnqueueWriteBuffer q mem_in True 0 vecSize (castPtr input) []

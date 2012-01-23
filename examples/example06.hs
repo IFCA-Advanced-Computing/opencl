@@ -29,16 +29,13 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -}
-import Control.Parallel.OpenCL  
+import Control.Parallel.OpenCL
 import Foreign( castPtr, nullPtr, sizeOf )
 import Foreign.C.Types( CFloat )
 import Foreign.Marshal.Array( newArray, peekArray )
 
-programSource1 :: String
-programSource1 = "__kernel void duparray(__global float *in, __global float *out ){\n  int id = get_global_id(0);\n  out[id] = 2*in[id];\n}"
-
-programSource2 :: String
-programSource2 = "__kernel void triparray(__global float *in, __global float *out ){\n  int id = get_global_id(0);\n  out[id] = 3*in[id];\n}"
+programSource :: String
+programSource = "__kernel void duparray(__global float *in, __global float *out, __local float *tmp ){\n  int id = get_global_id(0);\n  out[id] = 2*in[id];\n}"
 
 main :: IO ()
 main = do
@@ -48,51 +45,32 @@ main = do
   context <- clCreateContext [] [dev] print
   q <- clCreateCommandQueue context dev []
   
-  -- Initialize Kernels
-  program1 <- clCreateProgramWithSource context programSource1
-  clBuildProgram program1 [dev] ""
-  kernel1 <- clCreateKernel program1 "duparray"
-  kernel3 <- clCreateKernel program1 "duparray"
-  
-  program2 <- clCreateProgramWithSource context programSource2
-  clBuildProgram program2 [dev] ""
-  kernel2 <- clCreateKernel program2 "triparray"
+  -- Initialize Kernel
+  program <- clCreateProgramWithSource context programSource
+  clBuildProgram program [dev] ""
+  kernel <- clCreateKernel program "duparray"
   
   -- Initialize parameters
-  let original = [0 .. 10] :: [CFloat]
+  let original = [0 .. 20] :: [CFloat]
       elemSize = sizeOf (0 :: CFloat)
       vecSize = elemSize * length original
   putStrLn $ "Original array = " ++ show original
   input  <- newArray original
 
   mem_in <- clCreateBuffer context [CL_MEM_READ_ONLY, CL_MEM_COPY_HOST_PTR] (vecSize, castPtr input)  
-  mem_mid <- clCreateBuffer context [CL_MEM_READ_WRITE] (vecSize, nullPtr)
-  mem_out1 <- clCreateBuffer context [CL_MEM_WRITE_ONLY] (vecSize, nullPtr)
-  mem_out2 <- clCreateBuffer context [CL_MEM_WRITE_ONLY] (vecSize, nullPtr)
+  mem_out <- clCreateBuffer context [CL_MEM_WRITE_ONLY] (vecSize, nullPtr)
 
-  clSetKernelArgSto kernel1 0 mem_in
-  clSetKernelArgSto kernel1 1 mem_mid
+  clSetKernelArgSto kernel 0 mem_in
+  clSetKernelArgSto kernel 1 mem_out
+  clSetKernelArg kernel 2 4 nullPtr
   
-  clSetKernelArgSto kernel2 0 mem_mid
-  clSetKernelArgSto kernel2 1 mem_out1
-  
-  clSetKernelArgSto kernel3 0 mem_mid
-  clSetKernelArgSto kernel3 1 mem_out2
-  
-  -- Execute Kernels
-  eventExec1 <- clEnqueueNDRangeKernel q kernel1 [length original] [1] []
-  eventExec2 <- clEnqueueNDRangeKernel q kernel2 [length original] [1] [eventExec1]
-  eventExec3 <- clEnqueueNDRangeKernel q kernel3 [length original] [1] [eventExec1]
+  -- Execute Kernel
+  eventExec <- clEnqueueNDRangeKernel q kernel [length original] [1] []
   
   -- Get Result
-  eventRead <- clEnqueueReadBuffer q mem_out1 True 0 vecSize (castPtr input) [eventExec2,eventExec3]
+  eventRead <- clEnqueueReadBuffer q mem_out True 0 vecSize (castPtr input) [eventExec]
   
   result <- peekArray (length original) input
-  putStrLn $ "Result array 1 = " ++ show result
-
-  eventRead <- clEnqueueReadBuffer q mem_out2 True 0 vecSize (castPtr input) [eventExec2,eventExec3]
-  
-  result <- peekArray (length original) input
-  putStrLn $ "Result array 2 = " ++ show result
+  putStrLn $ "Result array = " ++ show result
 
   return ()

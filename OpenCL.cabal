@@ -1,5 +1,5 @@
 Name: OpenCL
-Version: 1.0.2.6
+Version: 1.0.3.0
 License: BSD3
 License-File: LICENSE
 Author: Luis Cabellos
@@ -36,39 +36,41 @@ Library
   ghc-options: -Wall
   Build-Depends: base >=4.0 && < 5, bytestring -any, mtl==2.0.*
   Exposed-Modules: 
-    System.GPU.OpenCL
-    System.GPU.OpenCL.Query
-    System.GPU.OpenCL.Context
-    System.GPU.OpenCL.CommandQueue
-    System.GPU.OpenCL.Memory
-    System.GPU.OpenCL.Event
-    System.GPU.OpenCL.Program
+    Control.Parallel.OpenCL
+    Control.Parallel.OpenCL.Query
+    Control.Parallel.OpenCL.Context
+    Control.Parallel.OpenCL.CommandQueue
+    Control.Parallel.OpenCL.Memory
+    Control.Parallel.OpenCL.Event
+    Control.Parallel.OpenCL.Program
   Other-Modules: 
-    System.GPU.OpenCL.Types
+    Control.Parallel.OpenCL.Types
 
-  
+  if os(linux)
+    cpp-options: -DCALLCONV=ccall -Iinclude
+    Frameworks:  OpenCL
+
   if os(darwin)
-    cpp-options: "-U__BLOCKS__"
-  
-  if os(windows)
-      cpp-options: "-DCALLCONV=stdcall"
-  else
-      cpp-options: "-DCALLCONV=ccall"
+    cpp-options: -DCALLCONV=ccall
+    cc-options: "-U__BLOCKS__"
+    Frameworks:  OpenCL
 
-  cpp-options: -Iinclude
+  if os(windows)
+    cpp-options: -DCALLCONV=stdcall
 
 Test-suite tests
   type:         exitcode-stdio-1.0
   main-is:      test-opencl.hs
   hs-Source-Dirs: src/test
   ghc-options:    -Wall
-  extra-libraries: OpenCL
-  build-depends: base >=4.0 && < 5, QuickCheck==2.4.0.*, OpenCL
+  -- Uncomment the following line to build tests on Linux or Windows:
+  -- extra-libraries: OpenCL
+  build-depends: base >=4.0 && < 5, QuickCheck==2.4.*, OpenCL
 
 source-repository this
   type: git
   location: https://zhensydow@github.com/zhensydow/opencl.git
-  tag: 1.0.2.6
+  tag: 1.0.3.0
   branch: master
 
 source-repository head

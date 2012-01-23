@@ -30,7 +30,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -}
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables, CPP #-}
-module System.GPU.OpenCL.Program(  
+module Control.Parallel.OpenCL.Program(  
   -- * Types
   CLProgram, CLBuildStatus(..), CLKernel,
   -- * Program Functions
@@ -42,7 +42,7 @@ module System.GPU.OpenCL.Program(
   clGetProgramBuildLog,
   -- * Kernel Functions
   clCreateKernel, clCreateKernelsInProgram, clRetainKernel, clReleaseKernel, 
-  clSetKernelArg, clGetKernelFunctionName, clGetKernelNumArgs, 
+  clSetKernelArg, clSetKernelArgSto, clGetKernelFunctionName, clGetKernelNumArgs, 
   clGetKernelReferenceCount, clGetKernelContext, clGetKernelProgram, 
   clGetKernelWorkGroupSize, clGetKernelCompileWorkGroupSize, 
   clGetKernelLocalMemSize
@@ -53,13 +53,17 @@ import Control.Monad( zipWithM, forM )
 import Foreign
 import Foreign.C.Types
 import Foreign.C.String( CString, withCString, peekCString )
-import System.GPU.OpenCL.Types( 
+import Control.Parallel.OpenCL.Types( 
   CLint, CLuint, CLulong, CLProgram, CLContext, CLKernel, CLDeviceID, CLError,
   CLProgramInfo_, CLBuildStatus(..), CLBuildStatus_, CLProgramBuildInfo_, 
   CLKernelInfo_, CLKernelWorkGroupInfo_, wrapCheckSuccess, 
   whenSuccess, wrapPError, wrapGetInfo, getCLValue, getEnumCL )
 
+#ifdef __APPLE__
+#include <OpenCL/opencl.h>
+#else
 #include <CL/cl.h>
+#endif
 
 -- -----------------------------------------------------------------------------
 type BuildCallback = CLProgram -> Ptr () -> IO ()
@@ -682,8 +686,14 @@ object and arg_size != sizeof(cl_mem) or if arg_size is zero and the argument is
 declared with the __local qualifier or if the argument is a sampler and arg_size
 != sizeof(cl_sampler).  
 -}
-clSetKernelArg :: Storable a => CLKernel -> CLuint -> a -> IO ()
-clSetKernelArg krn idx val = with val $ \pval -> do
+clSetKernelArg :: Integral a => CLKernel -> CLuint -> a -> Ptr b -> IO ()
+clSetKernelArg krn idx sz pval = do
+  whenSuccess (raw_clSetKernelArg krn idx (fromIntegral sz) (castPtr pval))
+    $ return ()
+
+-- | Wrap function of `clSetKernelArg` with Storable data.
+clSetKernelArgSto :: Storable a => CLKernel -> CLuint -> a -> IO ()
+clSetKernelArgSto krn idx val = with val $ \pval -> do
   whenSuccess (raw_clSetKernelArg krn idx (fromIntegral . sizeOf $ val) (castPtr pval))
     $ return ()
 

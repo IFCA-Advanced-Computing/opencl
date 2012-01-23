@@ -30,7 +30,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -}
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables, CPP #-}
-module System.GPU.OpenCL.Query( 
+module Control.Parallel.OpenCL.Query( 
   -- * Types
   CLPlatformInfo(..), CLPlatformID, CLDeviceID, CLDeviceType(..),
   CLDeviceFPConfig(..), CLDeviceExecCapability(..), CLDeviceLocalMemType(..),
@@ -69,7 +69,7 @@ import Foreign( Ptr, nullPtr, castPtr, alloca, allocaArray, peek, peekArray )
 import Foreign.C.String( CString, peekCString )
 import Foreign.C.Types( CSize )
 import Foreign.Storable( sizeOf )
-import System.GPU.OpenCL.Types( 
+import Control.Parallel.OpenCL.Types( 
   CLbool, CLint, CLuint, CLulong, CLPlatformInfo_, CLDeviceType_,
   CLDeviceInfo_, CLDeviceFPConfig(..), CLDeviceExecCapability(..),
   CLDeviceLocalMemType(..), CLDeviceMemCacheType(..), CLPlatformInfo(..),
@@ -87,7 +87,11 @@ foreign import CALLCONV "clGetDeviceIDs" raw_clGetDeviceIDs ::
 foreign import CALLCONV "clGetDeviceInfo" raw_clGetDeviceInfo :: 
   CLDeviceID -> CLDeviceInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 
+#ifdef __APPLE__
+#include <OpenCL/opencl.h>
+#else
 #include <CL/cl.h>
+#endif
 
 -- -----------------------------------------------------------------------------
 getNumPlatforms :: IO CLuint

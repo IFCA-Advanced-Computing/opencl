@@ -30,7 +30,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -}
 import qualified Control.Exception as Ex( catch )
-import System.GPU.OpenCL
+import Control.Parallel.OpenCL
 import Foreign( castPtr, nullPtr, sizeOf )
 import Foreign.C.Types( CDouble )
 import Foreign.Marshal.Array( newArray, peekArray )
@@ -44,7 +44,7 @@ main = do
   -- Initialize OpenCL
   (platform:_) <- clGetPlatformIDs
   (dev:_) <- clGetDeviceIDs platform CL_DEVICE_TYPE_ALL
-  context <- clCreateContext [dev] print
+  context <- clCreateContext [] [dev] print
   q <- clCreateCommandQueue context dev []
   
   -- Initialize Kernel
@@ -69,8 +69,8 @@ main = do
   mem_in <- clCreateBuffer context [CL_MEM_READ_ONLY, CL_MEM_COPY_HOST_PTR] (vecSize, castPtr input)  
   mem_out <- clCreateBuffer context [CL_MEM_WRITE_ONLY] (vecSize, nullPtr)
 
-  clSetKernelArg kernel 0 mem_in
-  clSetKernelArg kernel 1 mem_out
+  clSetKernelArgSto kernel 0 mem_in
+  clSetKernelArgSto kernel 1 mem_out
   
   -- Execute Kernel
   eventExec <- clEnqueueNDRangeKernel q kernel [length original] [1] []
