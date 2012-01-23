@@ -44,8 +44,8 @@ module Control.Parallel.OpenCL.CommandQueue(
   clEnqueueCopyBufferToImage, clEnqueueMapBuffer, clEnqueueMapImage,
   clEnqueueUnmapMemObject,
   -- * Executing Kernels
-  clEnqueueNDRangeKernel, clEnqueueTask, clEnqueueMarker, 
-  clEnqueueWaitForEvents, clEnqueueBarrier,
+  clEnqueueNDRangeKernel, clEnqueueTask, clEnqueueNativeKernel, 
+  clEnqueueMarker, clEnqueueWaitForEvents, clEnqueueBarrier,
   -- * Flush and Finish
   clFlush, clFinish
   ) where
@@ -67,6 +67,9 @@ import Control.Parallel.OpenCL.Types(
 #endif
 
 -- -----------------------------------------------------------------------------
+type NativeKernelCallback = Ptr () -> IO ()
+foreign import CALLCONV "wrapper" wrapNativeKernelCallback :: 
+  NativeKernelCallback -> IO (FunPtr NativeKernelCallback)
 foreign import CALLCONV "clCreateCommandQueue" raw_clCreateCommandQueue :: 
   CLContext -> CLDeviceID -> CLCommandQueueProperty_ -> Ptr CLint -> IO CLCommandQueue
 foreign import CALLCONV "clRetainCommandQueue" raw_clRetainCommandQueue :: 
@@ -99,6 +102,8 @@ foreign import CALLCONV "clEnqueueUnmapMemObject" raw_clEnqueueUnmapMemObject ::
   CLCommandQueue -> CLMem -> Ptr () -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
 foreign import CALLCONV "clEnqueueNDRangeKernel" raw_clEnqueueNDRangeKernel :: 
   CLCommandQueue -> CLKernel -> CLuint -> Ptr CSize -> Ptr CSize -> Ptr CSize -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
+foreign import CALLCONV "clEnqueueNativeKernel" raw_clEnqueueNativeKernel ::
+  CLCommandQueue ->  FunPtr NativeKernelCallback -> Ptr () -> CSize -> CLuint -> Ptr CLMem -> Ptr (Ptr ()) -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
 foreign import CALLCONV "clEnqueueTask" raw_clEnqueueTask :: 
   CLCommandQueue -> CLKernel -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint
 foreign import CALLCONV "clEnqueueMarker" raw_clEnqueueMarker :: 
@@ -1306,6 +1311,59 @@ by the OpenCL implementation on the host.
 clEnqueueTask :: CLCommandQueue -> CLKernel -> [CLEvent] -> IO CLEvent
 clEnqueueTask cq krn = clEnqueue (raw_clEnqueueTask cq krn)
   
+{-| Enqueues a command to execute a native C/C++ function not compiled using the
+OpenCL compiler. A native user function can only be executed on a command-queue
+created on a device that has 'CL_EXEC_NATIVE_KERNEL' capability set in
+'clGetDeviceExecutionCapabilities'.
+
+The data pointed to by args and cb_args bytes in size will be copied and a
+pointer to this copied region will be passed to user_func. The copy needs to be
+done because the memory objects ('CLMem' values) that args may contain need to
+be modified and replaced by appropriate pointers to global memory. When
+'clEnqueueNativeKernel' returns, the memory region pointed to by args can be
+reused by the application.
+
+Returns the evens if the kernel execution was successfully queued. It can throw
+the following 'CLError' exceptions:
+
+ * 'CL_INVALID_COMMAND_QUEUE' if command_queue is not a valid command-queue.
+
+ * 'CL_INVALID_CONTEXT' if context associated with command_queue and events in
+event-wait_list are not the same.
+
+ * 'CL_INVALID_VALUE' if args is a NULL value and cb_args is greater than 0, or
+if args is a NULL value and num_mem_objects is greater than 0.
+
+ * 'CL_INVALID_VALUE' if args is not NULL and cb_args is 0.
+
+ * 'CL_INVALID_OPERATION' if device cannot execute the native kernel.
+
+ * 'CL_INVALID_MEM_OBJECT' if one or more memory objects specified in mem_list
+are not valid or are not buffer objects.
+
+ * 'CL_OUT_OF_RESOURCES' if there is a failure to queue the execution instance
+of kernel on the command-queue because of insufficient resources needed to
+execute the kernel.
+
+ * 'CL_MEM_OBJECT_ALLOCATION_FAILURE' if there is a failure to allocate memory
+for data store associated with buffer objects specified as arguments to kernel.
+
+ * 'CL_INVALID_EVENT_WAIT_LIST' if event objects in event_wait_list are not
+valid events.
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required
+by the OpenCL implementation on the host.
+
+-}
+clEnqueueNativeKernel :: CLCommandQueue -> (Ptr () -> IO ()) -> Ptr () -> CSize 
+                         -> [CLMem] -> [Ptr ()] -> [CLEvent] -> IO CLEvent
+clEnqueueNativeKernel cq f dat sz xs ys evs = 
+  withMaybeArray xs $ \pmem -> 
+  withMaybeArray ys $ \pbuff -> do
+    fptr <- wrapNativeKernelCallback f
+    clEnqueue (raw_clEnqueueNativeKernel cq fptr dat sz 
+               (fromIntegral . length $ xs) pmem pbuff) evs
+                          
 -- -----------------------------------------------------------------------------
 -- | Enqueues a marker command to command_queue. The marker command returns an
 -- event which can be used to queue a wait on this marker event i.e. wait for
