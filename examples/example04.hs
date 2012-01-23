@@ -42,7 +42,7 @@ main = do
   -- Initialize OpenCL
   (platform:_) <- clGetPlatformIDs
   (dev:_) <- clGetDeviceIDs platform CL_DEVICE_TYPE_ALL
-  context <- clCreateContext [dev] print
+  context <- clCreateContext [] [dev] print
   q <- clCreateCommandQueue context dev []
   
   -- Compile and get binaries
