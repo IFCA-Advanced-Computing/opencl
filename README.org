@@ -4,6 +4,8 @@
 
   Based on the [[http://hackage.haskell.org/package/OpenCLRaw][OpenCLRaw]] package by J.R. Heard.
 
+  By Luis Cabellos at [[http://www.ifca.es/en/home2][IFCA]]
+
 ** Installation
    *Requirements:* [[http://hackage.haskell.org/package/c2hs][c2hs]] must be installed. (Try ~cabal install c2hs~.)
 
