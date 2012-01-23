@@ -32,22 +32,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables, CPP #-}
 module Control.Parallel.OpenCL.Context(
   -- * Types
-  CLContext,
+  CLContext, CLContextProperty(..),
   -- * Context Functions
   clCreateContext, clCreateContextFromType, clRetainContext, clReleaseContext,
-  clGetContextReferenceCount, clGetContextDevices )
+  clGetContextReferenceCount, clGetContextDevices, clGetContextProperties )
     where
 
 -- -----------------------------------------------------------------------------
 import Foreign( 
   Ptr, FunPtr, nullPtr, castPtr, alloca, allocaArray, peek, peekArray, 
-  pokeArray )
+  ptrToIntPtr, intPtrToPtr, withArray )
 import Foreign.C.Types( CSize )
 import Foreign.C.String( CString, peekCString )
 import Foreign.Storable( sizeOf )
 import Control.Parallel.OpenCL.Types( 
   CLuint, CLint, CLDeviceType_, CLContextInfo_, CLContextProperty_, CLDeviceID, 
-  CLContext, CLDeviceType, bitmaskFromFlags, getCLValue,
+  CLContext, CLDeviceType, CLPlatformID, bitmaskFromFlags, getCLValue, getEnumCL,
   whenSuccess, wrapCheckSuccess, wrapPError, wrapGetInfo )
 
 #ifdef __APPLE__
@@ -74,6 +74,36 @@ foreign import CALLCONV "clGetContextInfo" raw_clGetContextInfo ::
   CLContext -> CLContextInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 
 -- -----------------------------------------------------------------------------
+#c
+enum CLContextProperties {
+  cL_CONTEXT_PLATFORM_=CL_CONTEXT_PLATFORM,
+  };
+#endc
+{#enum CLContextProperties {upcaseFirstLetter} #}
+
+-- | Specifies a context property name and its corresponding value.
+data CLContextProperty = CL_CONTEXT_PLATFORM CLPlatformID 
+                         -- ^ Specifies the platform to use.
+                       deriving( Show )
+
+packContextProperties :: [CLContextProperty] -> [CLContextProperty_]
+packContextProperties [] = [0]
+packContextProperties (CL_CONTEXT_PLATFORM pid : xs) = getCLValue CL_CONTEXT_PLATFORM_ 
+                                                       : (fromIntegral . ptrToIntPtr $ pid) 
+                                                       : packContextProperties xs
+
+unpackContextProperties :: [CLContextProperty_] -> [CLContextProperty]
+unpackContextProperties [] = error "non-exhaustive Context Property list"
+unpackContextProperties [x] 
+  | x == 0 = []
+  | otherwise = error "non-exhaustive Context Property list"
+unpackContextProperties (x:y:xs) = let ys = unpackContextProperties xs 
+                                   in case getEnumCL x of
+                                     CL_CONTEXT_PLATFORM_ 
+                                       -> CL_CONTEXT_PLATFORM 
+                                          (intPtrToPtr . fromIntegral $ y) : ys
+  
+-- -----------------------------------------------------------------------------
 mkContextCallback :: (String -> IO ()) -> ContextCallback
 mkContextCallback f msg _ _ _ = peekCString msg >>= f
 
@@ -82,23 +112,35 @@ mkContextCallback f msg _ _ _ = peekCString msg >>= f
 -- the OpenCL runtime for managing objects such as command-queues, memory, 
 -- program and kernel objects and for executing kernels on one or more devices 
 -- specified in the context.
-clCreateContext :: [CLDeviceID] -> (String -> IO ()) -> IO CLContext
-clCreateContext devs f = allocaArray ndevs $ \pdevs -> do
-  pokeArray pdevs devs
+clCreateContext :: [CLContextProperty] -> [CLDeviceID] -> (String -> IO ()) 
+                   -> IO CLContext
+clCreateContext [] devs f = withArray devs $ \pdevs ->
   wrapPError $ \perr -> do
     fptr <- wrapContextCallback $ mkContextCallback f
     raw_clCreateContext nullPtr cndevs pdevs fptr nullPtr perr
     where
-      ndevs = length devs
-      cndevs = fromIntegral ndevs
+      cndevs = fromIntegral . length $ devs
+clCreateContext props devs f = withArray devs $ \pdevs ->
+  wrapPError $ \perr -> do
+    fptr <- wrapContextCallback $ mkContextCallback f
+    withArray (packContextProperties props) $ \pprops ->
+      raw_clCreateContext pprops cndevs pdevs fptr nullPtr perr    
+    where
+      cndevs = fromIntegral . length $ devs
 
 -- | Create an OpenCL context from a device type that identifies the specific 
 -- device(s) to use.
-clCreateContextFromType :: [CLDeviceType] -> (String -> IO ()) 
-                           -> IO CLContext
-clCreateContextFromType xs f = wrapPError $ \perr -> do
+clCreateContextFromType :: [CLContextProperty] -> [CLDeviceType] 
+                           -> (String -> IO ()) -> IO CLContext
+clCreateContextFromType [] xs f = wrapPError $ \perr -> do
   fptr <- wrapContextCallback $ mkContextCallback f
   raw_clCreateContextFromType nullPtr types fptr nullPtr perr
+    where
+      types = bitmaskFromFlags xs
+clCreateContextFromType props xs f = wrapPError $ \perr -> do
+  fptr <- wrapContextCallback $ mkContextCallback f
+  withArray (packContextProperties props) $ \pprops -> 
+    raw_clCreateContextFromType pprops types fptr nullPtr perr
     where
       types = bitmaskFromFlags xs
 
@@ -165,4 +207,18 @@ clGetContextDevices ctx = do
       infoid = getCLValue CL_CONTEXT_DEVICES
       elemSize = sizeOf (nullPtr :: CLDeviceID)
 
+clGetContextProperties :: CLContext -> IO [CLContextProperty]
+clGetContextProperties ctx = do
+  size <- getContextInfoSize ctx infoid
+  let n = (fromIntegral size) `div` elemSize 
+    
+  if n == 0 
+    then return []
+    else allocaArray n $ \(buff :: Ptr CLContextProperty_) ->
+      whenSuccess (raw_clGetContextInfo ctx infoid size (castPtr buff) nullPtr)
+        $ fmap unpackContextProperties $ peekArray n buff
+    where
+      infoid = getCLValue CL_CONTEXT_PROPERTIES
+      elemSize = sizeOf (nullPtr :: CLDeviceID)
+  
 -- -----------------------------------------------------------------------------
