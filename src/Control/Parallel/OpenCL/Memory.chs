@@ -37,7 +37,7 @@ module Control.Parallel.OpenCL.Memory(
   -- * Memory Functions
   clCreateBuffer, clRetainMemObject, clReleaseMemObject, clGetMemType, 
   clGetMemFlags, clGetMemSize, clGetMemHostPtr, clGetMemMapCount, 
-  clGetMemReferenceCount, clGetMemContext,
+  clGetMemReferenceCount, clGetMemContext, clCreateFromGLBuffer,
   -- * Image Functions
   clCreateImage2D, clCreateImage3D, clGetSupportedImageFormats,
   clGetImageFormat, clGetImageElementSize, clGetImageRowPitch,
@@ -75,6 +75,8 @@ foreign import CALLCONV "clCreateImage2D" raw_clCreateImage2D ::
 foreign import CALLCONV "clCreateImage3D" raw_clCreateImage3D :: 
   CLContext -> CLMemFlags_-> CLImageFormat_p -> CSize -> CSize -> CSize -> CSize 
   -> CSize -> Ptr () -> Ptr CLint -> IO CLMem
+foreign import CALLCONV "clCreateFromGLBuffer" raw_clCreateFromGLBuffer ::
+  CLContext -> CLMemFlags_ -> CLuint -> Ptr CLint -> IO CLMem
 foreign import CALLCONV "clRetainMemObject" raw_clRetainMemObject :: 
   CLMem -> IO CLint
 foreign import CALLCONV "clReleaseMemObject" raw_clReleaseMemObject :: 
@@ -121,6 +123,22 @@ clCreateBuffer ctx xs (sbuff,buff) = wrapPError $ \perr -> do
   raw_clCreateBuffer ctx flags (fromIntegral sbuff) buff perr
     where
       flags = bitmaskFromFlags xs
+
+{-| Creates an OpenCL buffer object from an OpenGL buffer object. Returns a valid non-zero OpenCL buffer object if the buffer object is created successfully. Otherwise it throws the 'CLError':
+ * 'CL_INVALID_CONTEXT' if context is not a valid context or was not created from a GL context.
+
+ * 'CL_INVALID_VALUE' if values specified in flags are not valid.
+
+ * 'CL_INVALID_GL_OBJECT' if bufobj is not a GL buffer object or is a GL buffer object but does not have an existing data store.
+
+ * 'CL_OUT_OF_RESOURCES' if there is a failure to allocate resources required by the OpenCL implementation on the device.
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required by the OpenCL implementation on the host.
+-}
+clCreateFromGLBuffer :: CLContext -> [CLMemFlag] -> CLuint -> IO CLMem
+clCreateFromGLBuffer ctx xs glObj = wrapPError $ \perr -> do
+  raw_clCreateFromGLBuffer ctx flags glObj perr
+    where flags = bitmaskFromFlags xs
     
 -- | Increments the memory object reference count. returns 'True' if the
 -- function is executed successfully. After the memobj reference count becomes
