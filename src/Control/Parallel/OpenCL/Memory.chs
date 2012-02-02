@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 module Control.Parallel.OpenCL.Memory(
   -- * Types
   CLMem, CLSampler, CLMemFlag(..), CLMemObjectType(..), CLAddressingMode(..), 
-  CLFilterMode(..), CLImageFormat(..),
+  CLFilterMode(..), CLImageFormat(..), CLChannelOrder(..), CLChannelType(..),
   -- * Memory Functions
   clCreateBuffer, clRetainMemObject, clReleaseMemObject, clGetMemType, 
   clGetMemFlags, clGetMemSize, clGetMemHostPtr, clGetMemMapCount, 
