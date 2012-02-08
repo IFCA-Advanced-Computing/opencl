@@ -77,6 +77,15 @@ foreign import CALLCONV "clGetContextInfo" raw_clGetContextInfo ::
 #c
 enum CLContextProperties {
   cL_CONTEXT_PLATFORM_=CL_CONTEXT_PLATFORM,
+#ifdef __APPLE__
+  cL_CGL_SHAREGROUP_KHR_=CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE
+#else
+  cL_GL_CONTEXT_KHR_=CL_GL_CONTEXT_KHR,
+  cL_EGL_DISPLAY_KHR_=CL_EGL_DISPLAY_KHR,
+  cL_GLX_DISPLAY_KHR_=CL_GLX_DISPLAY_KHR,
+  cL_WGL_HDC_KHR_=CL_WGL_HDC_KHR,
+  cL_CGL_SHAREGROUP_KHR_=CL_CGL_SHAREGROUP_KHR
+#endif
   };
 #endc
 {#enum CLContextProperties {upcaseFirstLetter} #}
@@ -84,13 +93,35 @@ enum CLContextProperties {
 -- | Specifies a context property name and its corresponding value.
 data CLContextProperty = CL_CONTEXT_PLATFORM CLPlatformID 
                          -- ^ Specifies the platform to use.
+                       | CL_CGL_SHAREGROUP_KHR (Ptr ())
+                         -- ^ Specifies the CGL share group to use.
+#ifndef __APPLE__
+                       | CL_GL_CONTEXT_KHR (Ptr ())
+                       | CL_EGL_DISPLAY_KHR (Ptr ())
+                       | CL_GLX_DISPLAY_KHR (Ptr ())
+                       | CL_WGL_HDC_KHR (Ptr ())
+#endif
                        deriving( Show )
+
+packProperty :: CLContextProperty -> [CLContextProperty_]
+packProperty (CL_CONTEXT_PLATFORM pid)   = [ getCLValue CL_CONTEXT_PLATFORM_
+                                           , fromIntegral . ptrToIntPtr $ pid ]
+packProperty (CL_CGL_SHAREGROUP_KHR ptr) = [ getCLValue CL_CGL_SHAREGROUP_KHR_
+                                           , fromIntegral . ptrToIntPtr $ ptr ]
+#ifndef __APPLE__
+packProperty (CL_GL_CONTEXT_KHR ptr)     = [ getCLValue CL_GL_CONTEXT_KHR_
+                                           , fromIntegral . ptrToIntPtr $ ptr ]
+packProperty (CL_EGL_DISPLAY_KHR ptr)    = [ getCLValue CL_EGL_DISPLAY_KHR_
+                                           , fromIntegral . ptrToIntPtr $ ptr ]
+packProperty (CL_GLX_DISPLAY_KHR ptr)    = [ getCLValue CL_GLX_DISPLAY_KHR_
+                                           , fromIntegral . ptrToIntPtr $ ptr ]
+packProperty (CL_WGL_HDC_KHR ptr)        = [ getCLValue CL_WGL_HDC_KHR_
+                                           , fromIntegral . ptrToIntPtr $ ptr ]
+#endif
 
 packContextProperties :: [CLContextProperty] -> [CLContextProperty_]
 packContextProperties [] = [0]
-packContextProperties (CL_CONTEXT_PLATFORM pid : xs) = getCLValue CL_CONTEXT_PLATFORM_ 
-                                                       : (fromIntegral . ptrToIntPtr $ pid) 
-                                                       : packContextProperties xs
+packContextProperties (x:xs) = packProperty x ++ packContextProperties xs
 
 unpackContextProperties :: [CLContextProperty_] -> [CLContextProperty]
 unpackContextProperties [] = error "non-exhaustive Context Property list"
@@ -101,6 +132,9 @@ unpackContextProperties (x:y:xs) = let ys = unpackContextProperties xs
                                    in case getEnumCL x of
                                      CL_CONTEXT_PLATFORM_ 
                                        -> CL_CONTEXT_PLATFORM 
+                                          (intPtrToPtr . fromIntegral $ y) : ys
+                                     CL_CGL_SHAREGROUP_KHR_ 
+                                       -> CL_CGL_SHAREGROUP_KHR 
                                           (intPtrToPtr . fromIntegral $ y) : ys
   
 -- -----------------------------------------------------------------------------
