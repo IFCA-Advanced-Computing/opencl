@@ -67,7 +67,7 @@ module Control.Parallel.OpenCL.Query(
 -- -----------------------------------------------------------------------------
 import Foreign( Ptr, nullPtr, castPtr, alloca, allocaArray, peek, peekArray )
 import Foreign.C.String( CString, peekCString )
-import Foreign.C.Types( CSize )
+import Foreign.C.Types( CSize(..), CInt(..), CUInt(..), CULLong(..) ) -- expose FFI type constructors
 import Foreign.Storable( sizeOf )
 import Control.Parallel.OpenCL.Types( 
   CLbool, CLint, CLuint, CLulong, CLPlatformInfo_, CLDeviceType_,

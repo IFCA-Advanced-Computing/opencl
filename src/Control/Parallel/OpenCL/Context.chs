@@ -42,7 +42,7 @@ module Control.Parallel.OpenCL.Context(
 import Foreign( 
   Ptr, FunPtr, nullPtr, castPtr, alloca, allocaArray, peek, peekArray, 
   ptrToIntPtr, intPtrToPtr, withArray )
-import Foreign.C.Types( CSize )
+import Foreign.C.Types( CSize(..), CInt(..), CUInt(..), CULLong(..) ) -- expose FFI type constructors
 import Foreign.C.String( CString, peekCString )
 import Foreign.Storable( sizeOf )
 import Control.Parallel.OpenCL.Types( 
