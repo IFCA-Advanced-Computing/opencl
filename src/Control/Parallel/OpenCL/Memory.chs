@@ -33,15 +33,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 module Control.Parallel.OpenCL.Memory(
   -- * Types
   CLMem, CLSampler, CLMemFlag(..), CLMemObjectType(..), CLAddressingMode(..), 
-  CLFilterMode(..), CLImageFormat(..),
+  CLFilterMode(..), CLImageFormat(..), CLChannelOrder(..), CLChannelType(..),
   -- * Memory Functions
   clCreateBuffer, clRetainMemObject, clReleaseMemObject, clGetMemType, 
   clGetMemFlags, clGetMemSize, clGetMemHostPtr, clGetMemMapCount, 
-  clGetMemReferenceCount, clGetMemContext,
+  clGetMemReferenceCount, clGetMemContext, clCreateFromGLBuffer,
   -- * Image Functions
-  clCreateImage2D, clCreateImage3D, clGetSupportedImageFormats,
-  clGetImageFormat, clGetImageElementSize, clGetImageRowPitch,
-  clGetImageSlicePitch, clGetImageWidth, clGetImageHeight, clGetImageDepth,
+  clCreateImage2D, clCreateImage3D, clCreateFromGLTexture2D,
+  clGetSupportedImageFormats, clGetImageFormat, clGetImageElementSize, 
+  clGetImageRowPitch, clGetImageSlicePitch, clGetImageWidth, clGetImageHeight, 
+  clGetImageDepth,
   -- * Sampler Functions
   clCreateSampler, clRetainSampler, clReleaseSampler, clGetSamplerReferenceCount, 
   clGetSamplerContext, clGetSamplerAddressingMode, clGetSamplerFilterMode, 
@@ -75,6 +76,10 @@ foreign import CALLCONV "clCreateImage2D" raw_clCreateImage2D ::
 foreign import CALLCONV "clCreateImage3D" raw_clCreateImage3D :: 
   CLContext -> CLMemFlags_-> CLImageFormat_p -> CSize -> CSize -> CSize -> CSize 
   -> CSize -> Ptr () -> Ptr CLint -> IO CLMem
+foreign import CALLCONV "clCreateFromGLTexture2D" raw_clCreateFromGLTexture2D ::
+  CLContext -> CLMemFlags_ -> CLuint -> CLint -> CLuint -> Ptr CLint -> IO CLMem
+foreign import CALLCONV "clCreateFromGLBuffer" raw_clCreateFromGLBuffer ::
+  CLContext -> CLMemFlags_ -> CLuint -> Ptr CLint -> IO CLMem
 foreign import CALLCONV "clRetainMemObject" raw_clRetainMemObject :: 
   CLMem -> IO CLint
 foreign import CALLCONV "clReleaseMemObject" raw_clReleaseMemObject :: 
@@ -121,6 +126,23 @@ clCreateBuffer ctx xs (sbuff,buff) = wrapPError $ \perr -> do
   raw_clCreateBuffer ctx flags (fromIntegral sbuff) buff perr
     where
       flags = bitmaskFromFlags xs
+
+{-| Creates an OpenCL buffer object from an OpenGL buffer object. Returns a valid non-zero OpenCL buffer object if the buffer object is created successfully. Otherwise it throws the 'CLError':
+ * 'CL_INVALID_CONTEXT' if context is not a valid context or was not created from a GL context.
+
+ * 'CL_INVALID_VALUE' if values specified in flags are not valid.
+
+ * 'CL_INVALID_GL_OBJECT' if bufobj is not a GL buffer object or is a GL buffer object but does not have an existing data store.
+
+ * 'CL_OUT_OF_RESOURCES' if there is a failure to allocate resources required by the OpenCL implementation on the device.
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources required by the OpenCL implementation on the host.
+-}
+clCreateFromGLBuffer :: Integral a => CLContext -> [CLMemFlag] -> a -> IO CLMem
+clCreateFromGLBuffer ctx xs glObj = wrapPError $ \perr -> do
+  raw_clCreateFromGLBuffer ctx flags cglObj perr
+    where flags = bitmaskFromFlags xs
+          cglObj = fromIntegral glObj
     
 -- | Increments the memory object reference count. returns 'True' if the
 -- function is executed successfully. After the memobj reference count becomes
@@ -427,6 +449,62 @@ clCreateImage3D ctx xs fmt iw ih idepth irp isp ptr = wrapPError $ \perr -> with
       cid = fromIntegral idepth
       cirp = fromIntegral irp
       cisp = fromIntegral isp  
+
+{-| Creates a 2D OpenCL image object from an existing OpenGL texture.
+
+'clCreateFromGLTexture2D' returns a non-zero image object if the image
+object is created successfully. Otherwise, it throws one of the
+following 'CLError' exceptions:
+
+ * 'CL_INVALID_CONTEXT' if context is not a valid context or was not
+created from a GL context.
+
+ * 'CL_INVALID_VALUE' if values specified in flags are not valid or if
+value specified in texture_target is not one of the values specified
+in the description of texture_target.
+
+ * 'CL_INVALID_MIPLEVEL' if miplevel is less than the value of
+levelbase (for OpenGL implementations) or zero (for OpenGL ES
+implementations); or greater than the value of q (for both OpenGL and
+OpenGL ES). levelbase and q are defined for the texture in section
+3.8.10 (Texture Completeness) of the OpenGL 2.1 specification and
+section 3.7.10 of the OpenGL ES 2.0 specification.
+
+ * 'CL_INVALID_MIPLEVEL' if miplevel is greater than zero and the
+OpenGL implementation does not support creating from non-zero mipmap
+levels.
+
+ * 'CL_INVALID_GL_OBJECT' if texture is not a GL texture object whose
+type matches texture_target, if the specified miplevel of texture is
+not defined, or if the width or height of the specified miplevel is
+zero.
+
+ * 'CL_INVALID_IMAGE_FORMAT_DESCRIPTOR' if the OpenGL texture internal
+format does not map to a supported OpenCL image format.
+
+ * 'CL_OUT_OF_HOST_MEMORY' if there is a failure to allocate resources
+required by the OpenCL implementation on the host.
+
+-}
+clCreateFromGLTexture2D :: (Integral a, Integral b, Integral c) =>
+                           CLContext -- ^ A valid OpenCL context in
+                                     -- which the image object is to
+                                     -- be created.
+                        -> [CLMemFlag] -- ^ A list of flags that is
+                                       -- used to specify usage
+                                       -- information about the image
+                                       -- memory object being created.
+                        -> a -- ^ The OpenGL image type of the texture
+                             -- (e.g. GL_TEXTURE_2D)
+                        -> b -- ^ The mipmap level to be used.
+                        -> c -- ^ The GL texture object name.
+                        -> IO CLMem
+clCreateFromGLTexture2D ctx xs texType mipLevel tex = 
+  wrapPError $ raw_clCreateFromGLTexture2D ctx flags cTexType cMip cTex
+    where flags = bitmaskFromFlags xs
+          cTexType = fromIntegral texType
+          cMip = fromIntegral mipLevel
+          cTex = fromIntegral tex
       
 getNumSupportedImageFormats :: CLContext -> [CLMemFlag] -> CLMemObjectType -> IO CLuint
 getNumSupportedImageFormats ctx xs mtype = alloca $ \(value_size :: Ptr CLuint) -> do
