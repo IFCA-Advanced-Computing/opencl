@@ -78,6 +78,7 @@ foreign import CALLCONV "clGetContextInfo" raw_clGetContextInfo ::
 #c
 enum CLContextProperties {
   cL_CONTEXT_PLATFORM_=CL_CONTEXT_PLATFORM,
+#ifdef CL_VERSION_1_1
 #ifdef __APPLE__
   cL_CGL_SHAREGROUP_KHR_=CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE
 #else
@@ -87,6 +88,7 @@ enum CLContextProperties {
   cL_WGL_HDC_KHR_=CL_WGL_HDC_KHR,
   cL_CGL_SHAREGROUP_KHR_=CL_CGL_SHAREGROUP_KHR
 #endif
+#endif
   };
 #endc
 {#enum CLContextProperties {upcaseFirstLetter} #}
@@ -94,6 +96,7 @@ enum CLContextProperties {
 -- | Specifies a context property name and its corresponding value.
 data CLContextProperty = CL_CONTEXT_PLATFORM CLPlatformID 
                          -- ^ Specifies the platform to use.
+#ifdef CL_VERSION_1_1
                        | CL_CGL_SHAREGROUP_KHR (Ptr ())
                          -- ^ Specifies the CGL share group to use.
 #ifndef __APPLE__
@@ -102,11 +105,13 @@ data CLContextProperty = CL_CONTEXT_PLATFORM CLPlatformID
                        | CL_GLX_DISPLAY_KHR (Ptr ())
                        | CL_WGL_HDC_KHR (Ptr ())
 #endif
+#endif
                        deriving( Show )
 
 packProperty :: CLContextProperty -> [CLContextProperty_]
 packProperty (CL_CONTEXT_PLATFORM pid)   = [ getCLValue CL_CONTEXT_PLATFORM_
                                            , fromIntegral . ptrToIntPtr $ pid ]
+#ifdef CL_VERSION_1_1
 packProperty (CL_CGL_SHAREGROUP_KHR ptr) = [ getCLValue CL_CGL_SHAREGROUP_KHR_
                                            , fromIntegral . ptrToIntPtr $ ptr ]
 #ifndef __APPLE__
@@ -118,6 +123,7 @@ packProperty (CL_GLX_DISPLAY_KHR ptr)    = [ getCLValue CL_GLX_DISPLAY_KHR_
                                            , fromIntegral . ptrToIntPtr $ ptr ]
 packProperty (CL_WGL_HDC_KHR ptr)        = [ getCLValue CL_WGL_HDC_KHR_
                                            , fromIntegral . ptrToIntPtr $ ptr ]
+#endif
 #endif
 
 packContextProperties :: [CLContextProperty] -> [CLContextProperty_]
@@ -134,9 +140,11 @@ unpackContextProperties (x:y:xs) = let ys = unpackContextProperties xs
                                      CL_CONTEXT_PLATFORM_ 
                                        -> CL_CONTEXT_PLATFORM 
                                           (intPtrToPtr . fromIntegral $ y) : ys
+#ifdef CL_VERSION_1_1
                                      CL_CGL_SHAREGROUP_KHR_ 
                                        -> CL_CGL_SHAREGROUP_KHR 
                                           (intPtrToPtr . fromIntegral $ y) : ys
+#endif
   
 -- -----------------------------------------------------------------------------
 mkContextCallback :: (String -> IO ()) -> ContextCallback
