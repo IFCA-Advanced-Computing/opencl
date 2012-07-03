@@ -114,9 +114,15 @@ type CLSamplerInfo_ = {#type cl_sampler_info#}
 type CLAddressingMode_ = {#type cl_addressing_mode#}
 
 -- -----------------------------------------------------------------------------
+
+-- * NOTE: Apple lags behind official Khronos header files
 #c
 enum CLError {
+#ifdef __APPLE__
+  cL_PLATFORM_NOT_FOUND_KHR=-1001,
+#else
   cL_PLATFORM_NOT_FOUND_KHR=CL_PLATFORM_NOT_FOUND_KHR,
+#endif
   cL_BUILD_PROGRAM_FAILURE=CL_BUILD_PROGRAM_FAILURE,
   cL_COMPILER_NOT_AVAILABLE=CL_COMPILER_NOT_AVAILABLE,
   cL_DEVICE_NOT_AVAILABLE=CL_DEVICE_NOT_AVAILABLE,
