@@ -67,7 +67,8 @@ module Control.Parallel.OpenCL.Query(
 -- -----------------------------------------------------------------------------
 import Foreign( Ptr, nullPtr, castPtr, alloca, allocaArray, peek, peekArray )
 import Foreign.C.String( CString, peekCString )
-import Foreign.C.Types( CSize(..), CInt(..), CUInt(..), CULLong(..) ) -- expose FFI type constructors
+import Foreign.C.Types -- expose FFI type constructors, the final imported list
+                       -- depends on final architecture
 import Foreign.Storable( sizeOf )
 import Control.Parallel.OpenCL.Types( 
   CLbool, CLint, CLuint, CLulong, CLPlatformInfo_, CLDeviceType_,

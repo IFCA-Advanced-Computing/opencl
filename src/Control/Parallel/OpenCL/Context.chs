@@ -39,14 +39,15 @@ module Control.Parallel.OpenCL.Context(
     where
 
 -- -----------------------------------------------------------------------------
-import Foreign( 
-  Ptr, FunPtr, nullPtr, castPtr, alloca, allocaArray, peek, peekArray, 
+import Foreign(
+  Ptr, FunPtr, nullPtr, castPtr, alloca, allocaArray, peek, peekArray,
   ptrToIntPtr, intPtrToPtr, withArray )
-import Foreign.C.Types( CSize(..), CInt(..), CUInt(..), CULLong(..) ) -- expose FFI type constructors
+import Foreign.C.Types -- expose FFI type constructors, the final imported list
+                       -- depends on final architecture
 import Foreign.C.String( CString, peekCString )
 import Foreign.Storable( sizeOf )
-import Control.Parallel.OpenCL.Types( 
-  CLuint, CLint, CLDeviceType_, CLContextInfo_, CLContextProperty_, CLDeviceID, 
+import Control.Parallel.OpenCL.Types(
+  CLuint, CLint, CLDeviceType_, CLContextInfo_, CLContextProperty_, CLDeviceID,
   CLContext, CLDeviceType, CLPlatformID, bitmaskFromFlags, getCLValue, getEnumCL,
   whenSuccess, wrapCheckSuccess, wrapPError, wrapGetInfo )
 
@@ -59,19 +60,19 @@ import Control.Parallel.OpenCL.Types(
 
 -- -----------------------------------------------------------------------------
 type ContextCallback = CString -> Ptr () -> CSize -> Ptr () -> IO ()
-foreign import CALLCONV "wrapper" wrapContextCallback :: 
+foreign import CALLCONV "wrapper" wrapContextCallback ::
   ContextCallback -> IO (FunPtr ContextCallback)
 foreign import CALLCONV "clCreateContext" raw_clCreateContext ::
-  Ptr CLContextProperty_ -> CLuint -> Ptr CLDeviceID -> FunPtr ContextCallback -> 
+  Ptr CLContextProperty_ -> CLuint -> Ptr CLDeviceID -> FunPtr ContextCallback ->
   Ptr () -> Ptr CLint -> IO CLContext
-foreign import CALLCONV "clCreateContextFromType" raw_clCreateContextFromType :: 
-  Ptr CLContextProperty_ -> CLDeviceType_ -> FunPtr ContextCallback -> 
+foreign import CALLCONV "clCreateContextFromType" raw_clCreateContextFromType ::
+  Ptr CLContextProperty_ -> CLDeviceType_ -> FunPtr ContextCallback ->
   Ptr () -> Ptr CLint -> IO CLContext
-foreign import CALLCONV "clRetainContext" raw_clRetainContext :: 
+foreign import CALLCONV "clRetainContext" raw_clRetainContext ::
   CLContext -> IO CLint
-foreign import CALLCONV "clReleaseContext" raw_clReleaseContext :: 
+foreign import CALLCONV "clReleaseContext" raw_clReleaseContext ::
   CLContext -> IO CLint
-foreign import CALLCONV "clGetContextInfo" raw_clGetContextInfo :: 
+foreign import CALLCONV "clGetContextInfo" raw_clGetContextInfo ::
   CLContext -> CLContextInfo_ -> CSize -> Ptr () -> Ptr CSize -> IO CLint
 
 -- -----------------------------------------------------------------------------
@@ -94,7 +95,7 @@ enum CLContextProperties {
 {#enum CLContextProperties {upcaseFirstLetter} #}
 
 -- | Specifies a context property name and its corresponding value.
-data CLContextProperty = CL_CONTEXT_PLATFORM CLPlatformID 
+data CLContextProperty = CL_CONTEXT_PLATFORM CLPlatformID
                          -- ^ Specifies the platform to use.
 #ifdef CL_VERSION_1_1
                        | CL_CGL_SHAREGROUP_KHR (Ptr ())
@@ -132,30 +133,44 @@ packContextProperties (x:xs) = packProperty x ++ packContextProperties xs
 
 unpackContextProperties :: [CLContextProperty_] -> [CLContextProperty]
 unpackContextProperties [] = error "non-exhaustive Context Property list"
-unpackContextProperties [x] 
+unpackContextProperties [x]
   | x == 0 = []
   | otherwise = error "non-exhaustive Context Property list"
-unpackContextProperties (x:y:xs) = let ys = unpackContextProperties xs 
+unpackContextProperties (x:y:xs) = let ys = unpackContextProperties xs
                                    in case getEnumCL x of
-                                     CL_CONTEXT_PLATFORM_ 
-                                       -> CL_CONTEXT_PLATFORM 
+                                     CL_CONTEXT_PLATFORM_
+                                       -> CL_CONTEXT_PLATFORM
                                           (intPtrToPtr . fromIntegral $ y) : ys
 #ifdef CL_VERSION_1_1
-                                     CL_CGL_SHAREGROUP_KHR_ 
-                                       -> CL_CGL_SHAREGROUP_KHR 
+                                     CL_CGL_SHAREGROUP_KHR_
+                                       -> CL_CGL_SHAREGROUP_KHR
+                                          (intPtrToPtr . fromIntegral $ y) : ys
+#ifndef __APPLE__
+                                     CL_GL_CONTEXT_KHR_
+                                       -> CL_GL_CONTEXT_KHR
+                                          (intPtrToPtr . fromIntegral $ y) : ys
+                                     CL_EGL_DISPLAY_KHR_
+                                       -> CL_EGL_DISPLAY_KHR
+                                          (intPtrToPtr . fromIntegral $ y) : ys
+                                     CL_GLX_DISPLAY_KHR_
+                                       -> CL_GLX_DISPLAY_KHR
+                                          (intPtrToPtr . fromIntegral $ y) : ys
+                                     CL_WGL_HDC_KHR_
+                                       -> CL_WGL_HDC_KHR
                                           (intPtrToPtr . fromIntegral $ y) : ys
 #endif
-  
+#endif
+
 -- -----------------------------------------------------------------------------
 mkContextCallback :: (String -> IO ()) -> ContextCallback
 mkContextCallback f msg _ _ _ = peekCString msg >>= f
 
 -- | Creates an OpenCL context.
--- An OpenCL context is created with one or more devices. Contexts are used by 
--- the OpenCL runtime for managing objects such as command-queues, memory, 
--- program and kernel objects and for executing kernels on one or more devices 
+-- An OpenCL context is created with one or more devices. Contexts are used by
+-- the OpenCL runtime for managing objects such as command-queues, memory,
+-- program and kernel objects and for executing kernels on one or more devices
 -- specified in the context.
-clCreateContext :: [CLContextProperty] -> [CLDeviceID] -> (String -> IO ()) 
+clCreateContext :: [CLContextProperty] -> [CLDeviceID] -> (String -> IO ())
                    -> IO CLContext
 clCreateContext [] devs f = withArray devs $ \pdevs ->
   wrapPError $ \perr -> do
@@ -167,13 +182,13 @@ clCreateContext props devs f = withArray devs $ \pdevs ->
   wrapPError $ \perr -> do
     fptr <- wrapContextCallback $ mkContextCallback f
     withArray (packContextProperties props) $ \pprops ->
-      raw_clCreateContext pprops cndevs pdevs fptr nullPtr perr    
+      raw_clCreateContext pprops cndevs pdevs fptr nullPtr perr
     where
       cndevs = fromIntegral . length $ devs
 
--- | Create an OpenCL context from a device type that identifies the specific 
+-- | Create an OpenCL context from a device type that identifies the specific
 -- device(s) to use.
-clCreateContextFromType :: [CLContextProperty] -> [CLDeviceType] 
+clCreateContextFromType :: [CLContextProperty] -> [CLDeviceType]
                            -> (String -> IO ()) -> IO CLContext
 clCreateContextFromType [] xs f = wrapPError $ \perr -> do
   fptr <- wrapContextCallback $ mkContextCallback f
@@ -182,31 +197,31 @@ clCreateContextFromType [] xs f = wrapPError $ \perr -> do
       types = bitmaskFromFlags xs
 clCreateContextFromType props xs f = wrapPError $ \perr -> do
   fptr <- wrapContextCallback $ mkContextCallback f
-  withArray (packContextProperties props) $ \pprops -> 
+  withArray (packContextProperties props) $ \pprops ->
     raw_clCreateContextFromType pprops types fptr nullPtr perr
     where
       types = bitmaskFromFlags xs
 
 -- | Increment the context reference count.
--- 'clCreateContext' and 'clCreateContextFromType' perform an implicit retain. 
--- This is very helpful for 3rd party libraries, which typically get a context 
--- passed to them by the application. However, it is possible that the 
--- application may delete the context without informing the library. Allowing 
--- functions to attach to (i.e. retain) and release a context solves the 
+-- 'clCreateContext' and 'clCreateContextFromType' perform an implicit retain.
+-- This is very helpful for 3rd party libraries, which typically get a context
+-- passed to them by the application. However, it is possible that the
+-- application may delete the context without informing the library. Allowing
+-- functions to attach to (i.e. retain) and release a context solves the
 -- problem of a context being used by a library no longer being valid.
--- Returns 'True' if the function is executed successfully, or 'False' if 
+-- Returns 'True' if the function is executed successfully, or 'False' if
 -- context is not a valid OpenCL context.
 clRetainContext :: CLContext -> IO Bool
-clRetainContext ctx = wrapCheckSuccess $ raw_clRetainContext ctx 
+clRetainContext ctx = wrapCheckSuccess $ raw_clRetainContext ctx
 
 -- | Decrement the context reference count.
--- After the context reference count becomes zero and all the objects attached 
--- to context (such as memory objects, command-queues) are released, the 
+-- After the context reference count becomes zero and all the objects attached
+-- to context (such as memory objects, command-queues) are released, the
 -- context is deleted.
--- Returns 'True' if the function is executed successfully, or 'False' if 
+-- Returns 'True' if the function is executed successfully, or 'False' if
 -- context is not a valid OpenCL context.
 clReleaseContext :: CLContext -> IO Bool
-clReleaseContext ctx = wrapCheckSuccess $ raw_clReleaseContext ctx 
+clReleaseContext ctx = wrapCheckSuccess $ raw_clReleaseContext ctx
 
 getContextInfoSize :: CLContext -> CLContextInfo_ -> IO CSize
 getContextInfoSize ctx infoid = alloca $ \(value_size :: Ptr CSize) -> do
@@ -222,8 +237,8 @@ enum CLContextInfo {
 #endc
 {#enum CLContextInfo {upcaseFirstLetter} #}
 
--- | Return the context reference count. The reference count returned should be 
--- considered immediately stale. It is unsuitable for general use in 
+-- | Return the context reference count. The reference count returned should be
+-- considered immediately stale. It is unsuitable for general use in
 -- applications. This feature is provided for identifying memory leaks.
 --
 -- This function execute OpenCL clGetContextInfo with 'CL_CONTEXT_REFERENCE_COUNT'.
@@ -231,7 +246,7 @@ clGetContextReferenceCount :: CLContext -> IO CLuint
 clGetContextReferenceCount ctx =
     wrapGetInfo (\(dat :: Ptr CLuint) ->
         raw_clGetContextInfo ctx infoid size (castPtr dat)) id
-    where 
+    where
       infoid = getCLValue CL_CONTEXT_REFERENCE_COUNT
       size = fromIntegral $ sizeOf (0::CLuint)
 
@@ -241,8 +256,8 @@ clGetContextReferenceCount ctx =
 clGetContextDevices :: CLContext -> IO [CLDeviceID]
 clGetContextDevices ctx = do
   size <- getContextInfoSize ctx infoid
-  let n = (fromIntegral size) `div` elemSize 
-    
+  let n = (fromIntegral size) `div` elemSize
+
   allocaArray n $ \(buff :: Ptr CLDeviceID) -> do
     whenSuccess (raw_clGetContextInfo ctx infoid size (castPtr buff) nullPtr)
       $ peekArray n buff
@@ -253,9 +268,9 @@ clGetContextDevices ctx = do
 clGetContextProperties :: CLContext -> IO [CLContextProperty]
 clGetContextProperties ctx = do
   size <- getContextInfoSize ctx infoid
-  let n = (fromIntegral size) `div` elemSize 
-    
-  if n == 0 
+  let n = (fromIntegral size) `div` elemSize
+
+  if n == 0
     then return []
     else allocaArray n $ \(buff :: Ptr CLContextProperty_) ->
       whenSuccess (raw_clGetContextInfo ctx infoid size (castPtr buff) nullPtr)
@@ -263,5 +278,5 @@ clGetContextProperties ctx = do
     where
       infoid = getCLValue CL_CONTEXT_PROPERTIES
       elemSize = sizeOf (nullPtr :: CLDeviceID)
-  
+
 -- -----------------------------------------------------------------------------
