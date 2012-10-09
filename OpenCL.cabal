@@ -1,5 +1,5 @@
 Name: OpenCL
-Version: 1.0.3.2
+Version: 1.0.3.3
 License: BSD3
 License-File: LICENSE
 Author: Luis Cabellos
@@ -34,7 +34,7 @@ Library
   Build-tools: c2hs
   hs-Source-Dirs: src
   ghc-options: -Wall
-  Build-Depends: base >=4.0 && < 5, bytestring -any, mtl==2.0.*
+  Build-Depends: base >=4.0 && < 5, bytestring -any, mtl >= 2.0
   Exposed-Modules: 
     Control.Parallel.OpenCL
     Control.Parallel.OpenCL.Query
