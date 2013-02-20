@@ -34,7 +34,7 @@ Library
   Build-tools: c2hs
   hs-Source-Dirs: src
   ghc-options: -Wall
-  Build-Depends: base >=4.0 && < 5, bytestring -any, mtl==2.0.*
+  Build-Depends: base >=4.0 && < 5, bytestring -any, mtl>=2
   Exposed-Modules: 
     Control.Parallel.OpenCL
     Control.Parallel.OpenCL.Query
