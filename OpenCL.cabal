@@ -8,9 +8,9 @@ Category: GPU, FFI, Graphics
 Build-Type: Simple
 Stability: Experimental
 Maintainer: Luis Cabellos
-Homepage: https://github.com/zhensydow/opencl
+Homepage: https://github.com/IFCA/opencl
 Synopsis: Haskell high-level wrapper for OpenCL
-bug-reports: https://github.com/zhensydow/opencl/issues
+bug-reports: https://github.com/zhensydow/IFCA/issues
 Cabal-Version: >=1.8
 Tested-With: GHC
 Description: 
@@ -77,11 +77,11 @@ Test-suite tests
 
 source-repository this
   type: git
-  location: https://zhensydow@github.com/zhensydow/opencl.git
-  tag: 1.0.3.0
+  location: https://zhensydow@github.com/IFCA/opencl.git
+  tag: 1.0.3.3
   branch: master
 
 source-repository head
   type: git
-  location: https://zhensydow@github.com/zhensydow/opencl.git
+  location: https://zhensydow@github.com/IFCA/opencl.git
   branch: develop
