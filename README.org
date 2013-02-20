@@ -36,10 +36,10 @@
    There is an simple working example in the examples folder. You can create an
    executable using:
 
-   : ghc --make -lOpenCL examples/example01.hs
+   : ghc --make examples/example01.hs
 
 ** Using ghci
 
    It's possible to use GHCi with OpenCL, e.g.:
 
-   : ghci -lOpenCL examples/example01.hs
+   : ghci examples/example01.hs

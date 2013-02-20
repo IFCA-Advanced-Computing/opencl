@@ -1,5 +1,5 @@
 Name: OpenCL
-Version: 1.0.3.0
+Version: 1.0.3.2
 License: BSD3
 License-File: LICENSE
 Author: Luis Cabellos
@@ -49,6 +49,8 @@ Library
   if os(linux)
     cpp-options: -DCALLCONV=ccall -Iinclude
     Frameworks:  OpenCL
+    -- this is needed for linking executables, but not for ghci -lOpenCL:
+    extra-libraries: OpenCL
 
   if os(darwin)
     cpp-options: -DCALLCONV=ccall
@@ -56,7 +58,13 @@ Library
     Frameworks:  OpenCL
 
   if os(windows)
-    cpp-options: -DCALLCONV=stdcall
+    cpp-options: -DCALLCONV=stdcall -Iinclude
+    include-dirs: include
+    ghc-options: -lOpenCL
+    ld-options:  -lOpenCL
+    -- NOTE: extra-libraries: OpenCL seems to fail without finding library!
+    -- NOTE: include-dirs without -Iinclude seems to fail too with GHC 7.4.1!
+
 
 Test-suite tests
   type:         exitcode-stdio-1.0
