@@ -43,6 +43,8 @@ module Control.Parallel.OpenCL.CommandQueue(
   clEnqueueWriteImage, clEnqueueCopyImage, clEnqueueCopyImageToBuffer,
   clEnqueueCopyBufferToImage, clEnqueueMapBuffer, clEnqueueMapImage,
   clEnqueueUnmapMemObject,
+  -- * OpenGL Object Locking
+  clEnqueueAcquireGLObjects, clEnqueueReleaseGLObjects,
   -- * Executing Kernels
   clEnqueueNDRangeKernel, clEnqueueTask, clEnqueueNativeKernel, 
   clEnqueueMarker, clEnqueueWaitForEvents, clEnqueueBarrier,
@@ -112,6 +114,10 @@ foreign import CALLCONV "clEnqueueWaitForEvents" raw_clEnqueueWaitForEvents ::
   CLCommandQueue -> CLuint -> Ptr CLEvent -> IO CLint
 foreign import CALLCONV "clEnqueueBarrier" raw_clEnqueueBarrier :: 
   CLCommandQueue -> IO CLint 
+foreign import CALLCONV "clEnqueueAcquireGLObjects" raw_clEnqueueAcquireGLObjects :: 
+  CLCommandQueue -> CLuint -> Ptr CLMem -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint 
+foreign import CALLCONV "clEnqueueReleaseGLObjects" raw_clEnqueueReleaseGLObjects :: 
+  CLCommandQueue -> CLuint -> Ptr CLMem -> CLuint -> Ptr CLEvent -> Ptr CLEvent -> IO CLint 
 foreign import CALLCONV "clFlush" raw_clFlush ::
   CLCommandQueue -> IO CLint
 foreign import CALLCONV "clFinish" raw_clFinish ::
@@ -1416,6 +1422,87 @@ clEnqueueWaitForEvents cq events = allocaArray nevents $ \pevents -> do
 -- by the OpenCL implementation on the host.
 clEnqueueBarrier :: CLCommandQueue -> IO ()
 clEnqueueBarrier cq = whenSuccess (raw_clEnqueueBarrier cq) $ return ()
+
+{- | Acquire OpenCL memory objects that have been created from OpenGL
+objects. These objects need to be acquired before they can be used by
+any OpenCL commands queued to a command-queue. The OpenGL objects are
+acquired by the OpenCL context associated with command_queue and can
+therefore be used by all command-queues associated with the OpenCL
+context.
+
+Returns CL_SUCCESS if the function is executed successfully. If
+num_objects is 0 and mem_objects is NULL the function does nothing and
+returns CL_SUCCESS. Otherwise, it returns one of the following errors:
+
+* CL_INVALID_VALUE if num_objects is zero and mem_objects is not a
+NULL value or if num_objects > 0 and mem_objects is NULL.
+
+* CL_INVALID_MEM_OBJECT if memory objects in mem_objects are not valid
+OpenCL memory objects.
+
+* CL_INVALID_COMMAND_QUEUE if command_queue is not a valid
+command-queue.
+
+* CL_INVALID_CONTEXT if context associated with command_queue was not
+created from an OpenGL context.
+
+* CL_INVALID_GL_OBJECT if memory objects in mem_objects have not been
+created from a GL object(s).
+
+* CL_INVALID_EVENT_WAIT_LIST if event_wait_list is NULL and
+num_events_in_wait_list > 0, or event_wait_list is not NULL and
+num_events_in_wait_list is 0, or if event objects in event_wait_list
+are not valid events.
+
+* CL_OUT_OF_HOST_MEMORY if there is a failure to allocate resources
+required by the OpenCL implementation on the host.
+-}
+clEnqueueAcquireGLObjects :: CLCommandQueue -> [CLMem] -> [CLEvent] -> IO CLEvent
+clEnqueueAcquireGLObjects cq mems evs = 
+  allocaArray nmems $ \pmems ->
+    do pokeArray pmems mems
+       clEnqueue (raw_clEnqueueAcquireGLObjects cq (fromIntegral nmems) pmems) evs
+  where nmems = length mems
+
+{- | Release OpenCL memory objects that have been created from OpenGL
+objects. These objects need to be released before they can be used by
+OpenGL. The OpenGL objects are released by the OpenCL context
+associated with command_queue.
+
+
+clEnqueueReleaseGLObjects returns CL_SUCCESS if the function is
+executed successfully. If num_objects is 0 and mem_objects is NULL the
+function does nothing and returns CL_SUCCESS. Otherwise, it returns
+one of the following errors:
+
+* CL_INVALID_VALUE if num_objects is zero and mem_objects is not a
+NULL value or if num_objects > 0 and mem_objects is NULL.
+
+* CL_INVALID_MEM_OBJECT if memory objects in mem_objects are not valid
+OpenCL memory objects.
+
+* CL_INVALID_COMMAND_QUEUE if command_queue is not a valid
+command-queue.
+
+* CL_INVALID_CONTEXT if context associated with command_queue was not
+created from an OpenGL context
+
+* CL_INVALID_GL_OBJECT if memory objects in mem_objects have not been
+created from a GL object(s).
+
+* CL_INVALID_EVENT_WAIT_LIST if event_wait_list is NULL and
+num_events_in_wait_list > 0, or event_wait_list is not NULL and
+num_events_in_wait_list is 0, or if event objects in event_wait_list
+are not valid events.
+
+* CL_OUT_OF_HOST_MEMORY if there is a failure to allocate resources
+required by the OpenCL implementation on the host.
+-}
+clEnqueueReleaseGLObjects :: CLCommandQueue -> [CLMem] -> [CLEvent] -> IO CLEvent
+clEnqueueReleaseGLObjects cq mems evs = allocaArray nmems $ \pmems ->
+  do pokeArray pmems mems
+     clEnqueue (raw_clEnqueueReleaseGLObjects cq (fromIntegral nmems) pmems) evs
+  where nmems = length mems
   
 -- -----------------------------------------------------------------------------
 {-| Issues all previously queued OpenCL commands in a command-queue to the
