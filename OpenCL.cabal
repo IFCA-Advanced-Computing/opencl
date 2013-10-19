@@ -47,7 +47,8 @@ Library
     Control.Parallel.OpenCL.Types
 
   if os(linux)
-    cpp-options: -DCALLCONV=ccall -Iinclude
+    cpp-options: -DCALLCONV=ccall
+    include-dirs: include
     Frameworks:  OpenCL
     -- this is needed for linking executables, but not for ghci -lOpenCL:
     extra-libraries: OpenCL
@@ -58,7 +59,7 @@ Library
     Frameworks:  OpenCL
 
   if os(windows)
-    cpp-options: -DCALLCONV=stdcall -Iinclude
+    cpp-options: -DCALLCONV=stdcall
     include-dirs: include
     -- NOTE: extra-libraries: OpenCL seems to fail without finding library!
     -- NOTE: include-dirs without -Iinclude seems to fail too with GHC 7.4.1!
