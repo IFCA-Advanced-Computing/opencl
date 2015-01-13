@@ -81,7 +81,7 @@ executeArray original ctx q krn = withArray original $ \input -> do
   eventWrite <- clEnqueueWriteBuffer q mem_in True 0 vecSize (castPtr input) []
   
   -- Execute Kernel
-  eventExec <- clEnqueueNDRangeKernel q krn [length original] [1] [eventWrite]
+  eventExec <- clEnqueueNDRangeKernel q krn [length original] [] [eventWrite]
   
   -- Get Result
   eventRead <- clEnqueueReadBuffer q mem_out True 0 vecSize (castPtr input) [eventExec]
