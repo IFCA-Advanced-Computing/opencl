@@ -80,9 +80,9 @@ main = do
   clSetKernelArgSto kernel3 1 mem_out2
   
   -- Execute Kernels
-  eventExec1 <- clEnqueueNDRangeKernel q kernel1 [length original] [1] []
-  eventExec2 <- clEnqueueNDRangeKernel q kernel2 [length original] [1] [eventExec1]
-  eventExec3 <- clEnqueueNDRangeKernel q kernel3 [length original] [1] [eventExec1]
+  eventExec1 <- clEnqueueNDRangeKernel q kernel1 [length original] [] []
+  eventExec2 <- clEnqueueNDRangeKernel q kernel2 [length original] [] [eventExec1]
+  eventExec3 <- clEnqueueNDRangeKernel q kernel3 [length original] [] [eventExec1]
   
   -- Get Result
   eventRead <- clEnqueueReadBuffer q mem_out1 True 0 vecSize (castPtr input) [eventExec2,eventExec3]

@@ -73,7 +73,7 @@ main = do
   clSetKernelArgSto kernel 1 mem_out
   
   -- Execute Kernel
-  eventExec <- clEnqueueNDRangeKernel q kernel [length original] [1] []
+  eventExec <- clEnqueueNDRangeKernel q kernel [length original] [] []
   
   -- Get Result
   eventRead <- clEnqueueReadBuffer q mem_out True 0 vecSize (castPtr input) [eventExec]
