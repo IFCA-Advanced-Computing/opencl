@@ -54,7 +54,7 @@ Library
     extra-libraries: OpenCL
 
   if os(darwin)
-    cpp-options: -DCALLCONV=ccall
+    cpp-options: -DCALLCONV=ccall -D__nullable= -D__nonnull=
     cc-options: "-U__BLOCKS__"
     Frameworks:  OpenCL
 
