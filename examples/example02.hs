@@ -29,7 +29,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -}
-import Control.Parallel.OpenCL  
+import Control.Parallel.OpenCL
 import Foreign( castPtr, nullPtr, sizeOf )
 import Foreign.C.Types( CFloat )
 import Foreign.Marshal.Array( peekArray, withArray )
@@ -49,12 +49,12 @@ main = do
   (dev:_) <- clGetDeviceIDs platform CL_DEVICE_TYPE_ALL
   context <- clCreateContext [] [dev] print
   q <- clCreateCommandQueue context dev [CL_QUEUE_PROFILING_ENABLE]
-  
+
   -- Initialize Kernel
   program <- clCreateProgramWithSource context programSource
   clBuildProgram program [dev] ""
   kernel <- clCreateKernel program "duparray"
-  
+
   -- run tests
   forM_ [100,200..30000] $ \s -> do
     let original = [0 .. s] :: [CFloat]
@@ -62,46 +62,44 @@ main = do
     res <- forM [0..n] $ \_ -> do
       (t1,t2,t3,_) <- executeArray original context q kernel
       return (t1,t2,t3)
-    
-    let (t1,t2,t3) = foldl' sumres (0,0,0) res
-        
-    putStrLn $ show s ++ "\t" ++ show (fromIntegral t1/n) ++ "\t" ++ show (fromIntegral t2/n) ++ "\t" ++ show (fromIntegral t3/n)
 
-  return ()
+    let (t1,t2,t3) = foldl' sumres (0,0,0) res
+
+    putStrLn $ show s ++ "\t" ++ show (fromIntegral t1/n) ++ "\t" ++ show (fromIntegral t2/n) ++ "\t" ++ show (fromIntegral t3/n)
 
 executeArray :: [CFloat] -> CLContext -> CLCommandQueue -> CLKernel -> IO (CLulong, CLulong, CLulong, [CFloat])
 executeArray original ctx q krn = withArray original $ \input -> do
-  mem_in <- clCreateBuffer ctx [CL_MEM_READ_ONLY] (vecSize, nullPtr)  
+  mem_in <- clCreateBuffer ctx [CL_MEM_READ_ONLY] (vecSize, nullPtr)
   mem_out <- clCreateBuffer ctx [CL_MEM_WRITE_ONLY] (vecSize, nullPtr)
 
   clSetKernelArgSto krn 0 mem_in
   clSetKernelArgSto krn 1 mem_out
-  
+
   -- Put Input
   eventWrite <- clEnqueueWriteBuffer q mem_in True 0 vecSize (castPtr input) []
-  
+
   -- Execute Kernel
   eventExec <- clEnqueueNDRangeKernel q krn [length original] [] [eventWrite]
-  
+
   -- Get Result
   eventRead <- clEnqueueReadBuffer q mem_out True 0 vecSize (castPtr input) [eventExec]
-    
+
   _ <- clWaitForEvents [eventRead]
-  
+
   t_start0 <- clGetEventProfilingInfo eventWrite CL_PROFILING_COMMAND_START
   t_end0 <- clGetEventProfilingInfo eventWrite CL_PROFILING_COMMAND_END
   let t_write = t_end0 - t_start0
-      
+
   t_start1 <- clGetEventProfilingInfo eventExec CL_PROFILING_COMMAND_START
   t_end1 <- clGetEventProfilingInfo eventExec CL_PROFILING_COMMAND_END
   let t_exec = t_end1 - t_start1
-  
+
   t_start2 <- clGetEventProfilingInfo eventRead CL_PROFILING_COMMAND_START
   t_end2 <- clGetEventProfilingInfo eventRead CL_PROFILING_COMMAND_END
   let t_read = t_end2 - t_start2
-  
+
   result <- peekArray (length original) input
-  
+
   return (t_write,t_exec,t_read,result)
     where
       elemSize = sizeOf (0 :: CFloat)
