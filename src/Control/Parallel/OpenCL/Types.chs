@@ -30,26 +30,26 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -}
 {-# LANGUAGE DeriveDataTypeable #-}
-module Control.Parallel.OpenCL.Types( 
+module Control.Parallel.OpenCL.Types(
   -- * Symple CL Types
-  CLbool, CLint, CLuint, CLulong, CLProgram, CLEvent, CLMem, CLPlatformID, 
-  CLDeviceID, CLContext, CLCommandQueue, CLPlatformInfo_, CLDeviceType_, 
-  CLDeviceInfo_, CLContextInfo_, CLContextProperty_, CLCommandQueueInfo_, 
-  CLEventInfo_, CLProfilingInfo_, CLCommandType_, CLCommandQueueProperty_, 
+  CLbool, CLint, CLuint, CLulong, CLProgram, CLEvent, CLMem, CLPlatformID,
+  CLDeviceID, CLContext, CLCommandQueue, CLPlatformInfo_, CLDeviceType_,
+  CLDeviceInfo_, CLContextInfo_, CLContextProperty_, CLCommandQueueInfo_,
+  CLEventInfo_, CLProfilingInfo_, CLCommandType_, CLCommandQueueProperty_,
   CLMemFlags_, CLMemObjectType_, CLMemInfo_, CLImageInfo_, CLMapFlags_,
   CLProgramInfo_, CLBuildStatus_,CLKernel, CLProgramBuildInfo_, CLKernelInfo_,
   CLKernelWorkGroupInfo_, CLDeviceLocalMemType_, CLDeviceMemCacheType_,
   CLSampler, CLFilterMode_, CLSamplerInfo_, CLAddressingMode_,
   -- * High Level Types
-  CLError(..), CLDeviceFPConfig(..), CLDeviceMemCacheType(..), 
-  CLDeviceExecCapability(..), CLDeviceLocalMemType(..), CLDeviceType(..), 
-  CLCommandQueueProperty(..), CLCommandType(..),  CLCommandExecutionStatus(..), 
+  CLError(..), CLDeviceFPConfig(..), CLDeviceMemCacheType(..),
+  CLDeviceExecCapability(..), CLDeviceLocalMemType(..), CLDeviceType(..),
+  CLCommandQueueProperty(..), CLCommandType(..),  CLCommandExecutionStatus(..),
   CLProfilingInfo(..), CLPlatformInfo(..), CLMemFlag(..), CLMemObjectType(..),
   CLBuildStatus(..), CLAddressingMode(..), CLFilterMode(..), CLMapFlag(..),
   -- * Functions
-  wrapPError, wrapCheckSuccess, wrapGetInfo, whenSuccess, getCLValue, 
-  throwCLError, getEnumCL, bitmaskToFlags, getCommandExecutionStatus, 
-  bitmaskToDeviceTypes, bitmaskFromFlags, bitmaskToCommandQueueProperties, 
+  wrapPError, wrapCheckSuccess, wrapGetInfo, whenSuccess, getCLValue,
+  throwCLError, getEnumCL, bitmaskToFlags, getCommandExecutionStatus,
+  bitmaskToDeviceTypes, bitmaskFromFlags, bitmaskToCommandQueueProperties,
   bitmaskToFPConfig, bitmaskToExecCapability, bitmaskToMemFlags )
        where
 
@@ -57,7 +57,7 @@ module Control.Parallel.OpenCL.Types(
 import Foreign
 import Foreign.C.Types
 import Data.List( foldl' )
-import Data.Typeable( Typeable(..) )
+import Data.Typeable( Typeable )
 import Control.Applicative( (<$>) )
 import Control.Exception( Exception(..), throwIO )
 
@@ -171,7 +171,7 @@ enum CLError {
   };
 #endc
 
-{-| 
+{-|
  * 'CL_BUILD_PROGRAM_FAILURE', Returned if there is a failure to build the
 program executable.
 
@@ -343,11 +343,11 @@ wrapPError f = alloca $ \perr -> do
   if errcode == CL_SUCCESS
     then return v
     else throwIO errcode
-  
+
 wrapCheckSuccess :: IO CLint -> IO Bool
 wrapCheckSuccess f = f >>= return . (==CL_SUCCESS) . getEnumCL
 
-wrapGetInfo :: Storable a 
+wrapGetInfo :: Storable a
                => (Ptr a -> Ptr CSize -> IO CLint) -> (a -> b) -> IO b
 wrapGetInfo fget fconvert= alloca $ \dat -> do
   errcode <- fget dat nullPtr
@@ -361,7 +361,7 @@ whenSuccess fcheck fval = do
   if errcode == getCLValue CL_SUCCESS
     then fval
     else throwCLError errcode
-         
+
 -- -----------------------------------------------------------------------------
 #c
 enum CLPlatformInfo {
@@ -374,30 +374,30 @@ enum CLPlatformInfo {
 #endc
 
 {-|
- * 'CL_PLATFORM_PROFILE', OpenCL profile string. Returns the profile name 
-supported by the implementation. The profile name returned can be one of the 
+ * 'CL_PLATFORM_PROFILE', OpenCL profile string. Returns the profile name
+supported by the implementation. The profile name returned can be one of the
 following strings:
 
  [@FULL_PROFILE@] If the implementation supports the OpenCL specification
 (functionality defined as part of the core specification and does not require
 any extensions to be supported).
 
- [@EMBEDDED_PROFILE@] If the implementation supports the OpenCL embedded 
-profile. The embedded profile is  defined to be a subset for each version of 
+ [@EMBEDDED_PROFILE@] If the implementation supports the OpenCL embedded
+profile. The embedded profile is  defined to be a subset for each version of
 OpenCL.
 
- * 'CL_PLATFORM_VERSION', OpenCL version string. Returns the OpenCL version 
-supported by the implementation. This version string has the following format: 
-/OpenCL major_version.minor_version platform-specific information/ The 
+ * 'CL_PLATFORM_VERSION', OpenCL version string. Returns the OpenCL version
+supported by the implementation. This version string has the following format:
+/OpenCL major_version.minor_version platform-specific information/ The
 /major_version.minor_version/ value returned will be 1.0.
-                    
+
  * 'CL_PLATFORM_NAME', Platform name string.
- 
+
  * 'CL_PLATFORM_VENDOR', Platform vendor string.
-                   
- * 'CL_PLATFORM_EXTENSIONS', Returns a space-separated list of extension names 
-(the extension names themselves do not contain any spaces) supported by the 
-platform. Extensions defined here must be supported by all devices associated 
+
+ * 'CL_PLATFORM_EXTENSIONS', Returns a space-separated list of extension names
+(the extension names themselves do not contain any spaces) supported by the
+platform. Extensions defined here must be supported by all devices associated
 with this platform.
 -}
 {#enum CLPlatformInfo {upcaseFirstLetter} deriving( Show ) #}
@@ -414,37 +414,37 @@ enum CLDeviceType {
 #endc
 
 {-|
- * 'CL_DEVICE_TYPE_CPU', An OpenCL device that is the host processor. The host 
+ * 'CL_DEVICE_TYPE_CPU', An OpenCL device that is the host processor. The host
 processor runs the OpenCL implementations and is a single or multi-core CPU.
-                  
- * 'CL_DEVICE_TYPE_GPU', An OpenCL device that is a GPU. By this we mean that the 
+
+ * 'CL_DEVICE_TYPE_GPU', An OpenCL device that is a GPU. By this we mean that the
 device can also be used to accelerate a 3D API such as OpenGL or DirectX.
-                  
- * 'CL_DEVICE_TYPE_ACCELERATOR', Dedicated OpenCL accelerators (for example the 
-IBM CELL Blade). These devices communicate with the host processor using a 
+
+ * 'CL_DEVICE_TYPE_ACCELERATOR', Dedicated OpenCL accelerators (for example the
+IBM CELL Blade). These devices communicate with the host processor using a
 peripheral interconnect such as PCIe.
-                
+
  * 'CL_DEVICE_TYPE_DEFAULT', The default OpenCL device in the system.
-           
+
  * 'CL_DEVICE_TYPE_ALL', All OpenCL devices available in the system.
 -}
 {#enum CLDeviceType {upcaseFirstLetter} deriving( Show ) #}
 
 #c
-enum CLCommandQueueProperty { 
+enum CLCommandQueueProperty {
   cL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE=CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE,
   cL_QUEUE_PROFILING_ENABLE=CL_QUEUE_PROFILING_ENABLE
   };
 #endc
 
 {-|
- * 'CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE', Determines whether the commands 
-queued in the command-queue are executed in-order or out-of-order. If set, the 
-commands in the command-queue are executed out-of-order. Otherwise, commands are 
+ * 'CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE', Determines whether the commands
+queued in the command-queue are executed in-order or out-of-order. If set, the
+commands in the command-queue are executed out-of-order. Otherwise, commands are
 executed in-order.
-                            
- * 'CL_QUEUE_PROFILING_ENABLE', Enable or disable profiling of commands in the 
-command-queue. If set, the profiling of commands is enabled. Otherwise profiling 
+
+ * 'CL_QUEUE_PROFILING_ENABLE', Enable or disable profiling of commands in the
+command-queue. If set, the profiling of commands is enabled. Otherwise profiling
 of commands is disabled. See 'clGetEventProfilingInfo' for more information.
 -}
 {#enum CLCommandQueueProperty {upcaseFirstLetter} deriving( Show, Bounded, Eq, Ord ) #}
@@ -460,15 +460,15 @@ enum CLDeviceFPConfig {
 
 {-|
  * 'CL_FP_DENORM', denorms are supported.
-                      
+
  * 'CL_FP_INF_NAN', INF and NaNs are supported.
-                      
+
  * 'CL_FP_ROUND_TO_NEAREST', round to nearest even rounding mode supported.
-                      
+
  * 'CL_FP_ROUND_TO_ZERO', round to zero rounding mode supported.
-                      
+
  * 'CL_FP_ROUND_TO_INF', round to +ve and -ve infinity rounding modes supported.
-                      
+
  * 'CL_FP_FMA', IEEE754-2008 fused multiply-add is supported.
 -}
 {#enum CLDeviceFPConfig {upcaseFirstLetter} deriving( Show, Bounded, Eq, Ord ) #}
@@ -482,7 +482,7 @@ enum CLDeviceExecCapability {
 
 {-|
  * 'CL_EXEC_KERNEL', The OpenCL device can execute OpenCL kernels.
-                            
+
  * 'CL_EXEC_NATIVE_KERNEL', The OpenCL device can execute native kernels.
 -}
 {#enum CLDeviceExecCapability {upcaseFirstLetter} deriving( Show, Bounded, Eq, Ord ) #}
@@ -540,13 +540,13 @@ enum CLCommandExecutionStatus {
 {-|
  * 'CL_QUEUED', command has been enqueued in the command-queue.
 
- * 'CL_SUBMITTED', enqueued command has been submitted by the host to the 
+ * 'CL_SUBMITTED', enqueued command has been submitted by the host to the
 device associated with the command-queue.
 
  * 'CL_RUNNING', device is currently executing this command.
-                            
+
  * 'CL_COMPLETE', the command has completed.
-                              
+
  * 'CL_EXEC_ERROR', command was abnormally terminated.
 -}
 {#enum CLCommandExecutionStatus {upcaseFirstLetter} deriving( Show ) #}
@@ -562,21 +562,21 @@ enum CLProfilingInfo {
 
 {-| Specifies the profiling data.
 
- * 'CL_PROFILING_COMMAND_QUEUED', A 64-bit value that describes the current 
-device time counter in nanoseconds when the command identified by event is 
+ * 'CL_PROFILING_COMMAND_QUEUED', A 64-bit value that describes the current
+device time counter in nanoseconds when the command identified by event is
 enqueued in a command-queue by the host.
- 
- * 'CL_PROFILING_COMMAND_SUBMIT', A 64-bit value that describes the current 
-device time counter in nanoseconds when the command identified by event that has 
-been enqueued is submitted by the host to the device associated with the 
+
+ * 'CL_PROFILING_COMMAND_SUBMIT', A 64-bit value that describes the current
+device time counter in nanoseconds when the command identified by event that has
+been enqueued is submitted by the host to the device associated with the
 commandqueue.
- 
- * 'CL_PROFILING_COMMAND_START', A 64-bit value that describes the current 
-device time counter in nanoseconds when the command identified by event starts 
+
+ * 'CL_PROFILING_COMMAND_START', A 64-bit value that describes the current
+device time counter in nanoseconds when the command identified by event starts
 execution on the device.
- 
- * 'CL_PROFILING_COMMAND_END', A 64-bit value that describes the current device 
-time counter in nanoseconds when the command identified by event has finished 
+
+ * 'CL_PROFILING_COMMAND_END', A 64-bit value that describes the current device
+time counter in nanoseconds when the command identified by event has finished
 execution on the device.
 -}
 {#enum CLProfilingInfo {upcaseFirstLetter} deriving( Show ) #}
@@ -592,7 +592,7 @@ enum CLMemFlag {
   cL_MEM_COPY_HOST_PTR=CL_MEM_COPY_HOST_PTR
   };
 #endc
-{-| 
+{-|
  * 'CL_MEM_READ_WRITE', This flag specifies that the memory object will be
 read and written by a kernel. This is the default.
 
@@ -623,8 +623,8 @@ allocate memory for the memory object and copy the data from memory referenced
 by host_ptr. 'CL_MEM_COPY_HOST_PTR' and 'CL_MEM_USE_HOST_PTR' are mutually
 exclusive. 'CL_MEM_COPY_HOST_PTR' can be used with 'CL_MEM_ALLOC_HOST_PTR' to
 initialize the contents of the cl_mem object allocated using host-accessible
-(e.g. PCIe) memory.  
--} 
+(e.g. PCIe) memory.
+-}
 {#enum CLMemFlag {upcaseFirstLetter} deriving( Show, Bounded, Eq, Ord ) #}
 
 #c
@@ -643,9 +643,9 @@ enum CLMemObjectType {
   };
 #endc
 
-{-| * 'CL_MEM_OBJECT_BUFFER' if memobj is created with 'clCreateBuffer'. 
- 
- * 'CL_MEM_OBJECT_IMAGE2D' if memobj is created with 'clCreateImage2D' 
+{-| * 'CL_MEM_OBJECT_BUFFER' if memobj is created with 'clCreateBuffer'.
+
+ * 'CL_MEM_OBJECT_IMAGE2D' if memobj is created with 'clCreateImage2D'
 
  * 'CL_MEM_OBJECT_IMAGE3D' if memobj is created with 'clCreateImage3D'.
 -}
@@ -669,7 +669,7 @@ on the specified program object for device.
  * 'CL_BUILD_SUCCESS'. The build status retrned if the last call to
 'clBuildProgram' on the specified program object for device was successful.
 
- * 'CL_BUILD_IN_PROGRESS'. The build status returned if the last call to 
+ * 'CL_BUILD_IN_PROGRESS'. The build status returned if the last call to
 'clBuildProgram' on the specified program object for device has not finished.
 -}
 {#enum CLBuildStatus {upcaseFirstLetter} deriving( Show ) #}
@@ -697,17 +697,17 @@ getCLValue :: (Enum a, Integral b) => a -> b
 getCLValue = fromIntegral . fromEnum
 
 getEnumCL :: (Integral a, Enum b) => a -> b
-getEnumCL = toEnum . fromIntegral 
+getEnumCL = toEnum . fromIntegral
 
 getCommandExecutionStatus :: CLint -> CLCommandExecutionStatus
-getCommandExecutionStatus n 
+getCommandExecutionStatus n
   | n < 0 = CL_EXEC_ERROR
   | otherwise = getEnumCL $ n
-                
+
 -- -----------------------------------------------------------------------------
 binaryFlags :: (Ord b, Enum b, Bounded b) => b -> [b]
 binaryFlags m = map toEnum . takeWhile (<= (fromEnum m)) $ [1 `shiftL` n | n <- [0..]]
-  
+
 testMask :: Bits b => b -> b -> Bool
 testMask mask v = (v .&. mask) == v
 
@@ -719,7 +719,7 @@ bitmaskToFlags xs mask = filter (testMask mask . fromIntegral . fromEnum) xs
 
 bitmaskToDeviceTypes :: CLDeviceType_ -> [CLDeviceType]
 bitmaskToDeviceTypes =
-	bitmaskToFlags 
+	bitmaskToFlags
 		[CL_DEVICE_TYPE_CPU
 		,CL_DEVICE_TYPE_GPU
 		,CL_DEVICE_TYPE_ACCELERATOR
@@ -729,7 +729,7 @@ bitmaskToDeviceTypes =
 
 bitmaskToCommandQueueProperties :: CLCommandQueueProperty_ -> [CLCommandQueueProperty]
 bitmaskToCommandQueueProperties = bitmaskToFlags (binaryFlags maxBound)
-      
+
 bitmaskToFPConfig :: CLDeviceFPConfig_ -> [CLDeviceFPConfig]
 bitmaskToFPConfig = bitmaskToFlags (binaryFlags maxBound)
 
