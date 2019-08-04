@@ -13,7 +13,7 @@ Synopsis: Haskell high-level wrapper for OpenCL
 bug-reports: https://github.com/IFCA/opencl/issues
 Cabal-Version: >=1.8
 Tested-With: GHC
-Description: 
+Description:
     Haskell FFI binding to OpenCL library. It includes high-level wrappers to
     help development. Based on the OpenCLRaw package.
     .
@@ -28,14 +28,14 @@ Extra-source-files:
   examples/example04.hs
   include/CL/*.h
   include/CL/*.hpp
-  src/test/*.hs  
+  src/test/*.hs
 
 Library
   Build-tools: c2hs
   hs-Source-Dirs: src
   ghc-options: -Wall
   Build-Depends: base >=4.0 && < 5, bytestring -any, mtl>=2
-  Exposed-Modules: 
+  Exposed-Modules:
     Control.Parallel.OpenCL
     Control.Parallel.OpenCL.Query
     Control.Parallel.OpenCL.Context
@@ -43,7 +43,7 @@ Library
     Control.Parallel.OpenCL.Memory
     Control.Parallel.OpenCL.Event
     Control.Parallel.OpenCL.Program
-  Other-Modules: 
+  Other-Modules:
     Control.Parallel.OpenCL.Types
 
   if os(linux)
