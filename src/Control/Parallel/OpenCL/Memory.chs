@@ -271,8 +271,8 @@ value.
 {#enum CLChannelType {upcaseFirstLetter} deriving(Show)#}
 
 data CLImageFormat = CLImageFormat
-                     { image_channel_order :: ! CLChannelOrder
-                     , image_channel_data_type :: ! CLChannelType }
+                     { image_channel_order :: !CLChannelOrder
+                     , image_channel_data_type :: !CLChannelType }
                      deriving( Show )
 {#pointer *cl_image_format as CLImageFormat_p -> CLImageFormat#}
 instance Storable CLImageFormat where
